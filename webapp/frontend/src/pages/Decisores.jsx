@@ -1,0 +1,48 @@
+import React, { useState } from "react";
+import { fmtScore } from "../api.js";
+import { Idioma, Ola, Tabla, Vacio } from "../componentes/Comunes.jsx";
+import { getCorridaId, useCorrida } from "../estado.js";
+import { t } from "../i18n/index.js";
+
+export default function Decisores() {
+  const { corrida } = useCorrida(getCorridaId());
+  const [nivel, setNivel] = useState("");
+
+  const porProspecto = Object.fromEntries((corrida?.prospectos || []).map((p) => [p.id, p]));
+  const todos = (corrida?.decisores || []).map((d) => ({ ...d, prospecto: porProspecto[d.prospecto_id] }));
+  const filas = nivel ? todos.filter((d) => d.prospecto?.nivel === nivel) : todos;
+
+  const columnas = [
+    { id: "score", titulo: t("tabla.score"),
+      render: (d) => <b className="tnum" style={{ color: "var(--green-deep)" }}>{fmtScore(d.score)}</b> },
+    { id: "ola", titulo: t("tabla.ola"),
+      render: (d) => (d.prospecto ? <Ola nivel={d.prospecto.nivel} /> : "—") },
+    { id: "decisor", titulo: t("tabla.decisor"), render: (d) => d.nombre },
+    { id: "cargo", titulo: t("tabla.cargo"), render: (d) => d.cargo },
+    { id: "empresa", titulo: t("tabla.empresa"), render: (d) => d.empresa },
+    { id: "pais", titulo: t("tabla.pais"), render: (d) => d.pais },
+    { id: "email", titulo: t("tabla.email"), render: (d) => d.email },
+    { id: "idioma", titulo: t("tabla.idioma"), render: (d) => <Idioma codigo={d.idioma} /> },
+  ];
+
+  if (!corrida) return <Vacio />;
+
+  return (
+    <>
+      <h1 className="page-title">{t("nav.decisores")}</h1>
+      <p className="page-sub">{t("fase.decisores.d")}</p>
+      <div className="toolbar">
+        <select value={nivel} onChange={(e) => setNivel(e.target.value)}>
+          <option value="">{t("correos.todos")}</option>
+          <option value="local">{t("ola.local")}</option>
+          <option value="latam">{t("ola.latam")}</option>
+          <option value="mundo">{t("ola.mundo")}</option>
+        </select>
+        <span className="nota" style={{ marginTop: 0 }}>
+          {filas.length} {t("common.de")} {todos.length}
+        </span>
+      </div>
+      <Tabla columnas={columnas} filas={filas} clave={(d) => d.id} />
+    </>
+  );
+}

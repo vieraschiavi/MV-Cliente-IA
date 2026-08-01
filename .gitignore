@@ -1,0 +1,49 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# --- Datos de corridas (se generan al usar el producto) ---
+# La barra inicial ancla la regla a la raíz. Sin ella, `datos/` también
+# ignoraba `cliente_ia/datos/`, que es código fuente (la semilla del catálogo
+# de mercado): el repo quedaba sin ese archivo y la suite entera reventaba con
+# FileNotFoundError en una máquina limpia.
+/datos/
+
+# --- Node / frontend ---
+node_modules/
+webapp/frontend/dist/
+webapp/frontend/node_modules/
+electron/node_modules/
+electron/dist_installer/
+
+# --- Empaquetado ---
+build/
+dist/
+*.spec.bak
+
+# --- Android (Capacitor genera el proyecto; el APK no se versiona) ---
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+*.apk
+*.aab
+*.keystore
+
+# --- Sistema / editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+.env
+.env.*

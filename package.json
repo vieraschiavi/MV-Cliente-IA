@@ -1,0 +1,19 @@
+{
+  "name": "mv-cliente-ia",
+  "private": true,
+  "version": "1.0.0",
+  "description": "MV Cliente IA — AutoGTM: investiga tu empresa, busca compradores, encuentra decisores y escribe los correos. Web, PC y Android.",
+  "scripts": {
+    "build:web": "cd webapp/frontend && npm install && npm run build",
+    "sync:android": "npm run build:web && npx cap sync android",
+    "apk:debug": "npm run sync:android && cd android && ./gradlew assembleDebug",
+    "apk:release": "npm run sync:android && cd android && ./gradlew assembleRelease"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.0"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/core": "^6.2.0"
+  }
+}

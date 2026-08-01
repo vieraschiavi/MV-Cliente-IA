@@ -1,0 +1,372 @@
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { api, descargar, esNativo, fmtScore, getBase } from "../api.js";
+import { Aviso, Idioma, Kpis, Ola, Vacio } from "../componentes/Comunes.jsx";
+import { getCorridaId, setCorridaId, useCorrida } from "../estado.js";
+import { t } from "../i18n/index.js";
+
+// El orden es el del pipeline (cliente_ia/modelos.py:FASES) y es el que se
+// numera 1..6 en pantalla.
+const FASES = ["investigar", "competencia", "campanas", "prospectos", "decisores", "emails"];
+const CUANTOS_EN_RESUMEN = 6;
+
+function Fase({ n, clave, paso, abierta, alternar, children }) {
+  const estado = paso?.estado || "pendiente";
+  const hay = (paso?.items || 0) > 0;
+  return (
+    <section className={`fase ${estado} ${abierta ? "abierta on" : ""}`}>
+      <button className="fase-cab" onClick={alternar} aria-expanded={abierta}>
+        <span className="fase-num">{estado === "listo" ? "✓" : n}</span>
+        <span className="fase-txt">
+          <b>{t(`fase.${clave}.n`)}</b>
+          <small>{paso?.detalle || t(`fase.${clave}.d`)}</small>
+        </span>
+        <span className="fase-meta">
+          {estado === "corriendo" ? <i className="latido" /> : null}
+          {hay ? <span className="tnum">{paso.items}</span> : null}
+          {paso?.ms ? <span className="ms tnum">{paso.ms} ms</span> : null}
+          <span className="chev">⌄</span>
+        </span>
+      </button>
+      {abierta ? <div className="fase-cuerpo">{children}</div> : null}
+    </section>
+  );
+}
+
+function DatoEmpresa({ etiqueta, valor }) {
+  if (!valor || (Array.isArray(valor) && !valor.length)) return null;
+  return (
+    <p style={{ margin: "0 0 10px", fontSize: 13 }}>
+      <span style={{ color: "var(--muted)", fontWeight: 700 }}>{etiqueta}: </span>
+      {Array.isArray(valor) ? valor.join(" · ") : valor}
+    </p>
+  );
+}
+
+export default function Explorar() {
+  const nav = useNavigate();
+  const [id, setId] = useState(getCorridaId());
+  const { corrida, error } = useCorrida(id);
+  const [form, setForm] = useState({
+    dominio: "mvkobranzaia.com", nombre: "MV Kobra AI", modo: "demo", prospectos: 60,
+    // Enlaces del mensaje: el banner, el video y la web que llevan el correo y
+    // el mensaje de LinkedIn, cada uno en el idioma del receptor.
+    sitio: "", video_en_landing: true, videos: { es: "", pt: "", en: "" },
+  });
+  const [verEnlaces, setVerEnlaces] = useState(false);
+  const [lanzando, setLanzando] = useState(false);
+  const [errLanzar, setErrLanzar] = useState("");
+  const [abierta, setAbierta] = useState("investigar");
+  const [tocada, setTocada] = useState(false);
+
+  const pasos = Object.fromEntries((corrida?.pasos || []).map((p) => [p.clave, p]));
+  const hechas = (corrida?.pasos || []).filter((p) => p.estado === "listo").length;
+  const corriendo = corrida?.estado === "corriendo" || corrida?.estado === "pendiente";
+
+  // Mientras corre, la fase abierta sigue a la que está trabajando — es lo que
+  // hace que se vea como un proceso y no como una lista estática. En cuanto el
+  // usuario abre una a mano deja de moverse solo (`tocada`).
+  useEffect(() => {
+    if (tocada || !corrida) return;
+    const activa = (corrida.pasos || []).find((p) => p.estado === "corriendo");
+    if (activa) setAbierta(activa.clave);
+    else if (corrida.estado === "listo") setAbierta("prospectos");
+  }, [corrida, tocada]);
+
+  const lanzar = async (e) => {
+    e.preventDefault();
+    setErrLanzar("");
+    setLanzando(true);
+    try {
+      const r = await api("/api/corridas", {
+        metodo: "POST",
+        cuerpo: {
+          dominio: form.dominio.trim(),
+          nombre: form.nombre.trim(),
+          modo: form.modo,
+          idioma: "es",
+          prospectos: Number(form.prospectos) || 60,
+          sitio: form.sitio.trim() || form.dominio.trim(),
+          video_en_landing: form.video_en_landing,
+          videos: Object.fromEntries(
+            Object.entries(form.videos).filter(([, v]) => v.trim())),
+        },
+      });
+      setCorridaId(r.id);
+      setId(r.id);
+      setTocada(false);
+      setAbierta("investigar");
+    } catch (e2) {
+      setErrLanzar(e2.status === 0 && esNativo() && !getBase()
+        ? t("aviso.sin_servidor") : `${t("explorar.error")}: ${e2.message}`);
+    } finally {
+      setLanzando(false);
+    }
+  };
+
+  const nuevo = () => {
+    setCorridaId("");
+    setId("");
+    setTocada(false);
+  };
+
+  const alternar = (clave) => {
+    setTocada(true);
+    setAbierta((a) => (a === clave ? "" : clave));
+  };
+
+  const r = corrida?.resumen || {};
+  const porNivel = r.prospectos_por_nivel || {};
+
+  return (
+    <>
+      <h1 className="page-title">{t("explorar.titulo")}</h1>
+      <p className="page-sub">{t("explorar.subtitulo")}</p>
+
+      {esNativo() && !getBase() ? <Aviso>{t("aviso.sin_servidor")}</Aviso> : null}
+
+      <form className="card arranque" onSubmit={lanzar}>
+        <div className="campo crece">
+          <label htmlFor="dominio">{t("explorar.dominio")}</label>
+          <input id="dominio" type="text" value={form.dominio} required
+                 placeholder={t("explorar.dominio_ph")} autoCapitalize="none" autoCorrect="off"
+                 onChange={(e) => setForm({ ...form, dominio: e.target.value })} />
+        </div>
+        <div className="campo">
+          <label htmlFor="nombre">{t("explorar.nombre")}</label>
+          <input id="nombre" type="text" value={form.nombre}
+                 placeholder={t("explorar.nombre_ph")}
+                 onChange={(e) => setForm({ ...form, nombre: e.target.value })} />
+        </div>
+        <div className="campo">
+          <label htmlFor="modo">{t("explorar.modo")}</label>
+          <select id="modo" value={form.modo}
+                  onChange={(e) => setForm({ ...form, modo: e.target.value })}>
+            <option value="demo">{t("explorar.modo_demo")}</option>
+            <option value="web">{t("explorar.modo_web")}</option>
+            <option value="llm">{t("explorar.modo_llm")}</option>
+          </select>
+        </div>
+        <div className="campo">
+          <label htmlFor="cuantos">{t("explorar.prospectos")}</label>
+          <select id="cuantos" value={form.prospectos}
+                  onChange={(e) => setForm({ ...form, prospectos: e.target.value })}>
+            {[20, 40, 60, 100, 150].map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </div>
+        <button className="btn cta" type="submit" disabled={lanzando || corriendo}>
+          {lanzando || corriendo ? t("explorar.lanzando") : t("explorar.lanzar")} →
+        </button>
+        {corrida ? (
+          <button className="btn ghost" type="button" onClick={nuevo}>{t("explorar.otra")}</button>
+        ) : null}
+
+        <div className="enlaces-cfg">
+          <button type="button" className="desplegar"
+                  onClick={() => setVerEnlaces(!verEnlaces)} aria-expanded={verEnlaces}>
+            {verEnlaces ? "▾" : "▸"} {t("explorar.enlaces")}
+          </button>
+          {verEnlaces ? (
+            <div className="enlaces-cuerpo">
+              <div className="campo crece">
+                <label htmlFor="sitio">{t("explorar.sitio")} <i>({t("explorar.opcional")})</i></label>
+                <input id="sitio" type="text" value={form.sitio} inputMode="url"
+                       autoCapitalize="none" autoCorrect="off"
+                       placeholder={form.dominio || "mvkobranzaia.com"}
+                       onChange={(e) => setForm({ ...form, sitio: e.target.value })} />
+              </div>
+              <label className="checkbox">
+                <input type="checkbox" checked={form.video_en_landing}
+                       onChange={(e) => setForm({ ...form, video_en_landing: e.target.checked })} />
+                <span>{t("explorar.usar_video")}</span>
+              </label>
+              {["es", "pt", "en"].map((i) => (
+                <div className="campo crece" key={i}>
+                  <label htmlFor={`video-${i}`}>
+                    {t("explorar.video_url", { idioma: i.toUpperCase() })}{" "}
+                    <i>({t("explorar.opcional")})</i>
+                  </label>
+                  <input id={`video-${i}`} type="text" inputMode="url"
+                         autoCapitalize="none" autoCorrect="off"
+                         value={form.videos[i]} placeholder="https://…"
+                         onChange={(e) => setForm({
+                           ...form, videos: { ...form.videos, [i]: e.target.value } })} />
+                </div>
+              ))}
+              <p className="nota" style={{ marginTop: 0 }}>{t("explorar.ayuda_video")}</p>
+            </div>
+          ) : null}
+        </div>
+      </form>
+
+      {errLanzar ? <p className="error-note">{errLanzar}</p> : null}
+      {error ? <p className="error-note">{error}</p> : null}
+      {corrida?.error ? <p className="error-note">{corrida.error}</p> : null}
+
+      {corrida ? (
+        <>
+          <div className="progreso" aria-label={t("explorar.progreso", { hechas, total: 6 })}>
+            <i style={{ width: `${(hechas / FASES.length) * 100}%` }} />
+          </div>
+
+          {corrida.estado === "listo" ? (
+            <div style={{ marginTop: 18 }}>
+              <Kpis items={[
+                { label: t("kpi.prospectos"), valor: r.prospectos || 0,
+                  delta: `${t("kpi.uruguay")}: ${porNivel.local || 0}` },
+                { label: t("kpi.decisores"), valor: r.decisores || 0 },
+                { label: t("kpi.correos"), valor: r.correos ?? r.emails ?? 0,
+                  delta: Object.entries(r.emails_por_idioma || {})
+                    .map(([k, v]) => `${k.toUpperCase()} ${v}`).join(" · ") },
+                { label: t("kpi.competidores"), valor: r.competidores || 0 },
+                { label: t("kpi.campanas"), valor: r.campanas || 0 },
+              ]} />
+            </div>
+          ) : null}
+
+          {corrida.estado === "listo" && (corrida.prospectos || []).some((p) => p.sintetico) ? (
+            <div style={{ marginTop: 16 }}><Aviso>{t("aviso.sintetico")}</Aviso></div>
+          ) : null}
+
+          <div className="fases">
+            {/* 1 · investigar */}
+            <Fase n={1} clave="investigar" paso={pasos.investigar}
+                  abierta={abierta === "investigar"} alternar={() => alternar("investigar")}>
+              {corrida.empresa ? (
+                <>
+                  <DatoEmpresa etiqueta={t("empresa.categoria")} valor={corrida.empresa.categoria} />
+                  <DatoEmpresa etiqueta={t("empresa.propuesta")} valor={corrida.empresa.propuesta} />
+                  <DatoEmpresa etiqueta={t("empresa.mercado")} valor={corrida.empresa.pais} />
+                  <DatoEmpresa etiqueta={t("empresa.tamano")} valor={corrida.empresa.tamano_objetivo} />
+                  <DatoEmpresa etiqueta={t("empresa.sectores")} valor={corrida.empresa.sectores_objetivo} />
+                  <DatoEmpresa etiqueta={t("empresa.diferenciales")} valor={corrida.empresa.diferenciales} />
+                </>
+              ) : <Vacio texto={t("common.cargando")} />}
+            </Fase>
+
+            {/* 2 · competencia */}
+            <Fase n={2} clave="competencia" paso={pasos.competencia}
+                  abierta={abierta === "competencia"} alternar={() => alternar("competencia")}>
+              {(corrida.competidores || []).length ? (
+                <div className="comp-grid">
+                  {corrida.competidores.map((c) => (
+                    <div className="comp" key={c.dominio}>
+                      <span className="fav">{(c.nombre || c.dominio)[0].toUpperCase()}</span>
+                      <span className="dom" title={c.posicionamiento}>{c.dominio}</span>
+                      <span className="sol tnum">{Math.round((c.solapamiento || 0) * 100)}%</span>
+                    </div>
+                  ))}
+                </div>
+              ) : <Vacio texto={t("common.cargando")} />}
+            </Fase>
+
+            {/* 3 · campañas */}
+            <Fase n={3} clave="campanas" paso={pasos.campanas}
+                  abierta={abierta === "campanas"} alternar={() => alternar("campanas")}>
+              <p className="nota" style={{ marginTop: 0, marginBottom: 12 }}>
+                {t("ola.explicacion")}
+              </p>
+              {(corrida.campanas || []).length ? (
+                <div className="camp-grid">
+                  {corrida.campanas.map((c) => (
+                    <div className="camp" key={c.id}>
+                      <b>{c.sector} <Ola nivel={c.nivel} /></b>
+                      <p>{c.angulo}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : <Vacio texto={t("common.cargando")} />}
+            </Fase>
+
+            {/* 4 · clientes potenciales */}
+            <Fase n={4} clave="prospectos" paso={pasos.prospectos}
+                  abierta={abierta === "prospectos"} alternar={() => alternar("prospectos")}>
+              {(corrida.prospectos || []).length ? (
+                <>
+                  <div className="pers-lista">
+                    {corrida.prospectos.slice(0, CUANTOS_EN_RESUMEN).map((p) => (
+                      <div className="pers" key={p.id}>
+                        <span className="ini">{p.pais}</span>
+                        <span className="info">
+                          <b>{p.nombre}</b>
+                          <small>{p.sector} · {p.ciudad} · {p.empleados} emp.</small>
+                        </span>
+                        <Ola nivel={p.nivel} />
+                        <span className="sc tnum">{fmtScore(p.score)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <button className="btn ghost" style={{ marginTop: 12 }}
+                          onClick={() => nav("/prospectos")}>
+                    {t("common.ver_todos")} ({corrida.prospectos.length}) →
+                  </button>
+                </>
+              ) : <Vacio texto={t("common.cargando")} />}
+            </Fase>
+
+            {/* 5 · decisores */}
+            <Fase n={5} clave="decisores" paso={pasos.decisores}
+                  abierta={abierta === "decisores"} alternar={() => alternar("decisores")}>
+              {(corrida.decisores || []).length ? (
+                <>
+                  <div className="pers-lista">
+                    {corrida.decisores.slice(0, CUANTOS_EN_RESUMEN).map((d) => (
+                      <div className="pers" key={d.id}>
+                        <span className="ini">
+                          {d.nombre.split(" ").map((x) => x[0]).slice(0, 2).join("")}
+                        </span>
+                        <span className="info">
+                          <b>{d.nombre}</b>
+                          <small>{d.cargo} · {d.empresa}</small>
+                        </span>
+                        <Idioma codigo={d.idioma} />
+                        <span className="sc tnum">{fmtScore(d.score)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <button className="btn ghost" style={{ marginTop: 12 }}
+                          onClick={() => nav("/decisores")}>
+                    {t("common.ver_todos")} ({corrida.decisores.length}) →
+                  </button>
+                </>
+              ) : <Vacio texto={t("common.cargando")} />}
+            </Fase>
+
+            {/* 6 · correos */}
+            <Fase n={6} clave="emails" paso={pasos.emails}
+                  abierta={abierta === "emails"} alternar={() => alternar("emails")}>
+              {(corrida.emails || []).length ? (
+                <>
+                  {corrida.emails.slice(0, 2).map((e) => (
+                    <div className="mail" key={e.id}>
+                      <div className="cab">
+                        <span className="asunto">{e.asunto}</span>
+                        <Idioma codigo={e.idioma} />
+                      </div>
+                      <pre>{e.cuerpo}</pre>
+                    </div>
+                  ))}
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
+                    <button className="btn ghost" onClick={() => nav("/correos")}>
+                      {t("common.ver_todos")} ({corrida.emails.length}) →
+                    </button>
+                    <button className="btn ghost"
+                            onClick={() => descargar(`/api/corridas/${corrida.id}/csv`,
+                                                     `${corrida.dominio}.csv`)}>
+                      {t("common.exportar_csv")}
+                    </button>
+                    <button className="btn ghost"
+                            onClick={() => descargar(`/api/corridas/${corrida.id}/xlsx`,
+                                                     `${corrida.dominio}.xlsx`)}>
+                      {t("common.exportar_xlsx")}
+                    </button>
+                  </div>
+                </>
+              ) : <Vacio texto={t("common.cargando")} />}
+            </Fase>
+          </div>
+        </>
+      ) : null}
+    </>
+  );
+}

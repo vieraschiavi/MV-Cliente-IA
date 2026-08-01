@@ -1,0 +1,181 @@
+{
+  "common": {
+    "marca": "MV CLIENTE <span>IA</span>",
+    "marca_texto": "MV Cliente IA",
+    "titulo_pagina": "MV Cliente IA · Encontrá tus próximos clientes",
+    "cargando": "Cargando…",
+    "copiar": "Copiar",
+    "copiado": "Copiado",
+    "exportar_csv": "⬇ CSV",
+    "exportar_xlsx": "⬇ Excel",
+    "ver_todos": "Ver todos",
+    "sin_datos": "Todavía no hay nada acá. Lanzá una búsqueda desde «Explorar».",
+    "de": "de"
+  },
+  "nav": {
+    "explorar": "Explorar",
+    "prospectos": "Clientes potenciales",
+    "decisores": "Decisores",
+    "correos": "Correos",
+    "historial": "Historial",
+    "configuracion": "Configuración"
+  },
+  "login": {
+    "subtitulo": "Encontrá tus próximos clientes",
+    "placeholder": "Contraseña",
+    "entrar": "Entrar",
+    "entrando": "Entrando…",
+    "error": "Contraseña incorrecta"
+  },
+  "explorar": {
+    "titulo": "Explorar",
+    "subtitulo": "Pegá el enlace de tu producto. El agente investiga tu empresa, busca a tus compradores, encuentra a los decisores y escribe los correos. Vos aparecés y cerrás.",
+    "dominio": "Sitio de tu producto",
+    "dominio_ph": "mvkobranzaia.com",
+    "nombre": "Nombre comercial",
+    "nombre_ph": "MV Kobra AI",
+    "modo": "Origen de datos",
+    "modo_demo": "Demo (sintético, sin conexión)",
+    "modo_web": "Leer mi sitio real",
+    "modo_llm": "Investigación con IA",
+    "prospectos": "Cuántas empresas",
+    "lanzar": "Empezar a buscar clientes",
+    "lanzando": "Buscando…",
+    "otra": "Nueva búsqueda",
+    "progreso": "{{hechas}} de {{total}} pasos",
+    "error": "No se pudo completar la búsqueda",
+    "enlaces": "Enlaces del mensaje",
+    "sitio": "Sitio web",
+    "usar_video": "Incluir el video de mi web en los correos y en LinkedIn",
+    "video_url": "URL del video en {{idioma}}",
+    "opcional": "opcional",
+    "ayuda_video": "Si dejás las URL vacías se usa la sección de video de tu propia web, en el idioma de cada receptor. Si el video está en YouTube, Vimeo o un CDN, pegá acá la URL de cada idioma."
+  },
+  "fase": {
+    "investigar": {
+      "n": "Investigá tu empresa",
+      "d": "Qué vendés, a quién y con qué argumento"
+    },
+    "competencia": {
+      "n": "Explorá la competencia",
+      "d": "Contra quién se te compara tu comprador"
+    },
+    "campanas": {
+      "n": "Definí campañas",
+      "d": "Un ángulo por sector y por ola geográfica"
+    },
+    "prospectos": {
+      "n": "Encontrá clientes potenciales",
+      "d": "Empresas que encajan en tu perfil de cliente"
+    },
+    "decisores": {
+      "n": "Encontrá a los decisores",
+      "d": "Quién firma la decisión en cada empresa"
+    },
+    "emails": {
+      "n": "Escribí los correos",
+      "d": "Uno por empresa, en el idioma de quien lo recibe"
+    }
+  },
+  "estado": {
+    "pendiente": "En espera",
+    "corriendo": "Corriendo…",
+    "listo": "Listo",
+    "error": "Error"
+  },
+  "empresa": {
+    "categoria": "Categoría",
+    "propuesta": "Propuesta de valor",
+    "sectores": "Sectores objetivo",
+    "tamano": "Tamaño de cliente",
+    "mercado": "Mercado base",
+    "diferenciales": "Diferenciales"
+  },
+  "ola": {
+    "titulo": "Orden de salida al mercado",
+    "local": "Uruguay",
+    "latam": "LATAM",
+    "mundo": "Resto del mundo",
+    "explicacion": "Uruguay primero, después LATAM, después el resto del mundo. El puntaje ya lleva ese peso adentro: un prospecto uruguayo bueno siempre va antes que uno igual de bueno de afuera."
+  },
+  "kpi": {
+    "prospectos": "Empresas",
+    "decisores": "Decisores",
+    "correos": "Correos",
+    "competidores": "Competidores",
+    "campanas": "Campañas",
+    "uruguay": "Uruguay"
+  },
+  "tabla": {
+    "score": "Puntaje",
+    "empresa": "Empresa",
+    "sector": "Sector",
+    "pais": "País",
+    "ciudad": "Ciudad",
+    "empleados": "Empleados",
+    "ola": "Ola",
+    "senales": "Por qué ahora",
+    "decisor": "Decisor",
+    "cargo": "Cargo",
+    "email": "Correo",
+    "idioma": "Idioma",
+    "asunto": "Asunto",
+    "campana": "Campaña",
+    "dominio": "Dominio",
+    "solapamiento": "Solapamiento",
+    "creada": "Fecha",
+    "modo": "Origen",
+    "estado": "Estado",
+    "acciones": "Acciones"
+  },
+  "correos": {
+    "titulo": "Correos",
+    "subtitulo": "Un primer contacto y su seguimiento por empresa, cada uno en el idioma del país de quien lo recibe.",
+    "seguimiento": "Seguimiento (+3 días)",
+    "filtro_idioma": "Idioma",
+    "todos": "Todos",
+    "texto": "Texto plano",
+    "html": "HTML",
+    "linkedin": "LinkedIn",
+    "nota_linkedin": "Nota de invitación",
+    "mensaje_linkedin": "Mensaje directo",
+    "video": "Video",
+    "web": "Web",
+    "sin_video": "Sin video configurado",
+    "abrir_html": "Abrir en pestaña",
+    "copiar_html": "Copiar HTML",
+    "caracteres": "{{n}} caracteres"
+  },
+  "historial": {
+    "titulo": "Historial",
+    "subtitulo": "Todas las búsquedas guardadas en este equipo.",
+    "abrir": "Abrir",
+    "borrar": "Borrar"
+  },
+  "config": {
+    "titulo": "Configuración",
+    "subtitulo": "Idioma de la interfaz, servidor y datos del producto.",
+    "idioma": "Idioma de la interfaz",
+    "servidor": "Dirección del servidor",
+    "servidor_ayuda": "Sólo hace falta en la app de Android: es la dirección donde corre el backend (por ejemplo http://192.168.1.10:8810). En la web y en la app de PC se deja vacío.",
+    "guardar": "Guardar",
+    "guardado": "Guardado",
+    "probar": "Probar conexión",
+    "conexion_ok": "Conexión correcta",
+    "conexion_error": "No se pudo conectar",
+    "salir": "Cerrar sesión",
+    "version": "Versión"
+  },
+  "aviso": {
+    "sintetico": "Datos de demostración: las empresas y las personas de esta lista son sintéticas, generadas para probar el flujo. Cambiá el origen de datos a «Leer mi sitio real» o «Investigación con IA» para trabajar con información real.",
+    "sin_servidor": "Configurá la dirección del servidor para poder buscar clientes."
+  },
+  "nav_corto": {
+    "explorar": "Explorar",
+    "prospectos": "Empresas",
+    "decisores": "Decisores",
+    "correos": "Correos",
+    "historial": "Historial",
+    "configuracion": "Ajustes"
+  }
+}

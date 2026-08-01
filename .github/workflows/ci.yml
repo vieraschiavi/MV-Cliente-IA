@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md', 'landing/**']
+  pull_request:
+    paths-ignore: ['**.md', 'landing/**']
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  motor:
+    name: Motor y API
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      # Antes de los tests: un import roto o una variable indefinida los
+      # detecta ruff en segundos, sin esperar a la suite.
+      - name: Linter
+        run: ruff check .
+
+      - name: Tests
+        run: python -m pytest -q tests/
+
+      # Prueba de humo del producto real: la corrida sobre el caso de Kobra
+      # tiene que terminar con las tres olas y los tres idiomas.
+      - name: Corrida end-to-end
+        run: |
+          python -m cliente_ia.pipeline mvkobranzaia.com --modo demo \
+            --prospectos 60 --nombre "MV Kobra AI"
+
+  web:
+    name: Build del frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: webapp/frontend/package-lock.json
+      - run: npm ci
+        working-directory: webapp/frontend
+      - run: npm run build
+        working-directory: webapp/frontend
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: webapp/frontend/dist
+          retention-days: 7

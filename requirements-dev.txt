@@ -1,0 +1,13 @@
+-r requirements.txt
+
+# Suite de tests y linter. Declarados acá para que una máquina limpia que siga
+# el README pueda correr `python3 -m pytest -q tests/` sin instalar nada suelto.
+pytest>=8.0
+httpx>=0.27          # lo usa fastapi.testclient
+ruff>=0.6
+
+# Empaquetado del instalador de PC (packaging/mvclienteia.spec).
+pyinstaller>=6.0
+
+# Generación de los íconos y splash de Android desde assets/brand/.
+pillow>=10.0

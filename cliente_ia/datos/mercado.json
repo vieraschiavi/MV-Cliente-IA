@@ -1,0 +1,302 @@
+{
+  "_nota": "Semilla de mercado del proveedor demo. Los SECTORES, los cargos y las ciudades son taxonomía pública y real. Los NOMBRES DE EMPRESA y las PERSONAS que se generan a partir de acá son sintéticos y se marcan con sintetico=true: no representan organizaciones ni individuos reales.",
+
+  "sectores": {
+    "bancos": {
+      "nombre": {"es": "Bancos y banca minorista", "pt": "Bancos e banca de varejo", "en": "Banks and retail banking"},
+      "empleados": [400, 6000],
+      "dolores": {
+        "es": ["cartera de consumo con mora creciente y equipos de cobranza que no dan abasto", "cada gestor prioriza a criterio propio, sin un orden común", "no hay trazabilidad de qué se le dijo al cliente en cada contacto"],
+        "pt": ["carteira de consumo com inadimplência crescente e equipes de cobrança sobrecarregadas", "cada operador prioriza pelo próprio critério, sem um critério comum", "não há rastreabilidade do que foi dito ao cliente em cada contato"],
+        "en": ["a consumer book with rising delinquency and collections teams stretched thin", "every agent prioritizes by gut feel, with no shared ordering", "no traceability of what was said to the customer on each contact"]
+      },
+      "cargos": ["Gerente de Cobranzas", "Director de Riesgo de Crédito", "Gerente de Banca Minorista", "Jefe de Recuperos", "Director de Operaciones"],
+      "senales": {
+        "es": ["abrió búsquedas de gestores de cobranza en los últimos 90 días", "publicó resultados con aumento del cargo por incobrabilidad", "anunció un plan de digitalización de la banca minorista", "amplió su cartera de crédito al consumo"],
+        "pt": ["abriu vagas de operadores de cobrança nos últimos 90 dias", "publicou resultados com aumento da provisão para devedores duvidosos", "anunciou um plano de digitalização do varejo bancário", "ampliou sua carteira de crédito ao consumo"],
+        "en": ["opened collections-agent roles in the last 90 days", "reported results with a higher bad-debt charge", "announced a retail banking digitization plan", "expanded its consumer credit book"]
+      }
+    },
+    "financieras": {
+      "nombre": {"es": "Financieras y casas de crédito al consumo", "pt": "Financeiras e casas de crédito ao consumo", "en": "Consumer finance and credit houses"},
+      "empleados": [60, 900],
+      "dolores": {
+        "es": ["mora temprana que se convierte en mora dura por falta de contacto a tiempo", "el costo de cobrar se come el margen del crédito chico", "call center caro con contactabilidad baja"],
+        "pt": ["inadimplência inicial que vira dívida dura por falta de contato a tempo", "o custo de cobrar consome a margem do crédito pequeno", "call center caro com baixa taxa de contato"],
+        "en": ["early delinquency that hardens because nobody made contact in time", "collection cost eats the margin on small-ticket loans", "an expensive call center with low contact rates"]
+      },
+      "cargos": ["Gerente de Cobranzas", "Gerente General", "Jefe de Riesgo", "Director Comercial", "Gerente de Operaciones"],
+      "senales": {
+        "es": ["sumó sucursales o puntos de venta este año", "lanzó un producto de crédito nuevo", "contrató una agencia externa de cobranza", "publicó vacantes de call center de cobranzas"],
+        "pt": ["abriu filiais ou pontos de venda neste ano", "lançou um novo produto de crédito", "contratou uma agência externa de cobrança", "publicou vagas de call center de cobrança"],
+        "en": ["added branches or points of sale this year", "launched a new credit product", "hired an external collections agency", "posted collections call-center openings"]
+      }
+    },
+    "cooperativas": {
+      "nombre": {"es": "Cooperativas de ahorro y crédito", "pt": "Cooperativas de crédito", "en": "Credit unions and savings co-ops"},
+      "empleados": [40, 700],
+      "dolores": {
+        "es": ["cobrar sin romper el vínculo con el socio", "equipos chicos que gestionan carteras grandes", "reportes al consejo hechos a mano en planillas"],
+        "pt": ["cobrar sem romper o vínculo com o associado", "equipes pequenas gerindo carteiras grandes", "relatórios ao conselho feitos à mão em planilhas"],
+        "en": ["collecting without breaking the member relationship", "small teams managing large books", "board reporting done by hand in spreadsheets"]
+      },
+      "cargos": ["Gerente General", "Gerente de Créditos", "Jefe de Cobranzas", "Gerente de Riesgo"],
+      "senales": {
+        "es": ["creció la base de socios en el último ejercicio", "incorporó un core bancario nuevo", "publicó su memoria anual con foco en morosidad"],
+        "pt": ["ampliou a base de associados no último exercício", "adotou um novo core bancário", "publicou seu relatório anual com foco em inadimplência"],
+        "en": ["grew its member base last fiscal year", "migrated to a new core banking system", "published an annual report focused on delinquency"]
+      }
+    },
+    "fintech_prestamos": {
+      "nombre": {"es": "Fintech de préstamos y BNPL", "pt": "Fintechs de crédito e BNPL", "en": "Lending fintechs and BNPL"},
+      "empleados": [25, 600],
+      "dolores": {
+        "es": ["crecen las colocaciones más rápido que el equipo de cobranza", "todo el recupero depende de notificaciones automáticas sin criterio", "no saben a quién llamar primero cuando la mora sube"],
+        "pt": ["as concessões crescem mais rápido que a equipe de cobrança", "toda a recuperação depende de notificações automáticas sem critério", "não sabem para quem ligar primeiro quando a inadimplência sobe"],
+        "en": ["originations grow faster than the collections team", "recovery leans entirely on blind automated nudges", "no idea who to call first when delinquency spikes"]
+      },
+      "cargos": ["Head of Collections", "Chief Risk Officer", "VP of Operations", "Country Manager", "Head of Credit"],
+      "senales": {
+        "es": ["levantó una ronda de inversión en los últimos 12 meses", "abrió operación en un país nuevo", "publicó vacantes de riesgo y cobranzas", "duplicó su volumen originado"],
+        "pt": ["captou uma rodada de investimento nos últimos 12 meses", "abriu operação em um novo país", "publicou vagas de risco e cobrança", "dobrou seu volume originado"],
+        "en": ["raised a funding round in the last 12 months", "opened operations in a new country", "posted risk and collections roles", "doubled originated volume"]
+      }
+    },
+    "retail_credito": {
+      "nombre": {"es": "Retail con crédito propio", "pt": "Varejo com crédito próprio", "en": "Retail with in-house credit"},
+      "empleados": [120, 4000],
+      "dolores": {
+        "es": ["la tarjeta de la casa financia ventas pero la mora la absorbe el retail", "cobranza tercerizada sin visibilidad de qué se hace", "clientes buenos tratados igual que los incobrables"],
+        "pt": ["o cartão da loja financia vendas mas a inadimplência fica com o varejo", "cobrança terceirizada sem visibilidade do que é feito", "bons clientes tratados como incobráveis"],
+        "en": ["the store card funds sales but the retailer absorbs the losses", "outsourced collections with zero visibility", "good customers treated like write-offs"]
+      },
+      "cargos": ["Gerente de Crédito y Cobranzas", "Director Financiero", "Gerente de Tarjeta", "Jefe de Riesgo"],
+      "senales": {
+        "es": ["abrió locales nuevos este año", "relanzó su tarjeta de crédito propia", "anunció una plataforma de e-commerce con financiación"],
+        "pt": ["abriu novas lojas neste ano", "relançou seu cartão de crédito próprio", "anunciou uma plataforma de e-commerce com financiamento"],
+        "en": ["opened new stores this year", "relaunched its own-brand credit card", "announced an e-commerce platform with financing"]
+      }
+    },
+    "telecom": {
+      "nombre": {"es": "Telecomunicaciones y TV paga", "pt": "Telecomunicações e TV por assinatura", "en": "Telecom and pay TV"},
+      "empleados": [200, 8000],
+      "dolores": {
+        "es": ["churn y mora atados: cortar el servicio pierde al cliente, no cortarlo pierde la plata", "millones de cuentas chicas imposibles de gestionar una por una", "campañas de cobranza masivas con respuesta baja"],
+        "pt": ["churn e inadimplência atrelados: cortar o serviço perde o cliente, não cortar perde o dinheiro", "milhões de contas pequenas impossíveis de gerir uma a uma", "campanhas massivas de cobrança com baixa resposta"],
+        "en": ["churn and delinquency are linked: cutting service loses the customer, not cutting loses the cash", "millions of small accounts impossible to work one by one", "mass collection campaigns with low response"]
+      },
+      "cargos": ["Gerente de Cobranzas", "Director de Customer Operations", "Gerente de Facturación", "Head of Revenue Assurance"],
+      "senales": {
+        "es": ["lanzó planes de fibra o 5G este año", "reportó aumento del churn en su último balance", "abrió búsquedas de revenue assurance"],
+        "pt": ["lançou planos de fibra ou 5G neste ano", "reportou aumento do churn no último balanço", "abriu vagas de revenue assurance"],
+        "en": ["launched fiber or 5G plans this year", "reported higher churn in its latest results", "opened revenue assurance roles"]
+      }
+    },
+    "utilities": {
+      "nombre": {"es": "Servicios públicos y energía", "pt": "Serviços públicos e energia", "en": "Utilities and energy"},
+      "empleados": [300, 9000],
+      "dolores": {
+        "es": ["deuda social que no se puede cortar por regulación", "convenios de pago que se caen a la segunda cuota", "cobranza con obligación de trato uniforme"],
+        "pt": ["dívida social que não pode ser cortada por regulação", "acordos de pagamento que caem na segunda parcela", "cobrança com obrigação de tratamento uniforme"],
+        "en": ["socially sensitive debt that regulation forbids cutting off", "payment plans that break at the second installment", "collections under a uniform-treatment mandate"]
+      },
+      "cargos": ["Gerente Comercial", "Jefe de Recaudación", "Director de Operaciones", "Gerente de Clientes"],
+      "senales": {
+        "es": ["actualizó tarifas este año", "anunció un plan de regularización de deuda", "digitalizó la atención al cliente"],
+        "pt": ["reajustou tarifas neste ano", "anunciou um plano de regularização de dívidas", "digitalizou o atendimento ao cliente"],
+        "en": ["updated tariffs this year", "announced a debt regularization plan", "digitized customer service"]
+      }
+    },
+    "salud": {
+      "nombre": {"es": "Salud privada, mutualistas y prepagas", "pt": "Saúde privada, planos e operadoras", "en": "Private health and insurers"},
+      "empleados": [150, 5000],
+      "dolores": {
+        "es": ["cuotas sociales atrasadas que terminan en baja del afiliado", "cobrar sin dañar la relación asistencial", "cartera atomizada de miles de afiliados"],
+        "pt": ["mensalidades atrasadas que acabam em cancelamento do beneficiário", "cobrar sem prejudicar a relação assistencial", "carteira pulverizada de milhares de beneficiários"],
+        "en": ["overdue membership fees that end in cancellations", "collecting without damaging the care relationship", "a fragmented book of thousands of members"]
+      },
+      "cargos": ["Gerente Administrativo Financiero", "Jefe de Afiliaciones", "Gerente de Cobranzas", "Director Financiero"],
+      "senales": {
+        "es": ["creció su padrón de afiliados", "anunció inversión en tecnología de gestión", "publicó vacantes administrativas de cobranza"],
+        "pt": ["ampliou sua base de beneficiários", "anunciou investimento em tecnologia de gestão", "publicou vagas administrativas de cobrança"],
+        "en": ["grew its membership base", "announced investment in management technology", "posted collections admin roles"]
+      }
+    },
+    "estudios_cobranza": {
+      "nombre": {"es": "Estudios jurídicos y agencias de cobranza", "pt": "Escritórios jurídicos e agências de cobrança", "en": "Collection agencies and law firms"},
+      "empleados": [15, 400],
+      "dolores": {
+        "es": ["compiten por comisión: el que recupera más rápido se queda con la cartera", "gestores que trabajan la lista de arriba a abajo sin priorizar", "el mandante pide reportes que llevan días armar"],
+        "pt": ["competem por comissão: quem recupera mais rápido fica com a carteira", "operadores que trabalham a lista de cima para baixo sem priorizar", "o mandante pede relatórios que levam dias para montar"],
+        "en": ["they compete on commission: whoever recovers faster keeps the book", "agents work the list top to bottom with no prioritization", "clients ask for reports that take days to build"]
+      },
+      "cargos": ["Socio Director", "Gerente de Operaciones", "Jefe de Gestores", "Director Comercial"],
+      "senales": {
+        "es": ["ganó una cartera nueva de un banco o financiera", "amplió su equipo de gestores", "abrió una unidad de cobranza digital"],
+        "pt": ["ganhou uma nova carteira de um banco ou financeira", "ampliou sua equipe de operadores", "abriu uma unidade de cobrança digital"],
+        "en": ["won a new book from a bank or lender", "expanded its agent team", "opened a digital collections unit"]
+      }
+    },
+    "seguros": {
+      "nombre": {"es": "Compañías de seguros", "pt": "Companhias de seguros", "en": "Insurance carriers"},
+      "empleados": [100, 3500],
+      "dolores": {
+        "es": ["pólizas que caen por falta de pago de una sola cuota", "cobranza dispersa entre brokers y la compañía", "recupero de franquicias y siniestros con terceros"],
+        "pt": ["apólices que caem por falta de pagamento de uma única parcela", "cobrança dispersa entre corretores e a seguradora", "recuperação de franquias e sinistros com terceiros"],
+        "en": ["policies lapsing over a single missed installment", "collections split between brokers and the carrier", "subrogation and deductible recovery from third parties"]
+      },
+      "cargos": ["Gerente de Operaciones", "Director Financiero", "Jefe de Cobranzas", "Gerente Técnico"],
+      "senales": {
+        "es": ["lanzó productos de seguro masivo", "reportó caída de renovaciones", "digitalizó la emisión de pólizas"],
+        "pt": ["lançou produtos de seguro massificado", "reportou queda nas renovações", "digitalizou a emissão de apólices"],
+        "en": ["launched mass-market insurance products", "reported a drop in renewals", "digitized policy issuance"]
+      }
+    },
+    "educacion": {
+      "nombre": {"es": "Educación privada", "pt": "Educação privada", "en": "Private education"},
+      "empleados": [50, 1500],
+      "dolores": {
+        "es": ["cuotas atrasadas que nadie quiere reclamar por el vínculo con la familia", "administración chica cobrando a mano", "morosidad estacional en marzo y julio"],
+        "pt": ["mensalidades atrasadas que ninguém quer cobrar pelo vínculo com a família", "administração pequena cobrando manualmente", "inadimplência sazonal no início dos semestres"],
+        "en": ["overdue tuition nobody wants to chase because of the family relationship", "a small back office collecting by hand", "seasonal delinquency at term start"]
+      },
+      "cargos": ["Director Administrativo", "Gerente Financiero", "Jefe de Administración"],
+      "senales": {
+        "es": ["amplió su matrícula este año", "abrió una sede nueva", "digitalizó la gestión académica"],
+        "pt": ["ampliou sua matrícula neste ano", "abriu uma nova unidade", "digitalizou a gestão acadêmica"],
+        "en": ["grew enrollment this year", "opened a new campus", "digitized academic management"]
+      }
+    },
+    "inmobiliario": {
+      "nombre": {"es": "Administradoras de alquileres y propiedades", "pt": "Administradoras de imóveis", "en": "Property and rent management"},
+      "empleados": [10, 300],
+      "dolores": {
+        "es": ["alquileres atrasados con el propietario reclamando de un lado y el inquilino del otro", "juicios de desalojo caros y lentos", "cartera de garantías con seguimiento manual"],
+        "pt": ["aluguéis atrasados com o proprietário cobrando de um lado e o inquilino do outro", "ações de despejo caras e lentas", "carteira de garantias com acompanhamento manual"],
+        "en": ["late rent with the landlord on one side and the tenant on the other", "slow, expensive eviction proceedings", "a guarantee book tracked by hand"]
+      },
+      "cargos": ["Gerente de Administración", "Socio Director", "Jefe de Cobranzas"],
+      "senales": {
+        "es": ["amplió su cartera de propiedades administradas", "incorporó un sistema de gestión inmobiliaria", "abrió una nueva sucursal"],
+        "pt": ["ampliou sua carteira de imóveis administrados", "adotou um sistema de gestão imobiliária", "abriu uma nova filial"],
+        "en": ["grew its managed property portfolio", "adopted a property management system", "opened a new branch"]
+      }
+    },
+    "saas_b2b": {
+      "nombre": {"es": "Software B2B y servicios profesionales", "pt": "Software B2B e serviços profissionais", "en": "B2B software and professional services"},
+      "empleados": [20, 1200],
+      "dolores": {
+        "es": ["el equipo comercial dedica más tiempo a buscar contactos que a hablar con ellos", "listas compradas que no convierten", "el pipeline depende de una sola persona"],
+        "pt": ["o time comercial gasta mais tempo procurando contatos do que falando com eles", "listas compradas que não convertem", "o pipeline depende de uma única pessoa"],
+        "en": ["the sales team spends more time finding contacts than talking to them", "purchased lists that never convert", "the pipeline depends on one person"]
+      },
+      "cargos": ["Head of Growth", "Director Comercial", "VP of Sales", "Founder", "Head of Marketing"],
+      "senales": {
+        "es": ["publicó vacantes comerciales", "lanzó un producto nuevo", "levantó capital", "abrió mercado en otro país"],
+        "pt": ["publicou vagas comerciais", "lançou um novo produto", "captou capital", "abriu mercado em outro país"],
+        "en": ["posted sales roles", "launched a new product", "raised capital", "opened a new market"]
+      }
+    }
+  },
+
+  "icp_por_categoria": {
+    "cobranzas": {
+      "categoria": {"es": "Plataforma de cobranzas con IA", "pt": "Plataforma de cobrança com IA", "en": "AI-powered collections platform"},
+      "tamano_objetivo": "50-6000 empleados",
+      "sectores": ["bancos", "financieras", "cooperativas", "fintech_prestamos", "retail_credito", "telecom", "utilities", "salud", "estudios_cobranza", "seguros", "educacion", "inmobiliario"],
+      "diferenciales": {
+        "es": ["prioriza la cartera por valor esperado de recupero, no por días de atraso", "corre sobre datos sintéticos en la demo: se prueba sin pasar una base real", "agente negociador por voz y WhatsApp con control de calidad de cada gestión", "se instala local (Windows) o se usa en la nube, según lo que permita el área de riesgo"],
+        "pt": ["prioriza a carteira por valor esperado de recuperação, não por dias de atraso", "roda sobre dados sintéticos na demo: testa-se sem enviar uma base real", "agente negociador por voz e WhatsApp com controle de qualidade de cada contato", "instala-se local (Windows) ou usa-se na nuvem, conforme o que a área de risco permitir"],
+        "en": ["prioritizes the book by expected recovery value, not days past due", "the demo runs on synthetic data: evaluate it without handing over a real book", "voice and WhatsApp negotiation agent with quality control on every interaction", "runs on-premise (Windows) or in the cloud, whichever risk approves"]
+      },
+      "competidores": [
+        {"dominio": "collectwise.com", "nombre": "CollectWise", "posicionamiento": {"es": "agente de cobranzas por voz para EE.UU.", "pt": "agente de cobrança por voz para os EUA", "en": "voice collections agent for the US"}, "pais": "US", "solapamiento": 0.72},
+        {"dominio": "kleva.co", "nombre": "Kleva", "posicionamiento": {"es": "automatización de cobranza para prestamistas", "pt": "automação de cobrança para credores", "en": "collections automation for lenders"}, "pais": "US", "solapamiento": 0.68},
+        {"dominio": "monest.com.br", "nombre": "Monest", "posicionamiento": {"es": "cobranza inteligente en Brasil", "pt": "cobrança inteligente no Brasil", "en": "intelligent collections in Brazil"}, "pais": "BR", "solapamiento": 0.81},
+        {"dominio": "maicall.ai", "nombre": "Maicall", "posicionamiento": {"es": "llamadas con IA para recupero", "pt": "chamadas com IA para recuperação", "en": "AI calling for recovery"}, "pais": "US", "solapamiento": 0.64},
+        {"dominio": "ledgerwise.ai", "nombre": "Ledgerwise", "posicionamiento": {"es": "cuentas por cobrar B2B", "pt": "contas a receber B2B", "en": "B2B accounts receivable"}, "pais": "US", "solapamiento": 0.41},
+        {"dominio": "kollx.ai", "nombre": "Kollx", "posicionamiento": {"es": "orquestación de cobranza omnicanal", "pt": "orquestração de cobrança omnicanal", "en": "omnichannel collections orchestration"}, "pais": "ES", "solapamiento": 0.57}
+      ]
+    },
+    "saas_generico": {
+      "categoria": {"es": "Software B2B", "pt": "Software B2B", "en": "B2B software"},
+      "tamano_objetivo": "20-2000 empleados",
+      "sectores": ["saas_b2b", "retail_credito", "salud", "educacion", "seguros"],
+      "diferenciales": {
+        "es": ["se implementa en días, no en trimestres", "precio por uso, sin mínimos anuales", "soporte en el huso horario del cliente"],
+        "pt": ["implanta-se em dias, não em trimestres", "preço por uso, sem mínimos anuais", "suporte no fuso horário do cliente"],
+        "en": ["deploys in days, not quarters", "usage-based pricing, no annual minimums", "support in the customer's time zone"]
+      },
+      "competidores": []
+    }
+  },
+
+  "paises": {
+    "UY": {"ciudades": ["Montevideo", "Canelones", "Maldonado", "Salto", "Paysandú", "Ciudad de la Costa"], "densidad": 1.0, "sufijos": ["S.A.", "S.R.L."], "tld": ".com.uy"},
+    "AR": {"ciudades": ["Buenos Aires", "Córdoba", "Rosario", "Mendoza", "La Plata"], "densidad": 0.7, "sufijos": ["S.A.", "S.R.L."], "tld": ".com.ar"},
+    "BR": {"ciudades": ["São Paulo", "Rio de Janeiro", "Belo Horizonte", "Curitiba", "Porto Alegre"], "densidad": 0.8, "sufijos": ["Ltda.", "S.A."], "tld": ".com.br"},
+    "CL": {"ciudades": ["Santiago", "Valparaíso", "Concepción", "Antofagasta"], "densidad": 0.6, "sufijos": ["SpA", "S.A."], "tld": ".cl"},
+    "PY": {"ciudades": ["Asunción", "Ciudad del Este", "Encarnación"], "densidad": 0.45, "sufijos": ["S.A.", "S.R.L."], "tld": ".com.py"},
+    "BO": {"ciudades": ["Santa Cruz", "La Paz", "Cochabamba"], "densidad": 0.4, "sufijos": ["S.A.", "S.R.L."], "tld": ".com.bo"},
+    "PE": {"ciudades": ["Lima", "Arequipa", "Trujillo"], "densidad": 0.55, "sufijos": ["S.A.C.", "S.A."], "tld": ".com.pe"},
+    "CO": {"ciudades": ["Bogotá", "Medellín", "Cali", "Barranquilla"], "densidad": 0.65, "sufijos": ["S.A.S.", "S.A."], "tld": ".com.co"},
+    "EC": {"ciudades": ["Quito", "Guayaquil", "Cuenca"], "densidad": 0.4, "sufijos": ["S.A.", "Cía. Ltda."], "tld": ".com.ec"},
+    "MX": {"ciudades": ["Ciudad de México", "Guadalajara", "Monterrey", "Puebla"], "densidad": 0.8, "sufijos": ["S.A. de C.V.", "S.A.P.I."], "tld": ".com.mx"},
+    "CR": {"ciudades": ["San José", "Heredia"], "densidad": 0.35, "sufijos": ["S.A."], "tld": ".cr"},
+    "PA": {"ciudades": ["Ciudad de Panamá", "Colón"], "densidad": 0.35, "sufijos": ["S.A."], "tld": ".com.pa"},
+    "GT": {"ciudades": ["Ciudad de Guatemala", "Quetzaltenango"], "densidad": 0.35, "sufijos": ["S.A."], "tld": ".com.gt"},
+    "DO": {"ciudades": ["Santo Domingo", "Santiago de los Caballeros"], "densidad": 0.35, "sufijos": ["S.R.L.", "S.A."], "tld": ".com.do"},
+    "ES": {"ciudades": ["Madrid", "Barcelona", "Valencia", "Sevilla"], "densidad": 0.5, "sufijos": ["S.L.", "S.A."], "tld": ".es"},
+    "PT": {"ciudades": ["Lisboa", "Porto"], "densidad": 0.3, "sufijos": ["Lda.", "S.A."], "tld": ".pt"},
+    "US": {"ciudades": ["New York", "Miami", "Chicago", "Austin", "Atlanta"], "densidad": 0.6, "sufijos": ["Inc.", "LLC"], "tld": ".com"},
+    "CA": {"ciudades": ["Toronto", "Montréal", "Vancouver"], "densidad": 0.3, "sufijos": ["Inc.", "Corp."], "tld": ".ca"},
+    "GB": {"ciudades": ["London", "Manchester", "Edinburgh"], "densidad": 0.4, "sufijos": ["Ltd.", "PLC"], "tld": ".co.uk"},
+    "IE": {"ciudades": ["Dublin", "Cork"], "densidad": 0.2, "sufijos": ["Ltd."], "tld": ".ie"},
+    "DE": {"ciudades": ["Berlin", "München", "Frankfurt"], "densidad": 0.35, "sufijos": ["GmbH", "AG"], "tld": ".de"},
+    "FR": {"ciudades": ["Paris", "Lyon"], "densidad": 0.3, "sufijos": ["SAS", "SA"], "tld": ".fr"},
+    "IT": {"ciudades": ["Milano", "Roma"], "densidad": 0.3, "sufijos": ["S.p.A.", "S.r.l."], "tld": ".it"},
+    "NL": {"ciudades": ["Amsterdam", "Rotterdam"], "densidad": 0.25, "sufijos": ["B.V."], "tld": ".nl"},
+    "AU": {"ciudades": ["Sydney", "Melbourne"], "densidad": 0.25, "sufijos": ["Pty Ltd"], "tld": ".com.au"},
+    "NZ": {"ciudades": ["Auckland"], "densidad": 0.15, "sufijos": ["Ltd."], "tld": ".co.nz"},
+    "ZA": {"ciudades": ["Johannesburg", "Cape Town"], "densidad": 0.2, "sufijos": ["Pty Ltd"], "tld": ".co.za"},
+    "IN": {"ciudades": ["Mumbai", "Bengaluru", "Delhi"], "densidad": 0.3, "sufijos": ["Pvt Ltd"], "tld": ".in"},
+    "SG": {"ciudades": ["Singapore"], "densidad": 0.15, "sufijos": ["Pte Ltd"], "tld": ".com.sg"},
+    "AE": {"ciudades": ["Dubai", "Abu Dhabi"], "densidad": 0.15, "sufijos": ["FZ-LLC"], "tld": ".ae"}
+  },
+
+  "nombres_empresa": {
+    "raices": ["Andes", "Austral", "Bahía", "Cardinal", "Delta", "Estuario", "Ferrado", "Granate", "Horizonte", "Ibirá", "Jacarandá", "Kalmar", "Lauro", "Meridiano", "Nogal", "Orión", "Pampa", "Quebracho", "Ribera", "Sauce", "Timbó", "Urano", "Vértice", "Yatay", "Zafiro", "Ámbar", "Barlovento", "Cenit", "Dársena", "Espinillo"],
+    "modificadores": {
+      "bancos": ["Banco", "Banca"],
+      "financieras": ["Crédito", "Financiera", "Capital"],
+      "cooperativas": ["Cooperativa", "Coop"],
+      "fintech_prestamos": ["Pay", "Lend", "Fin"],
+      "retail_credito": ["Retail", "Comercial", "Tiendas"],
+      "telecom": ["Telecom", "Fibra", "Conecta"],
+      "utilities": ["Energía", "Servicios", "Aguas"],
+      "salud": ["Salud", "Médica", "Asistencial"],
+      "estudios_cobranza": ["& Asociados", "Estudio", "Gestión"],
+      "seguros": ["Seguros", "Aseguradora"],
+      "educacion": ["Educativo", "Instituto", "Colegio"],
+      "inmobiliario": ["Propiedades", "Inmobiliaria", "Administradora"],
+      "saas_b2b": ["Labs", "Systems", "Digital"]
+    }
+  },
+
+  "nombres_persona": {
+    "pila_es": ["Alejandra", "Bruno", "Camila", "Diego", "Elena", "Federico", "Gabriela", "Hernán", "Inés", "Joaquín", "Karina", "Leandro", "Mariana", "Nicolás", "Oriana", "Pablo", "Rocío", "Sebastián", "Tatiana", "Valentín", "Ximena", "Andrés", "Beatriz", "Carlos", "Daniela"],
+    "pila_pt": ["Amanda", "Bruno", "Carolina", "Diogo", "Eduarda", "Felipe", "Gabriela", "Henrique", "Isabela", "João", "Larissa", "Marcelo", "Natália", "Otávio", "Patrícia", "Rafael", "Sofia", "Thiago", "Vanessa", "Wagner"],
+    "pila_en": ["Alice", "Brian", "Claire", "Daniel", "Emma", "Frank", "Grace", "Henry", "Irene", "James", "Karen", "Liam", "Megan", "Nathan", "Olivia", "Peter", "Rachel", "Samuel", "Tessa", "William"],
+    "apellido_es": ["Almada", "Barreiro", "Cabrera", "Duarte", "Etchevarría", "Ferreira", "Giménez", "Hernández", "Izaguirre", "Larrosa", "Machado", "Nogueira", "Olivera", "Píriz", "Quintana", "Rodríguez", "Silveira", "Techera", "Umpiérrez", "Viera"],
+    "apellido_pt": ["Almeida", "Barbosa", "Cardoso", "Dias", "Esteves", "Ferreira", "Gonçalves", "Henriques", "Iglesias", "Lima", "Moreira", "Nunes", "Oliveira", "Pereira", "Queiroz", "Ribeiro", "Santos", "Teixeira", "Vieira", "Xavier"],
+    "apellido_en": ["Allen", "Brooks", "Carter", "Dawson", "Ellis", "Foster", "Grant", "Hayes", "Irwin", "Jenkins", "Keller", "Lawson", "Mitchell", "Nolan", "Owens", "Parker", "Quinn", "Reid", "Sullivan", "Turner"]
+  },
+
+  "seniority_por_cargo": {
+    "director": "director", "diretor": "director", "chief": "c-level", "cro": "c-level",
+    "cfo": "c-level", "ceo": "c-level", "coo": "c-level", "vp": "c-level",
+    "socio": "c-level", "founder": "c-level", "head": "director",
+    "gerente": "gerente", "manager": "gerente", "country": "director",
+    "jefe": "jefe", "supervisor": "jefe", "analista": "analista"
+  }
+}
