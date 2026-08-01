@@ -7,7 +7,9 @@
     "build:web": "cd webapp/frontend && npm install && npm run build",
     "sync:android": "npm run build:web && npx cap sync android",
     "apk:debug": "npm run sync:android && cd android && ./gradlew assembleDebug",
-    "apk:release": "npm run sync:android && cd android && ./gradlew assembleRelease"
+    "apk:release": "npm run sync:android && cd android && ./gradlew assembleRelease",
+    "armar:sitio": "python3 -m marketing.armar_sitio",
+    "vercel-build": "npm run build:web && python3 -m marketing.armar_sitio"
   },
   "devDependencies": {
     "@capacitor/cli": "^6.2.0"

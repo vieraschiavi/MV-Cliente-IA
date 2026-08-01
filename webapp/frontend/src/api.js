@@ -82,8 +82,12 @@ export async function api(ruta, { metodo = "GET", cuerpo, crudo = false } = {}) 
   return datos;
 }
 
-export async function descargar(ruta, nombre) {
-  const r = await api(ruta, { crudo: true });
+export async function descargar(ruta, nombre, cuerpo) {
+  // Con `cuerpo` se manda la corrida al servidor: es el camino del modo sin
+  // estado, donde el backend no la tiene guardada y el archivo hay que
+  // armarlo con lo que trae el navegador.
+  const r = await api(ruta, cuerpo ? { metodo: "POST", cuerpo, crudo: true }
+                                   : { crudo: true });
   const blob = await r.blob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

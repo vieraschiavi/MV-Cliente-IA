@@ -20,9 +20,18 @@ contraseña para hablar con tu propia máquina no protege de nada. **Para un
 despliegue expuesto a internet la variable es obligatoria** — sin ella,
 cualquiera que llegue al puerto puede lanzar corridas.
 
-Las corridas se ejecutan en un pool de hilos y van guardando el avance
-después de cada fase, así que el frontend puede consultar el estado mientras
-corren (`GET /api/corridas/{id}`) sin esperar a que terminen.
+Dos modos de ejecución
+----------------------
+- **Con estado** (servidor propio, instalador de PC, APK apuntando a tu
+  servidor): las corridas se ejecutan en un pool de hilos y van guardando el
+  avance después de cada fase, así que el frontend consulta el estado mientras
+  corren (`GET /api/corridas/{id}`) y el historial queda en disco.
+- **Sin estado** (Vercel y cualquier serverless): no hay disco compartido ni
+  hilos que sobrevivan a la respuesta, así que `POST /api/corridas` ejecuta la
+  corrida en la misma petición y la devuelve entera. No hay historial ni
+  sondeo, y el modo de investigación con IA queda deshabilitado porque no
+  entra en el tiempo de la función. Se detecta solo (`VERCEL`) o se fuerza con
+  `MVCLIENTE_SIN_ESTADO=1`.
 """
 from __future__ import annotations
 
@@ -40,7 +49,7 @@ from fastapi.responses import FileResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from cliente_ia import __version__, almacen, exportar, geo, pipeline, proveedores, rutas
+from cliente_ia import __version__, almacen, exportar, geo, modelos, pipeline, proveedores, rutas
 from cliente_ia.modelos import Corrida
 
 # Cuántas corridas pueden estar en vuelo a la vez. Cada una es corta (el modo
@@ -48,6 +57,16 @@ from cliente_ia.modelos import Corrida
 # apreta el botón diez veces deja el proceso sin hilos.
 MAX_CORRIDAS_PARALELAS = 4
 TTL_TOKEN = 12 * 3600
+
+# En serverless (Vercel) no hay disco compartido ni hilos que sobrevivan a la
+# respuesta: la corrida se ejecuta EN LA MISMA petición y vuelve entera en el
+# cuerpo, sin sondeo. El frontend detecta ese caso y no consulta el avance.
+SIN_ESTADO = rutas.en_serverless()
+
+# El modo `llm` hace varias llamadas a la API y tarda minutos: en una función
+# serverless se corta por timeout antes de terminar. Se rechaza con un mensaje
+# claro en vez de dejar que muera a los 10 segundos sin explicación.
+MODOS_EN_SERVERLESS = ("demo", "web")
 
 app = FastAPI(title="MV Cliente IA", version=__version__)
 app.add_middleware(
@@ -127,8 +146,11 @@ def estado_auth():
 # ---------------------------------------------------------------------------
 @app.get("/api/salud")
 def salud():
-    return {"ok": True, "version": __version__, "modos": list(proveedores.MODOS),
-            "modo_llm_disponible": proveedores.modo_efectivo("llm") == "llm"}
+    return {"ok": True, "version": __version__,
+            "modos": list(MODOS_EN_SERVERLESS if SIN_ESTADO else proveedores.MODOS),
+            "sin_estado": SIN_ESTADO,
+            "modo_llm_disponible": (not SIN_ESTADO
+                                    and proveedores.modo_efectivo("llm") == "llm")}
 
 
 @app.get("/api/geo")
@@ -177,10 +199,7 @@ def _lanzar(entrada: CorridaIn, corrida_id: str) -> None:
             decisores_por_empresa=entrada.decisores,
             limite_emails=entrada.emails,
             idioma_ui=entrada.idioma, firma=entrada.firma, nombre=entrada.nombre,
-            enlaces={"sitio": entrada.sitio or entrada.dominio,
-                     "videos": {k: v for k, v in entrada.videos.items()
-                                if k in geo.IDIOMAS},
-                     "video_en_landing": entrada.video_en_landing},
+            enlaces=_config_enlaces(entrada),
             al_avanzar=guardar_avance, corrida_id=corrida_id,
         )
     finally:
@@ -188,10 +207,37 @@ def _lanzar(entrada: CorridaIn, corrida_id: str) -> None:
             _en_curso.discard(corrida_id)
 
 
+def _config_enlaces(entrada: CorridaIn) -> dict:
+    return {"sitio": entrada.sitio or entrada.dominio,
+            "videos": {k: v for k, v in entrada.videos.items() if k in geo.IDIOMAS},
+            "video_en_landing": entrada.video_en_landing}
+
+
 @app.post("/api/corridas", dependencies=[Depends(requiere_auth)])
 def crear_corrida(entrada: CorridaIn):
     if entrada.modo not in proveedores.MODOS:
         raise HTTPException(422, f"Modo inválido: {entrada.modo}")
+
+    if SIN_ESTADO:
+        if entrada.modo not in MODOS_EN_SERVERLESS:
+            raise HTTPException(422,
+                "El modo de investigación con IA tarda minutos y no entra en el "
+                "tiempo de una función serverless. Usá «demo» o «leer mi sitio», "
+                "o corré el backend en un servidor propio.")
+        corrida = pipeline.ejecutar(
+            entrada.dominio, modo=entrada.modo,
+            limite_prospectos=entrada.prospectos,
+            decisores_por_empresa=entrada.decisores,
+            limite_emails=entrada.emails,
+            idioma_ui=entrada.idioma, firma=entrada.firma, nombre=entrada.nombre,
+            enlaces=_config_enlaces(entrada),
+        )
+        if corrida.estado == "error":
+            raise HTTPException(502, corrida.error or "La corrida falló")
+        # La corrida entera, ya terminada: no hay dónde guardarla ni a quién
+        # preguntarle después.
+        return corrida.a_dict()
+
     with _lock:
         if len(_en_curso) >= MAX_CORRIDAS_PARALELAS:
             raise HTTPException(429, "Hay demasiadas corridas en curso — probá en un minuto")
@@ -257,6 +303,10 @@ def exportar_csv(corrida_id: str):
 @app.get("/api/corridas/{corrida_id}/xlsx", dependencies=[Depends(requiere_auth)])
 def exportar_xlsx(corrida_id: str):
     corrida = _cargar_o_404(corrida_id)
+    return _respuesta_xlsx(corrida)
+
+
+def _respuesta_xlsx(corrida: Corrida):
     try:
         destino = exportar.guardar_xlsx(corrida)
     except RuntimeError as e:
@@ -264,6 +314,32 @@ def exportar_xlsx(corrida_id: str):
     return FileResponse(destino, filename=destino.name,
                         media_type="application/vnd.openxmlformats-officedocument."
                                    "spreadsheetml.sheet")
+
+
+def _desde_cuerpo(datos: dict) -> Corrida:
+    """
+    Reconstruye la corrida que manda el navegador. Sin estado no hay dónde
+    buscarla: la tiene el cliente, y la manda para que el servidor arme el
+    archivo. Se valida acá porque es entrada de red, no un JSON de confianza.
+    """
+    try:
+        return modelos.desde_dict(datos)
+    except (KeyError, TypeError, ValueError) as e:
+        raise HTTPException(422, f"Corrida inválida: {e}") from e
+
+
+@app.post("/api/exportar/csv", dependencies=[Depends(requiere_auth)])
+def exportar_csv_directo(corrida: dict):
+    c = _desde_cuerpo(corrida)
+    nombre = f"{c.dominio}_{c.id}.csv".replace("/", "_")
+    return PlainTextResponse(
+        exportar.a_csv(c), media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{nombre}"'})
+
+
+@app.post("/api/exportar/xlsx", dependencies=[Depends(requiere_auth)])
+def exportar_xlsx_directo(corrida: dict):
+    return _respuesta_xlsx(_desde_cuerpo(corrida))
 
 
 # ---------------------------------------------------------------------------

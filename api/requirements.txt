@@ -1,0 +1,6 @@
+# Dependencias de la función serverless. Es a propósito más corta que
+# `requirements.txt`: en Vercel no hace falta uvicorn (el runtime habla ASGI
+# directamente) y cada megabyte de más tarda en arrancar en frío.
+fastapi>=0.110
+pydantic>=2.6
+openpyxl>=3.1

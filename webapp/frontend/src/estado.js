@@ -8,6 +8,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./api.js";
 
 const KEY = "mvcliente_corrida";
+// En un despliegue sin estado (Vercel) el backend devuelve la corrida entera
+// en la respuesta del POST y no queda nada del lado del servidor: se guarda
+// acá para que las cinco pantallas la sigan compartiendo.
+const KEY_DATOS = "mvcliente_corrida_datos";
 // Cada cuánto se le pregunta al backend por el avance mientras corre. 900 ms
 // es suficiente para que el acordeón se vea "en vivo" sin castigar al server.
 const INTERVALO_MS = 900;
@@ -17,7 +21,31 @@ export function getCorridaId() {
 }
 export function setCorridaId(id) {
   if (id) localStorage.setItem(KEY, id);
-  else localStorage.removeItem(KEY);
+  else {
+    localStorage.removeItem(KEY);
+    localStorage.removeItem(KEY_DATOS);
+  }
+}
+
+/** Corrida completa guardada en el navegador (sólo modo sin estado). */
+export function getCorridaLocal() {
+  try {
+    return JSON.parse(localStorage.getItem(KEY_DATOS)) || null;
+  } catch {
+    return null;
+  }
+}
+export function setCorridaLocal(corrida) {
+  if (corrida && corrida.id) {
+    localStorage.setItem(KEY, corrida.id);
+    // Puede pasar el cupo de localStorage con listas grandes: si no entra, se
+    // pierde al recargar, pero la pantalla actual sigue funcionando.
+    try {
+      localStorage.setItem(KEY_DATOS, JSON.stringify(corrida));
+    } catch {
+      localStorage.removeItem(KEY_DATOS);
+    }
+  }
 }
 
 /**
@@ -37,6 +65,13 @@ export function useCorrida(id) {
       setCorrida(null);
       setCargando(false);
       return null;
+    }
+    // Sin estado: la corrida vive en el navegador, no hay a quién preguntarle.
+    const local = getCorridaLocal();
+    if (local && local.id === id) {
+      setCorrida(local);
+      setCargando(false);
+      return local;
     }
     try {
       const d = await api(`/api/corridas/${id}`);
