@@ -2,16 +2,27 @@ name: APK de Android
 
 # El APK es pesado de construir (SDK + Gradle), así que no corre en cada push:
 # sólo cuando cambia algo que termina adentro del APK, o a pedido.
+#
+# El resultado se publica en la Release del repo: la landing enlaza al canal
+# estable /releases/latest/download/MVClienteIA.apk. El artifact de Actions
+# expira y pide sesión de GitHub — no sirve como descarga de clientes.
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: ["claude/replicate-explee-kobra-s9sx0s"]
     paths:
       - 'webapp/frontend/**'
       - 'android/**'
       - 'capacitor.config.json'
       - 'package.json'
       - '.github/workflows/apk.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   apk:
@@ -39,11 +50,27 @@ jobs:
         run: npm run sync:android
 
       - name: Construir el APK de debug
+        # Firmado con la clave de debug: instala directo habilitando
+        # "instalar apps desconocidas". Para Play Store haría falta una firma
+        # de release propia.
         run: ./gradlew assembleDebug --no-daemon
         working-directory: android
 
-      - uses: actions/upload-artifact@v4
+      - name: Nombrar el APK y calcular SHA-256
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk MVClienteIA.apk
+          sha256sum MVClienteIA.apk > MVClienteIA.apk.sha256
+          cat MVClienteIA.apk.sha256
+
+      - name: Leer versión del paquete
+        id: ver
+        run: echo "MVVER=$(python3 -c 'import cliente_ia,sys;sys.stdout.write(cliente_ia.__version__)')" >> "$GITHUB_OUTPUT"
+
+      - name: Publicar en la Release (canal de descarga de la landing)
+        uses: softprops/action-gh-release@v2
         with:
-          name: MVClienteIA-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 30
+          tag_name: v${{ steps.ver.outputs.MVVER }}
+          name: MV Cliente IA v${{ steps.ver.outputs.MVVER }}
+          files: |
+            MVClienteIA.apk
+            MVClienteIA.apk.sha256

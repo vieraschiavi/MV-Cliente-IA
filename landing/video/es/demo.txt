@@ -1,8 +1,0 @@
-file '/tmp/mv-video-tncrwkh8/es_portada.mp4'
-file '/tmp/mv-video-tncrwkh8/es_explorar.mp4'
-file '/tmp/mv-video-tncrwkh8/es_prospectos.mp4'
-file '/tmp/mv-video-tncrwkh8/es_decisores.mp4'
-file '/tmp/mv-video-tncrwkh8/es_correo_texto.mp4'
-file '/tmp/mv-video-tncrwkh8/es_correo_html.mp4'
-file '/tmp/mv-video-tncrwkh8/es_linkedin.mp4'
-file '/tmp/mv-video-tncrwkh8/es_cierre.mp4'

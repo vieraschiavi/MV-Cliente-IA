@@ -1,0 +1,119 @@
+name: Instalador de Windows
+
+# Construye la app de escritorio (MVClienteIA_Setup.exe): el motor FastAPI
+# empaquetado con PyInstaller + la UI React, envueltos por electron-builder en
+# un instalador NSIS con desinstalador (aparece en "Agregar o quitar
+# programas", no pide administrador). Mismo esquema que MV Kobra AI.
+#
+# El .exe se publica en la Release del repo: la landing enlaza al canal
+# estable /releases/latest/download/MVClienteIA_Setup.exe. Los artifacts de
+# Actions expiran y piden sesión de GitHub — no sirven como descarga de
+# clientes.
+#
+# Los minutos de Windows facturan al doble: no corre en cada push, sólo
+# cuando cambia algo que termina adentro del instalador, o a pedido.
+on:
+  workflow_dispatch: {}
+  push:
+    branches: ["claude/replicate-explee-kobra-s9sx0s"]
+    paths:
+      - ".github/workflows/build_windows.yml"
+      - "packaging/**"
+      - "electron/**"
+      - "cliente_ia/**"
+      - "webapp/**"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller==6.11.1
+
+      - name: Setup Node (para compilar la app React del instalador)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Compilar la app React (webapp/frontend/dist)
+        # Node sólo hace falta acá, en CI; nunca en la PC del cliente final.
+        run: |
+          cd webapp/frontend
+          npm ci
+          npm run build
+
+      - name: Construir el motor (PyInstaller)
+        run: pyinstaller packaging/mvclienteia.spec --noconfirm --clean
+
+      - name: Verificar salida de PyInstaller
+        shell: pwsh
+        run: |
+          if (-Not (Test-Path "dist/MVClienteIA/MVClienteIA.exe")) {
+            Write-Error "No se generó dist/MVClienteIA/MVClienteIA.exe"; exit 1
+          }
+          Write-Host "Bundle OK"
+
+      - name: Leer versión del paquete
+        id: ver
+        shell: pwsh
+        run: |
+          $v = python -c "import cliente_ia,sys;sys.stdout.write(cliente_ia.__version__)"
+          "MVVER=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Construir instalador Electron (NSIS, con desinstalador)
+        shell: pwsh
+        run: |
+          cd electron
+          npm pkg set version=${{ steps.ver.outputs.MVVER }}
+          npm install
+          npx electron-builder --win nsis --publish never
+          if (-Not (Test-Path "dist_installer/MVClienteIA_Setup.exe")) {
+            Write-Error "No se generó el instalador Electron"; exit 1
+          }
+          Copy-Item "dist_installer/MVClienteIA_Setup.exe" ../dist/
+        env:
+          # Sin firma de código por ahora: no fallar buscando certificado. La
+          # landing avisa del cartel de SmartScreen y publica el SHA-256.
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: Calcular SHA-256 (verificación de integridad de la descarga)
+        shell: pwsh
+        run: |
+          $h = (Get-FileHash dist/MVClienteIA_Setup.exe -Algorithm SHA256).Hash.ToLower()
+          "$h  MVClienteIA_Setup.exe" | Out-File -Encoding ascii dist/MVClienteIA_Setup.exe.sha256
+          Write-Host "SHA-256: $h"
+
+      - name: Publicar en la Release (canal de descarga de la landing)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.MVVER }}
+          name: MV Cliente IA v${{ steps.ver.outputs.MVVER }}
+          body: >
+            App de escritorio para Windows (Electron + React, no requiere
+            Python ni dependencias). Instalador con desinstalador en
+            "Agregar o quitar programas", sin permisos de administrador.
+            Descargar `MVClienteIA_Setup.exe`, ejecutarlo y seguir el
+            asistente (es/pt/en). El `.sha256` permite verificar la
+            integridad de la descarga.
+          files: |
+            dist/MVClienteIA_Setup.exe
+            dist/MVClienteIA_Setup.exe.sha256

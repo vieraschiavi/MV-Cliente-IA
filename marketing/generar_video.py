@@ -299,7 +299,9 @@ def _escena_mp4(ff: str, imagen: Path, voz: Path, destino: Path) -> Path:
 
 
 def _concatenar(ff: str, escenas: list[Path], destino: Path) -> Path:
-    lista = destino.with_suffix(".txt")
+    # La lista de concat es un archivo de trabajo: vive con las escenas en el
+    # directorio temporal, no al lado del mp4 final (terminaba commiteada).
+    lista = escenas[0].parent / f"{destino.parent.name}_lista.txt"
     lista.write_text("".join(f"file '{p}'\n" for p in escenas), encoding="utf-8")
     destino.parent.mkdir(parents=True, exist_ok=True)
     # Mismo códec y parámetros en todas las escenas: se concatena sin recodificar.

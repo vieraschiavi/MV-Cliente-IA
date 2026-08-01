@@ -22,6 +22,16 @@ RAIZ = Path(__file__).resolve().parent.parent
 DESTINO = RAIZ / "landing"
 SITIO = "https://mvclienteia.com"
 
+# Canal estable de descargas: la Release del repo, que publican los workflows
+# de Actions (build_windows.yml y apk.yml). "latest" apunta siempre a la
+# última versión, así la landing no se toca en cada release. Junto a cada
+# archivo viaja su .sha256 para verificar la integridad de la descarga.
+DESCARGAS = "https://github.com/vieraschiavi/MV-Cliente-IA/releases/latest/download"
+URL_EXE = f"{DESCARGAS}/MVClienteIA_Setup.exe"
+URL_APK = f"{DESCARGAS}/MVClienteIA.apk"
+# Sentinela: en render() se reemplaza por la ruta relativa a /app/.
+APP = "@APP@"
+
 # --- textos ----------------------------------------------------------------
 TEXTOS: dict[str, dict] = {
     "es": {
@@ -33,11 +43,12 @@ TEXTOS: dict[str, dict] = {
                 "compradores, ubica a los decisores y escribe los correos. Uruguay primero, "
                 "después LATAM, después el mundo.",
         "nav": ["Cómo funciona", "Orden de mercado", "Video", "Idiomas", "Descargar"],
-        "hero_k": "Prospección automática",
+        "hero_k": "Prospección automática, 24/7",
         "hero_h1": ["¿Sin clientes? Meses construyendo,", "todavía $0 de ingresos."],
         "hero_p": "El problema nunca fue el producto — eran las ventas. Pegá el enlace de tu "
-                  "sitio, y el agente encuentra a tus compradores, escribe los correos y te deja "
-                  "la lista priorizada. Vos aparecés y cerrás.",
+                  "sitio, y el agente investiga el mercado, encuentra a tus compradores, escribe "
+                  "los correos y te deja la lista priorizada — en un minuto, en piloto "
+                  "automático, incluso mientras dormís. Vos aparecés y cerrás.",
         "hero_cta": "Probar con mi sitio",
         "hero_cta2": "Ver cómo funciona",
         "hero_nota": "Corre en tu navegador, en tu PC (Windows) y en tu celular (Android). "
@@ -73,9 +84,20 @@ TEXTOS: dict[str, dict] = {
         "desc_h": "Donde te quede cómodo",
         "desc_p": "El mismo producto, la misma interfaz, en los tres lados.",
         "desc_items": [
-            ("Navegador", "Nada que instalar. Entrás y buscás."),
-            ("PC · Windows", "Instalador propio. El motor corre en tu máquina, los datos no salen."),
-            ("Android · APK", "La lista y los correos en el celular, apuntando a tu servidor."),
+            ("Navegador", "Nada que instalar. Entrás y buscás.",
+             "Abrir la app", APP,
+             "La misma interfaz que en PC y Android."),
+            ("PC · Windows", "Instalador propio con desinstalador en «Agregar o quitar "
+             "programas», sin permisos de administrador. El motor corre en tu máquina: "
+             "los datos no salen.",
+             "Descargar para Windows", URL_EXE,
+             "Instalador sin firma de código: si SmartScreen avisa, «Más información → "
+             "Ejecutar de todas formas». El SHA-256 está publicado junto a la descarga."),
+            ("Android · APK", "La lista y los correos en el celular, apuntando a tu servidor "
+             "(Configuración → Dirección del servidor).",
+             "Descargar el APK", URL_APK,
+             "APK directo, no viene de Play Store: al instalarlo habilitá «Instalar apps "
+             "desconocidas» para tu navegador. El SHA-256 está publicado junto a la descarga."),
         ],
         "cierre_h": "Pegá tu enlace y mirá qué sale",
         "cierre_p": "La demo corre con datos sintéticos: no tenés que entregar nada para ver "
@@ -94,11 +116,12 @@ TEXTOS: dict[str, dict] = {
                 "compradores, localiza os decisores e escreve os e-mails. Uruguai primeiro, "
                 "depois LATAM, depois o mundo.",
         "nav": ["Como funciona", "Ordem de mercado", "Vídeo", "Idiomas", "Baixar"],
-        "hero_k": "Prospecção automática",
+        "hero_k": "Prospecção automática, 24/7",
         "hero_h1": ["Sem clientes? Meses construindo,", "e ainda R$0 de receita."],
         "hero_p": "O problema nunca foi o produto — eram as vendas. Cole o link do seu site e o "
-                  "agente encontra seus compradores, escreve os e-mails e entrega a lista "
-                  "priorizada. Você só aparece e fecha.",
+                  "agente pesquisa o mercado, encontra seus compradores, escreve os e-mails e "
+                  "entrega a lista priorizada — em um minuto, no piloto automático, até "
+                  "enquanto você dorme. Você só aparece e fecha.",
         "hero_cta": "Testar com meu site",
         "hero_cta2": "Ver como funciona",
         "hero_nota": "Roda no navegador, no seu PC (Windows) e no celular (Android). "
@@ -134,9 +157,20 @@ TEXTOS: dict[str, dict] = {
         "desc_h": "Onde for mais confortável",
         "desc_p": "O mesmo produto, a mesma interface, nos três lugares.",
         "desc_items": [
-            ("Navegador", "Nada para instalar. Entra e busca."),
-            ("PC · Windows", "Instalador próprio. O motor roda na sua máquina, os dados não saem."),
-            ("Android · APK", "A lista e os e-mails no celular, apontando para o seu servidor."),
+            ("Navegador", "Nada para instalar. Entra e busca.",
+             "Abrir o app", APP,
+             "A mesma interface do PC e do Android."),
+            ("PC · Windows", "Instalador próprio com desinstalador em «Adicionar ou remover "
+             "programas», sem permissões de administrador. O motor roda na sua máquina: "
+             "os dados não saem.",
+             "Baixar para Windows", URL_EXE,
+             "Instalador sem assinatura de código: se o SmartScreen avisar, «Mais "
+             "informações → Executar assim mesmo». O SHA-256 está publicado junto ao download."),
+            ("Android · APK", "A lista e os e-mails no celular, apontando para o seu servidor "
+             "(Configuração → Endereço do servidor).",
+             "Baixar o APK", URL_APK,
+             "APK direto, não vem da Play Store: ao instalar, habilite «Instalar apps "
+             "desconhecidos» para o seu navegador. O SHA-256 está publicado junto ao download."),
         ],
         "cierre_h": "Cole seu link e veja o que sai",
         "cierre_p": "A demo roda com dados sintéticos: você não precisa entregar nada para ver "
@@ -155,11 +189,12 @@ TEXTOS: dict[str, dict] = {
                 "locates the decision makers and writes the emails. Uruguay first, then LATAM, "
                 "then the world.",
         "nav": ["How it works", "Market order", "Video", "Languages", "Download"],
-        "hero_k": "Automatic prospecting",
+        "hero_k": "Automatic prospecting, 24/7",
         "hero_h1": ["No customers? Months building,", "still $0 in revenue."],
         "hero_p": "The problem was never the product — it was sales. Drop your website link and "
-                  "the agent finds your buyers, writes the emails and hands you the prioritized "
-                  "list. You just show up and close.",
+                  "the agent researches the market, finds your buyers, writes the emails and "
+                  "hands you the prioritized list — in a minute, on autopilot, even while you "
+                  "sleep. You just show up and close.",
         "hero_cta": "Try it with my site",
         "hero_cta2": "See how it works",
         "hero_nota": "Runs in your browser, on your PC (Windows) and on your phone (Android). "
@@ -195,9 +230,20 @@ TEXTOS: dict[str, dict] = {
         "desc_h": "Wherever suits you",
         "desc_p": "The same product and the same interface, in all three places.",
         "desc_items": [
-            ("Browser", "Nothing to install. Open it and search."),
-            ("PC · Windows", "Its own installer. The engine runs on your machine; data stays put."),
-            ("Android · APK", "The list and the emails on your phone, pointing at your server."),
+            ("Browser", "Nothing to install. Open it and search.",
+             "Open the app", APP,
+             "The same interface as on PC and Android."),
+            ("PC · Windows", "Its own installer with an uninstaller in \"Add or remove "
+             "programs\", no admin rights needed. The engine runs on your machine; data "
+             "stays put.",
+             "Download for Windows", URL_EXE,
+             "The installer isn't code-signed: if SmartScreen warns you, \"More info → "
+             "Run anyway\". The SHA-256 is published next to the download."),
+            ("Android · APK", "The list and the emails on your phone, pointing at your "
+             "server (Settings → Server address).",
+             "Download the APK", URL_APK,
+             "Direct APK, not from the Play Store: when installing, allow \"Install "
+             "unknown apps\" for your browser. The SHA-256 is published next to the download."),
         ],
         "cierre_h": "Drop your link and see what comes out",
         "cierre_p": "The demo runs on synthetic data: you don't have to hand anything over to "
@@ -296,6 +342,8 @@ section{padding:64px 0;border-top:1px solid var(--line)}
 .d{background:var(--navy2);border:1px solid var(--line);border-radius:14px;padding:22px}
 .d b{display:block;font-size:15px;margin-bottom:6px}
 .d p{margin:0;color:var(--muted);font-size:13.5px}
+.d .btn{display:inline-block;margin-top:14px}
+.d small{display:block;margin-top:10px;color:var(--faint);font-size:12px;line-height:1.5}
 
 .cierre{text-align:center;background:linear-gradient(180deg,transparent,rgba(0,200,150,.07))}
 .cierre .sec-p{margin-left:auto;margin-right:auto}
@@ -337,9 +385,15 @@ def render(idioma: str) -> str:
         f'<article class="ola{" uno" if i == 0 else ""}"><b>{_esc(n)}</b>'
         f'<span class="peso">{_esc(p)}</span><p>{_esc(d)}</p></article>'
         for i, (n, p, d) in enumerate(t["olas"]))
-    descargas = "\n".join(
-        f'<article class="d"><b>{_esc(n)}</b><p>{_esc(d)}</p></article>'
-        for n, d in t["desc_items"])
+    def _tarjeta_descarga(n, d, cta, href, nota):
+        if href == APP:
+            enlace = f'<a class="btn btn-o" href="{base}app/">{_esc(cta)} →</a>'
+        else:
+            enlace = f'<a class="btn btn-o" href="{href}" rel="noreferrer">⬇ {_esc(cta)}</a>'
+        return (f'<article class="d"><b>{_esc(n)}</b><p>{_esc(d)}</p>'
+                f'{enlace}<small>{_esc(nota)}</small></article>')
+
+    descargas = "\n".join(_tarjeta_descarga(*item) for item in t["desc_items"])
     enlaces = "".join(
         f'<a href="#{ancla}">{_esc(txt)}</a>'
         for ancla, txt in zip(("pasos", "olas", "video", "idiomas", "descargar"),

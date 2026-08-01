@@ -1,8 +1,0 @@
-file '/tmp/mv-video-tncrwkh8/en_portada.mp4'
-file '/tmp/mv-video-tncrwkh8/en_explorar.mp4'
-file '/tmp/mv-video-tncrwkh8/en_prospectos.mp4'
-file '/tmp/mv-video-tncrwkh8/en_decisores.mp4'
-file '/tmp/mv-video-tncrwkh8/en_correo_texto.mp4'
-file '/tmp/mv-video-tncrwkh8/en_correo_html.mp4'
-file '/tmp/mv-video-tncrwkh8/en_linkedin.mp4'
-file '/tmp/mv-video-tncrwkh8/en_cierre.mp4'
