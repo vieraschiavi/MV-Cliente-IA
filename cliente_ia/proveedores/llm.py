@@ -165,13 +165,14 @@ class ProveedorLLM(Proveedor):
                    limite: int) -> list[Prospecto]:
         salida: list[Prospecto] = []
         fallos: list[str] = []
-        # Se recorre en el orden de las olas, así el cupo se gasta primero en
-        # Uruguay: si el modelo devuelve de menos, falta mundo, no falta local.
+        # El cupo se reparte con Uruguay primero: si el modelo devuelve de
+        # menos, falta mundo, no falta local.
         reparto = {"local": 0.45, "latam": 0.35, "mundo": 0.20}
-        for nivel in ("local", "latam", "mundo"):
+        niveles = [n for n in ("local", "latam", "mundo")
+                   if any(c.nivel == n for c in campanas)]
+
+        def _pedir_ola(nivel: str):
             del_nivel = [c for c in campanas if c.nivel == nivel]
-            if not del_nivel:
-                continue
             cupo = max(1, round(limite * reparto[nivel]))
             paises = sorted({p for c in del_nivel for p in c.paises})
             sectores = sorted({c.sector for c in del_nivel})
@@ -187,8 +188,21 @@ class ProveedorLLM(Proveedor):
                 "para contactarlas. No inventes: si no conocés la organización, omitila. "
                 "NO incluyas nombres de personas."
             )
+            return _json_del_texto(self._pedir(prompt, 10000))
+
+        # Las tres olas van EN PARALELO: en serie eran tres llamadas al modelo
+        # una detrás de otra y la corrida entera rozaba el timeout de una
+        # función serverless — el usuario veía "Buscando…" hasta el corte.
+        from concurrent.futures import ThreadPoolExecutor
+
+        with ThreadPoolExecutor(max_workers=len(niveles) or 1) as pool:
+            futuros = {n: pool.submit(_pedir_ola, n) for n in niveles}
+
+        for nivel in niveles:                        # orden de olas, siempre
+            del_nivel = [c for c in campanas if c.nivel == nivel]
+            paises = sorted({p for c in del_nivel for p in c.paises})
             try:
-                datos = _json_del_texto(self._pedir(prompt, 10000))
+                datos = futuros[nivel].result()
             except ErrorLLM as e:
                 # Una ola puede fallar y las otras salvar la fase; pero si
                 # fallan TODAS, el motivo tiene que subir como aviso en vez

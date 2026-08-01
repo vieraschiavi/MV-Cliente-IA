@@ -50,7 +50,8 @@
     "usar_video": "Incluir o vídeo do meu site nos e-mails e no LinkedIn",
     "video_url": "URL do vídeo em {{idioma}}",
     "opcional": "opcional",
-    "ayuda_video": "Se deixar as URLs vazias, usa-se a seção de vídeo do seu próprio site, no idioma de cada destinatário. Se o vídeo está no YouTube, Vimeo ou num CDN, cole aqui a URL de cada idioma."
+    "ayuda_video": "Se deixar as URLs vazias, usa-se a seção de vídeo do seu próprio site, no idioma de cada destinatário. Se o vídeo está no YouTube, Vimeo ou num CDN, cole aqui a URL de cada idioma.",
+    "llm_esperando": "A pesquisa com IA consulta o Claude várias vezes e leva de 1 a 3 minutos. Deixe a aba aberta: o resultado aparece sozinho quando termina."
   },
   "fase": {
     "investigar": {

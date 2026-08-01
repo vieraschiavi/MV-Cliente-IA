@@ -233,6 +233,7 @@ def crear_corrida(entrada: CorridaIn):
                 "El modo de investigación con IA necesita una clave de la API "
                 "de Claude: pegala en Configuración, o definí ANTHROPIC_API_KEY "
                 "en el servidor. Mientras tanto usá «demo» o «leer mi sitio».")
+        t0 = time.monotonic()
         corrida = pipeline.ejecutar(
             entrada.dominio, modo=entrada.modo,
             limite_prospectos=entrada.prospectos,
@@ -242,6 +243,13 @@ def crear_corrida(entrada: CorridaIn):
             enlaces=_config_enlaces(entrada),
             clave_ia=entrada.clave_ia,
         )
+        # Una línea por corrida en el log del servidor (sin secretos): fue lo
+        # que faltó cuando el modo IA "no funcionaba" y no se veía por qué.
+        reales = sum(1 for p in corrida.prospectos if not p.sintetico)
+        print(f"[corrida] modo={corrida.modo} estado={corrida.estado} "
+              f"{time.monotonic() - t0:.0f}s competidores={len(corrida.competidores)} "
+              f"prospectos_reales={reales}/{len(corrida.prospectos)} "
+              f"avisos={corrida.avisos or 'ninguno'}", flush=True)
         if corrida.estado == "error":
             raise HTTPException(502, corrida.error or "La corrida falló")
         # La corrida entera, ya terminada: no hay dónde guardarla ni a quién

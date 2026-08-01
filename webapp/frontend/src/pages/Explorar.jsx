@@ -223,6 +223,12 @@ export default function Explorar() {
 
       {salud && !hayLLM ? <p className="nota">{t("explorar.modo_llm_falta")}</p> : null}
 
+      {/* La corrida con IA es una sola petición larga: sin este cartel el
+          usuario ve "Buscando…" un par de minutos y asume que se colgó. */}
+      {lanzando && form.modo === "llm" ? (
+        <p className="nota">{t("explorar.llm_esperando")}</p>
+      ) : null}
+
       {errLanzar ? <p className="error-note">{errLanzar}</p> : null}
       {error ? <p className="error-note">{error}</p> : null}
       {corrida?.error ? <p className="error-note">{corrida.error}</p> : null}
