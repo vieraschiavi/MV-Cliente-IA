@@ -79,9 +79,19 @@ function comandoBackend(puerto) {
   };
 }
 
-async function arrancar() {
+async function arrancar(intento = 0) {
   const puerto = await puertoLibre();
   const { cmd, args, cwd } = comandoBackend(puerto);
+
+  let listo = false;
+  // Si el motor muere ANTES de responder /api/salud (lo típico: otra app le
+  // ganó el puerto entre que lo sondeamos y que uvicorn hizo bind), no tiene
+  // sentido esperar los 90 s del timeout: se corta al instante y se reintenta
+  // con un puerto nuevo.
+  let avisarMuerte = () => {};
+  const muerteTemprana = new Promise((_, reject) => {
+    avisarMuerte = (code) => reject(new Error(`el motor terminó (código ${code}) antes de arrancar`));
+  });
 
   backend = spawn(cmd, args, {
     cwd,
@@ -93,6 +103,7 @@ async function arrancar() {
   backend.stdout.on("data", (d) => process.stdout.write(`[motor] ${d}`));
   backend.stderr.on("data", (d) => process.stderr.write(`[motor] ${d}`));
   backend.on("exit", (code) => {
+    if (!listo) { avisarMuerte(code); return; }
     // Si el motor se muere solo, la ventana queda mostrando una página que ya
     // no responde: es peor que decirlo.
     if (!cerrando && code !== 0) {
@@ -103,8 +114,16 @@ async function arrancar() {
 
   const url = `http://127.0.0.1:${puerto}/`;
   try {
-    await esperarBackend(`${url}api/salud`, ESPERA_BACKEND_MS);
+    await Promise.race([
+      esperarBackend(`${url}api/salud`, ESPERA_BACKEND_MS),
+      muerteTemprana,
+    ]);
+    listo = true;
   } catch (e) {
+    if (backend && !backend.killed) backend.kill();
+    if (intento < 2) {
+      return arrancar(intento + 1);        // puerto nuevo, motor nuevo
+    }
     dialog.showErrorBox("MV Cliente IA", `No se pudo iniciar el motor: ${e.message}`);
     app.quit();
     return;
