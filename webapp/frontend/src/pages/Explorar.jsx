@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, descargar, esNativo, fmtScore, getBase } from "../api.js";
 import { Aviso, Idioma, Kpis, Ola, Vacio } from "../componentes/Comunes.jsx";
-import { getCorridaId, setCorridaId, useCorrida } from "../estado.js";
+import { getCorridaId, setCorridaId, setCorridaLocal, useCorrida } from "../estado.js";
 import { t } from "../i18n/index.js";
 
 // El orden es el del pipeline (cliente_ia/modelos.py:FASES) y es el que se
@@ -54,6 +54,10 @@ export default function Explorar() {
     sitio: "", video_en_landing: true, videos: { es: "", pt: "", en: "" },
   });
   const [verEnlaces, setVerEnlaces] = useState(false);
+  // El backend dice si corre sin estado (Vercel): ahí el modo con IA tarda
+  // más de lo que dura la función, así que ni se ofrece.
+  const [salud, setSalud] = useState(null);
+  useEffect(() => { api("/api/salud").then(setSalud).catch(() => {}); }, []);
   const [lanzando, setLanzando] = useState(false);
   const [errLanzar, setErrLanzar] = useState("");
   const [abierta, setAbierta] = useState("investigar");
@@ -92,10 +96,14 @@ export default function Explorar() {
             Object.entries(form.videos).filter(([, v]) => v.trim())),
         },
       });
+      // En un despliegue sin estado el POST devuelve la corrida YA TERMINADA
+      // (no hay hilo de fondo ni disco donde consultarla después): se guarda
+      // en el navegador y se muestra directo, sin sondear.
+      if (r.estado === "listo" || r.pasos?.length) setCorridaLocal(r);
       setCorridaId(r.id);
       setId(r.id);
       setTocada(false);
-      setAbierta("investigar");
+      setAbierta(r.estado === "listo" ? "prospectos" : "investigar");
     } catch (e2) {
       setErrLanzar(e2.status === 0 && esNativo() && !getBase()
         ? t("aviso.sin_servidor") : `${t("explorar.error")}: ${e2.message}`);
@@ -144,7 +152,9 @@ export default function Explorar() {
                   onChange={(e) => setForm({ ...form, modo: e.target.value })}>
             <option value="demo">{t("explorar.modo_demo")}</option>
             <option value="web">{t("explorar.modo_web")}</option>
-            <option value="llm">{t("explorar.modo_llm")}</option>
+            {salud?.sin_estado ? null : (
+              <option value="llm">{t("explorar.modo_llm")}</option>
+            )}
           </select>
         </div>
         <div className="campo">
@@ -351,13 +361,11 @@ export default function Explorar() {
                       {t("common.ver_todos")} ({corrida.emails.length}) →
                     </button>
                     <button className="btn ghost"
-                            onClick={() => descargar(`/api/corridas/${corrida.id}/csv`,
-                                                     `${corrida.dominio}.csv`)}>
+                            onClick={() => descargar("/api/exportar/csv", `${corrida.dominio}.csv`, corrida)}>
                       {t("common.exportar_csv")}
                     </button>
                     <button className="btn ghost"
-                            onClick={() => descargar(`/api/corridas/${corrida.id}/xlsx`,
-                                                     `${corrida.dominio}.xlsx`)}>
+                            onClick={() => descargar("/api/exportar/xlsx", `${corrida.dominio}.xlsx`, corrida)}>
                       {t("common.exportar_xlsx")}
                     </button>
                   </div>

@@ -135,11 +135,11 @@ export default function Correos() {
           ))}
         </select>
         <button className="btn ghost"
-                onClick={() => descargar(`/api/corridas/${corrida.id}/csv`, `${corrida.dominio}.csv`)}>
+                onClick={() => descargar("/api/exportar/csv", `${corrida.dominio}.csv`, corrida)}>
           {t("common.exportar_csv")}
         </button>
         <button className="btn ghost"
-                onClick={() => descargar(`/api/corridas/${corrida.id}/xlsx`, `${corrida.dominio}.xlsx`)}>
+                onClick={() => descargar("/api/exportar/xlsx", `${corrida.dominio}.xlsx`, corrida)}>
           {t("common.exportar_xlsx")}
         </button>
       </div>
