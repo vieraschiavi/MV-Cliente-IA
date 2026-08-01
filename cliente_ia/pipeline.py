@@ -164,6 +164,9 @@ def ejecutar(dominio: str,
             if p.estado == "corriendo":
                 p.estado = "error"
                 p.detalle = corrida.error
+    # Lo que la cadena de proveedores absorbió sin tumbar la corrida (p. ej.
+    # el LLM falló y lo cubrió el demo) se muestra, no se esconde.
+    corrida.avisos = list(getattr(proveedor, "errores", []))
     avisar()
     return corrida
 

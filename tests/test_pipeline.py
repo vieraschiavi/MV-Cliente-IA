@@ -150,6 +150,18 @@ def test_la_cadena_no_confunde_vacio_con_fallo():
     cadena = ProveedorEncadenado(NoSabe(), RespondeVacio())
     assert cadena.competencia(None) == []
 
+    # Un proveedor que FALLA (no que no sabe) queda registrado en `errores`:
+    # es lo que el pipeline muestra como aviso en vez de esconder el fallo.
+    class Falla(Proveedor):
+        nombre = "falla"
+
+        def competencia(self, empresa):
+            raise RuntimeError("clave inválida")
+
+    con_fallo = ProveedorEncadenado(Falla(), RespondeVacio())
+    assert con_fallo.competencia(None) == []
+    assert con_fallo.errores and "falla · competencia" in con_fallo.errores[0]
+
     # Y cuando de verdad nadie responde, el error claro tiene que seguir ahí.
     try:
         ProveedorEncadenado(NoSabe()).competencia(None)

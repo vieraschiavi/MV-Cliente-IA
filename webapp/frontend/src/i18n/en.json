@@ -175,7 +175,8 @@
   },
   "aviso": {
     "sintetico": "Demo data: the companies and people in this list are synthetic, generated to exercise the flow. Switch the data source to “Read my real website” or “AI research” to work with real information.",
-    "sin_servidor": "Set the server address before searching for customers."
+    "sin_servidor": "Set the server address before searching for customers.",
+    "avisos_corrida": "The search finished, but some AI phases failed and were covered with synthetic data:"
   },
   "nav_corto": {
     "explorar": "Explore",

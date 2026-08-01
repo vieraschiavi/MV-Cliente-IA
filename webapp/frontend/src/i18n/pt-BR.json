@@ -175,7 +175,8 @@
   },
   "aviso": {
     "sintetico": "Dados de demonstração: as empresas e as pessoas desta lista são sintéticas, geradas para testar o fluxo. Mude a origem dos dados para «Ler meu site real» ou «Pesquisa com IA» para trabalhar com informação real.",
-    "sin_servidor": "Configure o endereço do servidor para poder buscar clientes."
+    "sin_servidor": "Configure o endereço do servidor para poder buscar clientes.",
+    "avisos_corrida": "A busca terminou, mas algumas fases com IA falharam e foram cobertas com dados sintéticos:"
   },
   "nav_corto": {
     "explorar": "Explorar",

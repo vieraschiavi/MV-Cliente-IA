@@ -54,6 +54,11 @@ class ProveedorEncadenado(Proveedor):
             raise ValueError("Hace falta al menos un proveedor")
         self.proveedores = proveedores
         self.nombre = "+".join(p.nombre for p in proveedores)
+        # Fallos que la cadena absorbió cayendo al siguiente proveedor. El
+        # pipeline los copia a `corrida.avisos`: una corrida "con IA" que en
+        # silencio terminó en datos sintéticos parece rota — hay que decir
+        # qué pasó y en qué fase.
+        self.errores: list[str] = []
 
     def _intentar(self, metodo: str, *args):
         ultimo_error: Exception | None = None
@@ -74,6 +79,8 @@ class ProveedorEncadenado(Proveedor):
                 continue
             except Exception as e:                      # noqa: BLE001
                 ultimo_error = e                        # se prueba el siguiente
+                # El mensaje va al usuario: proveedor + fase + motivo, corto.
+                self.errores.append(f"{p.nombre} · {metodo}: {str(e)[:300]}")
                 continue
             alguno_respondio = True
             if r:

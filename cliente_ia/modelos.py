@@ -208,6 +208,11 @@ class Corrida:
     decisores: list[Decisor] = field(default_factory=list)
     emails: list[Email] = field(default_factory=list)
     error: str = ""
+    # Qué falló POR DENTRO sin tumbar la corrida: cuando un proveedor de la
+    # cadena (p. ej. el LLM) se cae y otro lo cubre, acá queda el motivo. La
+    # interfaz lo muestra — una corrida "con IA" que en realidad usó datos
+    # sintéticos sin decir por qué ya confundió a un usuario.
+    avisos: list[str] = field(default_factory=list)
 
     def paso(self, clave: str) -> PasoFase:
         for p in self.pasos:
@@ -227,6 +232,7 @@ class Corrida:
             "idioma_ui": self.idioma_ui,
             "enlaces": dict(self.enlaces),
             "error": self.error,
+            "avisos": list(self.avisos),
             "pasos": [p.a_dict() for p in self.pasos],
             "empresa": self.empresa.a_dict() if self.empresa else None,
             "competidores": [c.a_dict() for c in self.competidores],
@@ -266,6 +272,7 @@ def desde_dict(d: dict) -> Corrida:
         idioma_ui=d.get("idioma_ui", "es"), error=d.get("error", ""),
         enlaces=d.get("enlaces") or {},
     )
+    c.avisos = [str(a) for a in d.get("avisos", [])]
     c.pasos = [PasoFase(**p) for p in d.get("pasos", [])]
     if d.get("empresa"):
         c.empresa = Empresa(**d["empresa"])

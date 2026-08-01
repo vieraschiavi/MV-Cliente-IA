@@ -28,7 +28,7 @@ from ..modelos import Campana, Competidor, Empresa, Prospecto
 from .base import Proveedor
 from .demo import ProveedorDemo
 
-MODELO_DEFAULT = "claude-sonnet-5"
+MODELO_DEFAULT = "claude-opus-5"
 TIMEOUT = 90
 
 
@@ -67,17 +67,41 @@ class ProveedorLLM(Proveedor):
         self._demo = ProveedorDemo(idioma_base)
 
     # ------------------------------------------------------------------
-    def _pedir(self, prompt: str, max_tokens: int = 4000) -> str:
+    def _pedir(self, prompt: str, max_tokens: int = 8000) -> str:
         try:
             import anthropic
         except ImportError as e:                       # pragma: no cover - depende del entorno
             raise ErrorLLM("Falta el paquete `anthropic` (pip install anthropic)") from e
         cliente = anthropic.Anthropic(api_key=self.clave, timeout=TIMEOUT)
-        r = cliente.messages.create(
-            model=self.modelo,
-            max_tokens=max_tokens,
-            messages=[{"role": "user", "content": prompt}],
-        )
+        # En los modelos Claude actuales el razonamiento viene activado por
+        # defecto y CUENTA contra max_tokens: con un tope chico la respuesta
+        # salía truncada a mitad del JSON y el parseo fallaba — la corrida
+        # caía en silencio a datos sintéticos con la clave andando perfecto.
+        # De ahí el tope generoso y el esfuerzo bajo (esto es extracción
+        # estructurada, no un problema abierto).
+        try:
+            r = cliente.messages.create(
+                model=self.modelo,
+                max_tokens=max_tokens,
+                output_config={"effort": "low"},
+                messages=[{"role": "user", "content": prompt}],
+            )
+        except TypeError:
+            # SDK viejo sin `output_config`: mismo pedido, esfuerzo default.
+            r = cliente.messages.create(
+                model=self.modelo,
+                max_tokens=max_tokens,
+                messages=[{"role": "user", "content": prompt}],
+            )
+        except anthropic.APIStatusError as e:
+            raise ErrorLLM(f"La API de Claude respondió {e.status_code}: "
+                           f"{getattr(e, 'message', '') or e}") from e
+        if r.stop_reason == "max_tokens":
+            raise ErrorLLM("La respuesta del modelo quedó truncada por el "
+                           "límite de tokens — se descarta para no parsear "
+                           "JSON a medias")
+        if r.stop_reason == "refusal":
+            raise ErrorLLM("El modelo declinó responder este pedido")
         return "".join(b.text for b in r.content if getattr(b, "type", "") == "text")
 
     # ------------------------------------------------------------------
@@ -96,7 +120,7 @@ class ProveedorLLM(Proveedor):
             '"una frase", "pais": "US", "solapamiento": 0.0-1.0}. '
             "Si no estás seguro de que una empresa existe, no la incluyas."
         )
-        datos = _json_del_texto(self._pedir(prompt, 2500))
+        datos = _json_del_texto(self._pedir(prompt, 8000))
         salida: list[Competidor] = []
         for c in datos if isinstance(datos, list) else []:
             if not isinstance(c, dict) or not c.get("dominio"):
@@ -126,7 +150,7 @@ class ProveedorLLM(Proveedor):
             'Devolvé SOLO un array JSON: [{"id": "...", "angulo": "..."}]'
         )
         try:
-            datos = _json_del_texto(self._pedir(prompt, 3000))
+            datos = _json_del_texto(self._pedir(prompt, 8000))
         except ErrorLLM:
             return base                                  # el ángulo del demo alcanza
         angulos = {str(d.get("id")): str(d.get("angulo", "")).strip()
@@ -140,6 +164,7 @@ class ProveedorLLM(Proveedor):
     def prospectos(self, empresa: Empresa, campanas: list[Campana],
                    limite: int) -> list[Prospecto]:
         salida: list[Prospecto] = []
+        fallos: list[str] = []
         # Se recorre en el orden de las olas, así el cupo se gasta primero en
         # Uruguay: si el modelo devuelve de menos, falta mundo, no falta local.
         reparto = {"local": 0.45, "latam": 0.35, "mundo": 0.20}
@@ -163,8 +188,12 @@ class ProveedorLLM(Proveedor):
                 "NO incluyas nombres de personas."
             )
             try:
-                datos = _json_del_texto(self._pedir(prompt, 4000))
-            except ErrorLLM:
+                datos = _json_del_texto(self._pedir(prompt, 10000))
+            except ErrorLLM as e:
+                # Una ola puede fallar y las otras salvar la fase; pero si
+                # fallan TODAS, el motivo tiene que subir como aviso en vez
+                # de devolver [] mudo y caer al demo sin explicación.
+                fallos.append(f"{nivel}: {e}")
                 continue
             por_sector = {c.sector: c for c in del_nivel}
             for p in datos if isinstance(datos, list) else []:
@@ -192,6 +221,8 @@ class ProveedorLLM(Proveedor):
                     sintetico=False,
                     fuente=self.nombre,
                 ))
+        if not salida and fallos:
+            raise ErrorLLM("; ".join(fallos))
         return salida
 
     # Fase 5 · NO la implementa a propósito: las personas las genera el

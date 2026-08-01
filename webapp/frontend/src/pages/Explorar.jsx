@@ -252,6 +252,22 @@ export default function Explorar() {
             <div style={{ marginTop: 16 }}><Aviso>{t("aviso.sintetico")}</Aviso></div>
           ) : null}
 
+          {/* Fallos que la cadena de proveedores absorbió (p. ej. la IA falló
+              y la cubrió el demo): sin esto, una corrida "con IA" que terminó
+              en datos sintéticos parece rota sin explicación. */}
+          {(corrida.avisos || []).length ? (
+            <div style={{ marginTop: 16 }}>
+              <Aviso>
+                {t("aviso.avisos_corrida")}
+                <ul style={{ margin: "8px 0 0", paddingLeft: 18 }}>
+                  {corrida.avisos.map((a, i) => (
+                    <li key={i} style={{ marginBottom: 4 }}>{a}</li>
+                  ))}
+                </ul>
+              </Aviso>
+            </div>
+          ) : null}
+
           <div className="fases">
             {/* 1 · investigar */}
             <Fase n={1} clave="investigar" paso={pasos.investigar}
