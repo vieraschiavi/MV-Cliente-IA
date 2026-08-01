@@ -161,3 +161,31 @@ def test_export_csv_tiene_una_fila_por_decisor(corrida_kobra):
 def test_export_xlsx_se_genera(corrida_kobra):
     destino = exportar.guardar_xlsx(corrida_kobra)
     assert destino.exists() and destino.stat().st_size > 5000
+
+
+def test_la_semilla_del_catalogo_esta_versionada():
+    """
+    Regresión: `.gitignore` tenía `datos/` sin barra inicial, así que git lo
+    aplicaba en cualquier nivel y se comía `cliente_ia/datos/mercado.json`.
+    En la máquina de desarrollo no se nota —el archivo está ahí, sin
+    versionar— pero el clon limpio queda sin él y no arranca ni un test.
+    Un archivo que el paquete necesita para funcionar tiene que estar en el
+    repo, y eso no lo verifica ninguna importación.
+    """
+    import subprocess
+    from pathlib import Path
+
+    import pytest
+
+    raiz = Path(__file__).resolve().parent.parent
+    necesarios = ["cliente_ia/datos/mercado.json"]
+    try:
+        r = subprocess.run(["git", "ls-files", *necesarios],
+                           cwd=raiz, capture_output=True, text=True, timeout=15)
+    except (OSError, subprocess.SubprocessError):
+        pytest.skip("git no disponible")
+    if r.returncode != 0:
+        pytest.skip("no es un repositorio git")
+    versionados = set(r.stdout.split())
+    faltan = [n for n in necesarios if n not in versionados]
+    assert not faltan, f"archivos del paquete sin versionar: {faltan}"
