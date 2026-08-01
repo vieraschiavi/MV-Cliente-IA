@@ -1,0 +1,13 @@
+{
+  "appId": "com.mvclienteia.app",
+  "appName": "MV Cliente IA",
+  "webDir": "webapp/frontend/dist",
+  "android": {
+    "allowMixedContent": true
+  },
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "backgroundColor": "#0a1020"
+}

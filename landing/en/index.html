@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MV Cliente IA · Find your next customers</title>
+<meta name="description" content="Drop your product link: the AI researches your company, finds your buyers, locates the decision makers and writes the emails. Uruguay first, then LATAM, then the world.">
+<link rel="icon" type="image/png" href="../mv_icon.png">
+<link rel="canonical" href="https://mvclienteia.com/en/">
+<link rel="alternate" hreflang="es" href="https://mvclienteia.com/">
+<link rel="alternate" hreflang="pt-BR" href="https://mvclienteia.com/pt/">
+<link rel="alternate" hreflang="en" href="https://mvclienteia.com/en/">
+<link rel="alternate" hreflang="x-default" href="https://mvclienteia.com/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="MV Cliente IA">
+<meta property="og:locale" content="en_US">
+<meta property="og:url" content="https://mvclienteia.com/en/">
+<meta property="og:title" content="MV Cliente IA · Find your next customers">
+<meta property="og:description" content="Drop your product link: the AI researches your company, finds your buyers, locates the decision makers and writes the emails. Uruguay first, then LATAM, then the world.">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+:root{
+  --navy:#0a1020; --navy2:#0e1628; --navy3:#142036; --line:#24344f; --line2:#2a4160;
+  --ink:#eaf1fb; --muted:#93a5c0; --faint:#7a8da7;
+  --green:#00c896; --green2:#7cc242; --green-ink:#062018;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--navy);color:var(--ink);font-family:var(--sans);
+  line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+h1,h2,h3{margin:0;line-height:1.12;letter-spacing:-.02em;text-wrap:balance}
+.gr{color:var(--green)}
+
+nav{position:sticky;top:0;z-index:30;background:rgba(10,16,32,.85);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;align-items:center;gap:16px;height:62px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800}
+.brand img{width:30px;height:30px;border-radius:8px;display:block}
+.brand b{font-size:15px}
+.nlinks{display:flex;gap:2px;margin-left:12px}
+.nlinks a{color:var(--muted);font-size:13.5px;font-weight:600;padding:7px 11px;border-radius:8px}
+.nlinks a:hover{color:#fff;background:rgba(255,255,255,.06)}
+@media(max-width:860px){.nlinks{display:none}}
+.right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.lang{display:flex;gap:2px;background:rgba(255,255,255,.06);border:1px solid var(--line2);
+  border-radius:8px;padding:3px}
+.lang a{color:var(--faint);font-size:11.5px;font-weight:800;padding:5px 9px;border-radius:6px;
+  letter-spacing:.03em}
+.lang a.on{background:var(--green);color:var(--green-ink)}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:750;
+  font-size:14px;border-radius:9px;padding:11px 18px;border:1px solid transparent;
+  transition:transform .12s}
+.btn:hover{transform:translateY(-1px)}
+.btn-a{background:var(--green);color:var(--green-ink);box-shadow:0 6px 20px rgba(0,200,150,.25)}
+.btn-o{background:transparent;color:#fff;border-color:var(--line2)}
+.btn-o:hover{border-color:var(--green);color:var(--green)}
+
+.hero{padding:76px 0 64px;background:radial-gradient(1100px 460px at 50% -10%,
+  rgba(0,200,150,.13),transparent 70%)}
+.kicker{display:inline-block;font-size:11.5px;font-weight:800;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--green);border:1px solid rgba(0,200,150,.35);
+  border-radius:20px;padding:5px 13px;margin-bottom:20px}
+.hero h1{font-size:clamp(30px,5.4vw,52px);font-weight:850;max-width:19ch}
+.hero h1 span{color:var(--muted)}
+.hero p{color:var(--muted);font-size:17px;max-width:60ch;margin:20px 0 28px}
+.acciones{display:flex;gap:12px;flex-wrap:wrap}
+.hero small{display:block;color:var(--faint);font-size:13px;margin-top:20px;max-width:62ch}
+
+section{padding:64px 0;border-top:1px solid var(--line)}
+.sec-h{font-size:clamp(22px,3.2vw,32px);font-weight:800}
+.sec-p{color:var(--muted);font-size:15.5px;max-width:66ch;margin:14px 0 34px}
+
+.pasos{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px}
+.paso{background:var(--navy2);border:1px solid var(--line);border-radius:14px;padding:20px 22px}
+.paso .n{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;
+  background:var(--green);color:var(--green-ink);font-weight:800;font-size:13px;margin-bottom:12px}
+.paso b{display:block;font-size:15px;margin-bottom:6px}
+.paso p{margin:0;color:var(--muted);font-size:13.5px}
+
+.olas{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.ola{background:var(--navy2);border:1px solid var(--line);border-radius:14px;padding:22px}
+.ola.uno{border-color:rgba(0,200,150,.4)}
+.ola b{display:block;font-size:17px;margin-bottom:4px}
+.ola .peso{color:var(--green);font-weight:800;font-size:13px;font-variant-numeric:tabular-nums}
+.ola p{margin:10px 0 0;color:var(--muted);font-size:13.5px}
+
+.idiomas{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+.chip{background:var(--navy3);border:1px solid var(--line);border-radius:20px;
+  padding:8px 16px;font-size:13.5px;font-weight:700}
+.chip i{font-style:normal;color:var(--green)}
+
+.desc{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.d{background:var(--navy2);border:1px solid var(--line);border-radius:14px;padding:22px}
+.d b{display:block;font-size:15px;margin-bottom:6px}
+.d p{margin:0;color:var(--muted);font-size:13.5px}
+
+.cierre{text-align:center;background:linear-gradient(180deg,transparent,rgba(0,200,150,.07))}
+.cierre .sec-p{margin-left:auto;margin-right:auto}
+footer{border-top:1px solid var(--line);padding:30px 0 46px;color:var(--faint);font-size:12.5px}
+footer p{max-width:78ch;margin:0 0 10px}
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <a class="brand" href="../"><img src="../mv_icon.png" alt="MV Cliente IA">
+    <b>MV CLIENTE <span class="gr">IA</span></b></a>
+  <div class="nlinks"><a href="#pasos">How it works</a><a href="#olas">Market order</a><a href="#idiomas">Languages</a><a href="#descargar">Download</a></div>
+  <div class="right"><div class="lang"><a href="../">ES</a><a href="../pt/">PT</a><a href="../en/" class="on">EN</a></div>
+    <a class="btn btn-a" href="../app/">Try it with my site</a></div>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+  <span class="kicker">Automatic prospecting</span>
+  <h1>No customers? Months building,<br><span>still $0 in revenue.</span></h1>
+  <p>The problem was never the product — it was sales. Drop your website link and the agent finds your buyers, writes the emails and hands you the prioritized list. You just show up and close.</p>
+  <div class="acciones">
+    <a class="btn btn-a" href="../app/">Try it with my site →</a>
+    <a class="btn btn-o" href="#pasos">See how it works</a>
+  </div>
+  <small>Runs in your browser, on your PC (Windows) and on your phone (Android). The demo uses synthetic data: evaluate it without handing anything over.</small>
+</div></header>
+
+<section id="pasos"><div class="wrap">
+  <h2 class="sec-h">Six steps, one after another</h2>
+  <p class="sec-p">It's the same path a sales team would walk in two weeks — except this one finishes before your coffee does.</p>
+  <div class="pasos"><article class="paso"><div class="n">1</div><b>Research your company</b><p>Reads your site and extracts what you sell, to whom, and with what argument.</p></article>
+<article class="paso"><div class="n">2</div><b>Explore the competition</b><p>Who you'll be compared against, and where you overlap.</p></article>
+<article class="paso"><div class="n">3</div><b>Define campaigns</b><p>One message angle per sector and per geographic wave.</p></article>
+<article class="paso"><div class="n">4</div><b>Find potential customers</b><p>Companies matching your profile, with the reason why now.</p></article>
+<article class="paso"><div class="n">5</div><b>Find the decision makers</b><p>Who signs off at each one, with their title.</p></article>
+<article class="paso"><div class="n">6</div><b>Write the emails</b><p>A first touch and its follow-up, in the recipient's language.</p></article></div>
+</div></section>
+
+<section id="olas"><div class="wrap">
+  <h2 class="sec-h">Uruguay first. Then LATAM. Then the world.</h2>
+  <p class="sec-p">It isn't a filter you toggle: the ordering lives inside the score. A good Uruguayan prospect always ranks ahead of an equally good one from abroad, because in Uruguay you can knock on the door.</p>
+  <div class="olas"><article class="ola uno"><b>Uruguay</b><span class="peso">Weight 1.00</span><p>The market where one phone call gets you a meeting.</p></article>
+<article class="ola"><b>LATAM</b><span class="peso">Weight 0.72</span><p>Argentina, Brazil, Chile, Mexico and ten more countries.</p></article>
+<article class="ola"><b>Rest of the world</b><span class="peso">Weight 0.45</span><p>Where the product wins on the case, not on proximity.</p></article></div>
+</div></section>
+
+<section id="idiomas"><div class="wrap">
+  <h2 class="sec-h">Three languages, decided by the recipient's country</h2>
+  <p class="sec-p">You pick the interface language. The email's isn't yours to pick: it goes out in Spanish, Portuguese or English depending on the decision maker's country. Brazil gets Portuguese even if you work in Spanish.</p>
+  <div class="idiomas">
+    <span class="chip"><i>ES</i> Español</span>
+    <span class="chip"><i>PT</i> Português</span>
+    <span class="chip"><i>EN</i> English</span>
+  </div>
+</div></section>
+
+<section id="descargar"><div class="wrap">
+  <h2 class="sec-h">Wherever suits you</h2>
+  <p class="sec-p">The same product and the same interface, in all three places.</p>
+  <div class="desc"><article class="d"><b>Browser</b><p>Nothing to install. Open it and search.</p></article>
+<article class="d"><b>PC · Windows</b><p>Its own installer. The engine runs on your machine; data stays put.</p></article>
+<article class="d"><b>Android · APK</b><p>The list and the emails on your phone, pointing at your server.</p></article></div>
+</div></section>
+
+<section class="cierre"><div class="wrap">
+  <h2 class="sec-h">Drop your link and see what comes out</h2>
+  <p class="sec-p">The demo runs on synthetic data: you don't have to hand anything over to see the whole flow work.</p>
+  <a class="btn btn-a" href="../app/">Start now →</a>
+</div></section>
+
+<footer><div class="wrap"><p>Synthetic demo data. The companies and people in the demo are not real. In real research mode the information comes from public sources — review it before contacting anyone.</p><p>© MV Cliente IA</p></div></footer>
+
+</body>
+</html>

@@ -1,0 +1,40 @@
+[tool.ruff]
+# Linter del proyecto:  ruff check .
+target-version = "py311"
+line-length = 100
+extend-exclude = [
+    "android",
+    "electron/node_modules",
+    "webapp/frontend/node_modules",
+    "webapp/frontend/dist",
+    "node_modules",
+    "dist",
+    "datos",
+]
+
+[tool.ruff.lint]
+# E,F = pycodestyle + pyflakes · I = orden de imports · B = bugbear
+# UP = modismos viejos · C4 = comprensiones innecesarias
+select = ["E", "F", "I", "B", "UP", "C4"]
+ignore = [
+    # Los módulos empaquetados hacen sys.path.insert(...) antes de importar el
+    # paquete, porque corren como script y como módulo. Ya está marcado con
+    # `# noqa: E402` donde corresponde.
+    "E402",
+    # Líneas largas: los comentarios explican en prosa y cortarlos a la fuerza
+    # los vuelve ilegibles. El largo lo cuida `line-length` al formatear.
+    "E501",
+    # Depends(...) en un default de argumento es LA forma de declarar una
+    # dependencia en FastAPI, no un descuido.
+    "B008",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"packaging/mvclienteia.spec" = ["F821"]   # PyInstaller inyecta los símbolos
+
+[tool.ruff.lint.isort]
+known-first-party = ["cliente_ia", "webapp", "packaging"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

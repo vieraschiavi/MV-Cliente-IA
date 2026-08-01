@@ -1,0 +1,162 @@
+{
+  "common": {
+    "marca": "MV CLIENTE <span>IA</span>",
+    "cargando": "Loading…",
+    "copiar": "Copy",
+    "copiado": "Copied",
+    "exportar_csv": "⬇ CSV",
+    "exportar_xlsx": "⬇ Excel",
+    "ver_todos": "View all",
+    "sin_datos": "Nothing here yet. Start a search from “Explore”.",
+    "de": "of"
+  },
+  "nav": {
+    "explorar": "Explore",
+    "prospectos": "Prospects",
+    "decisores": "Decision makers",
+    "correos": "Emails",
+    "historial": "History",
+    "configuracion": "Settings"
+  },
+  "login": {
+    "subtitulo": "Find your next customers",
+    "placeholder": "Password",
+    "entrar": "Sign in",
+    "entrando": "Signing in…",
+    "error": "Wrong password"
+  },
+  "explorar": {
+    "titulo": "Explore",
+    "subtitulo": "Drop your product link. The agent researches your company, finds your buyers, finds the decision makers and writes the emails. You just show up and close.",
+    "dominio": "Your product website",
+    "dominio_ph": "mvkobranzaia.com",
+    "nombre": "Brand name",
+    "nombre_ph": "MV Kobra AI",
+    "modo": "Data source",
+    "modo_demo": "Demo (synthetic, offline)",
+    "modo_web": "Read my real website",
+    "modo_llm": "AI research",
+    "prospectos": "How many companies",
+    "lanzar": "Start finding customers",
+    "lanzando": "Searching…",
+    "otra": "New search",
+    "progreso": "{{hechas}} of {{total}} steps",
+    "error": "The search could not be completed"
+  },
+  "fase": {
+    "investigar": {
+      "n": "Research your company",
+      "d": "What you sell, to whom, and with what argument"
+    },
+    "competencia": {
+      "n": "Explore the competition",
+      "d": "Who your buyer will compare you against"
+    },
+    "campanas": {
+      "n": "Define campaigns",
+      "d": "One angle per sector and per geographic wave"
+    },
+    "prospectos": {
+      "n": "Find potential customers",
+      "d": "Companies that match your ideal customer profile"
+    },
+    "decisores": {
+      "n": "Find the decision makers",
+      "d": "Who signs off at each company"
+    },
+    "emails": {
+      "n": "Write the emails",
+      "d": "One per company, in the recipient's language"
+    }
+  },
+  "estado": {
+    "pendiente": "Queued",
+    "corriendo": "Running…",
+    "listo": "Done",
+    "error": "Error"
+  },
+  "empresa": {
+    "categoria": "Category",
+    "propuesta": "Value proposition",
+    "sectores": "Target sectors",
+    "tamano": "Customer size",
+    "mercado": "Home market",
+    "diferenciales": "Differentiators"
+  },
+  "ola": {
+    "titulo": "Go-to-market order",
+    "local": "Uruguay",
+    "latam": "LATAM",
+    "mundo": "Rest of the world",
+    "explicacion": "Uruguay first, then LATAM, then the rest of the world. The score already carries that weight: a good Uruguayan prospect always ranks ahead of an equally good one from abroad."
+  },
+  "kpi": {
+    "prospectos": "Companies",
+    "decisores": "Decision makers",
+    "correos": "Emails",
+    "competidores": "Competitors",
+    "campanas": "Campaigns",
+    "uruguay": "Uruguay"
+  },
+  "tabla": {
+    "score": "Score",
+    "empresa": "Company",
+    "sector": "Sector",
+    "pais": "Country",
+    "ciudad": "City",
+    "empleados": "Employees",
+    "ola": "Wave",
+    "senales": "Why now",
+    "decisor": "Decision maker",
+    "cargo": "Title",
+    "email": "Email",
+    "idioma": "Language",
+    "asunto": "Subject",
+    "campana": "Campaign",
+    "dominio": "Domain",
+    "solapamiento": "Overlap",
+    "creada": "Date",
+    "modo": "Source",
+    "estado": "Status",
+    "acciones": "Actions"
+  },
+  "correos": {
+    "titulo": "Emails",
+    "subtitulo": "A first touch and its follow-up per company, each in the language of the recipient's country.",
+    "seguimiento": "Follow-up (+3 days)",
+    "filtro_idioma": "Language",
+    "todos": "All"
+  },
+  "historial": {
+    "titulo": "History",
+    "subtitulo": "Every search saved on this device.",
+    "abrir": "Open",
+    "borrar": "Delete"
+  },
+  "config": {
+    "titulo": "Settings",
+    "subtitulo": "Interface language, server and product details.",
+    "idioma": "Interface language",
+    "servidor": "Server address",
+    "servidor_ayuda": "Only needed in the Android app: the address where the backend runs (for example http://192.168.1.10:8810). Leave it empty on web and on the desktop app.",
+    "guardar": "Save",
+    "guardado": "Saved",
+    "probar": "Test connection",
+    "conexion_ok": "Connection OK",
+    "conexion_error": "Could not connect",
+    "salir": "Sign out",
+    "version": "Version"
+  },
+  "aviso": {
+    "sintetico": "Demo data: the companies and people in this list are synthetic, generated to exercise the flow. Switch the data source to “Read my real website” or “AI research” to work with real information.",
+    "sin_servidor": "Set the server address before searching for customers."
+  },
+  "nav_corto": {
+    "explorar": "Explore",
+    "prospectos": "Companies",
+    "decisores": "People",
+    "correos": "Emails",
+    "historial": "History",
+    "configuracion": "Settings"
+  }
+}

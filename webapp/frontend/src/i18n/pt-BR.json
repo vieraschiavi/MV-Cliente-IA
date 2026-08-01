@@ -1,0 +1,162 @@
+{
+  "common": {
+    "marca": "MV CLIENTE <span>IA</span>",
+    "cargando": "Carregando…",
+    "copiar": "Copiar",
+    "copiado": "Copiado",
+    "exportar_csv": "⬇ CSV",
+    "exportar_xlsx": "⬇ Excel",
+    "ver_todos": "Ver todos",
+    "sin_datos": "Ainda não há nada aqui. Inicie uma busca em «Explorar».",
+    "de": "de"
+  },
+  "nav": {
+    "explorar": "Explorar",
+    "prospectos": "Clientes potenciais",
+    "decisores": "Decisores",
+    "correos": "E-mails",
+    "historial": "Histórico",
+    "configuracion": "Configurações"
+  },
+  "login": {
+    "subtitulo": "Encontre seus próximos clientes",
+    "placeholder": "Senha",
+    "entrar": "Entrar",
+    "entrando": "Entrando…",
+    "error": "Senha incorreta"
+  },
+  "explorar": {
+    "titulo": "Explorar",
+    "subtitulo": "Cole o link do seu produto. O agente pesquisa sua empresa, busca seus compradores, encontra os decisores e escreve os e-mails. Você só aparece e fecha.",
+    "dominio": "Site do seu produto",
+    "dominio_ph": "mvkobranzaia.com",
+    "nombre": "Nome comercial",
+    "nombre_ph": "MV Kobra AI",
+    "modo": "Origem dos dados",
+    "modo_demo": "Demo (sintético, sem conexão)",
+    "modo_web": "Ler meu site real",
+    "modo_llm": "Pesquisa com IA",
+    "prospectos": "Quantas empresas",
+    "lanzar": "Começar a buscar clientes",
+    "lanzando": "Buscando…",
+    "otra": "Nova busca",
+    "progreso": "{{hechas}} de {{total}} passos",
+    "error": "Não foi possível concluir a busca"
+  },
+  "fase": {
+    "investigar": {
+      "n": "Pesquise sua empresa",
+      "d": "O que você vende, para quem e com qual argumento"
+    },
+    "competencia": {
+      "n": "Explore a concorrência",
+      "d": "Com quem seu comprador vai comparar você"
+    },
+    "campanas": {
+      "n": "Defina campanhas",
+      "d": "Um ângulo por setor e por onda geográfica"
+    },
+    "prospectos": {
+      "n": "Encontre clientes potenciais",
+      "d": "Empresas que se encaixam no seu perfil de cliente"
+    },
+    "decisores": {
+      "n": "Encontre os decisores",
+      "d": "Quem assina a decisão em cada empresa"
+    },
+    "emails": {
+      "n": "Escreva os e-mails",
+      "d": "Um por empresa, no idioma de quem recebe"
+    }
+  },
+  "estado": {
+    "pendiente": "Aguardando",
+    "corriendo": "Rodando…",
+    "listo": "Pronto",
+    "error": "Erro"
+  },
+  "empresa": {
+    "categoria": "Categoria",
+    "propuesta": "Proposta de valor",
+    "sectores": "Setores-alvo",
+    "tamano": "Porte do cliente",
+    "mercado": "Mercado base",
+    "diferenciales": "Diferenciais"
+  },
+  "ola": {
+    "titulo": "Ordem de entrada no mercado",
+    "local": "Uruguai",
+    "latam": "LATAM",
+    "mundo": "Resto do mundo",
+    "explicacion": "Uruguai primeiro, depois LATAM, depois o resto do mundo. A pontuação já carrega esse peso: um prospecto uruguaio bom sempre vem antes de um igualmente bom de fora."
+  },
+  "kpi": {
+    "prospectos": "Empresas",
+    "decisores": "Decisores",
+    "correos": "E-mails",
+    "competidores": "Concorrentes",
+    "campanas": "Campanhas",
+    "uruguay": "Uruguai"
+  },
+  "tabla": {
+    "score": "Pontuação",
+    "empresa": "Empresa",
+    "sector": "Setor",
+    "pais": "País",
+    "ciudad": "Cidade",
+    "empleados": "Funcionários",
+    "ola": "Onda",
+    "senales": "Por que agora",
+    "decisor": "Decisor",
+    "cargo": "Cargo",
+    "email": "E-mail",
+    "idioma": "Idioma",
+    "asunto": "Assunto",
+    "campana": "Campanha",
+    "dominio": "Domínio",
+    "solapamiento": "Sobreposição",
+    "creada": "Data",
+    "modo": "Origem",
+    "estado": "Status",
+    "acciones": "Ações"
+  },
+  "correos": {
+    "titulo": "E-mails",
+    "subtitulo": "Um primeiro contato e seu follow-up por empresa, cada um no idioma do país de quem recebe.",
+    "seguimiento": "Follow-up (+3 dias)",
+    "filtro_idioma": "Idioma",
+    "todos": "Todos"
+  },
+  "historial": {
+    "titulo": "Histórico",
+    "subtitulo": "Todas as buscas salvas neste dispositivo.",
+    "abrir": "Abrir",
+    "borrar": "Excluir"
+  },
+  "config": {
+    "titulo": "Configurações",
+    "subtitulo": "Idioma da interface, servidor e dados do produto.",
+    "idioma": "Idioma da interface",
+    "servidor": "Endereço do servidor",
+    "servidor_ayuda": "Só é necessário no app Android: é o endereço onde roda o backend (por exemplo http://192.168.1.10:8810). Na web e no app de PC deixe vazio.",
+    "guardar": "Salvar",
+    "guardado": "Salvo",
+    "probar": "Testar conexão",
+    "conexion_ok": "Conexão correta",
+    "conexion_error": "Não foi possível conectar",
+    "salir": "Sair",
+    "version": "Versão"
+  },
+  "aviso": {
+    "sintetico": "Dados de demonstração: as empresas e as pessoas desta lista são sintéticas, geradas para testar o fluxo. Mude a origem dos dados para «Ler meu site real» ou «Pesquisa com IA» para trabalhar com informação real.",
+    "sin_servidor": "Configure o endereço do servidor para poder buscar clientes."
+  },
+  "nav_corto": {
+    "explorar": "Explorar",
+    "prospectos": "Empresas",
+    "decisores": "Decisores",
+    "correos": "E-mails",
+    "historial": "Histórico",
+    "configuracion": "Ajustes"
+  }
+}
