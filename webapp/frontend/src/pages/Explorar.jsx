@@ -49,7 +49,11 @@ export default function Explorar() {
   const { corrida, error } = useCorrida(id);
   const [form, setForm] = useState({
     dominio: "mvkobranzaia.com", nombre: "MV Kobra AI", modo: "demo", prospectos: 60,
+    // Enlaces del mensaje: el banner, el video y la web que llevan el correo y
+    // el mensaje de LinkedIn, cada uno en el idioma del receptor.
+    sitio: "", video_en_landing: true, videos: { es: "", pt: "", en: "" },
   });
+  const [verEnlaces, setVerEnlaces] = useState(false);
   const [lanzando, setLanzando] = useState(false);
   const [errLanzar, setErrLanzar] = useState("");
   const [abierta, setAbierta] = useState("investigar");
@@ -82,6 +86,10 @@ export default function Explorar() {
           modo: form.modo,
           idioma: "es",
           prospectos: Number(form.prospectos) || 60,
+          sitio: form.sitio.trim() || form.dominio.trim(),
+          video_en_landing: form.video_en_landing,
+          videos: Object.fromEntries(
+            Object.entries(form.videos).filter(([, v]) => v.trim())),
         },
       });
       setCorridaId(r.id);
@@ -152,6 +160,43 @@ export default function Explorar() {
         {corrida ? (
           <button className="btn ghost" type="button" onClick={nuevo}>{t("explorar.otra")}</button>
         ) : null}
+
+        <div className="enlaces-cfg">
+          <button type="button" className="desplegar"
+                  onClick={() => setVerEnlaces(!verEnlaces)} aria-expanded={verEnlaces}>
+            {verEnlaces ? "▾" : "▸"} {t("explorar.enlaces")}
+          </button>
+          {verEnlaces ? (
+            <div className="enlaces-cuerpo">
+              <div className="campo crece">
+                <label htmlFor="sitio">{t("explorar.sitio")} <i>({t("explorar.opcional")})</i></label>
+                <input id="sitio" type="text" value={form.sitio} inputMode="url"
+                       autoCapitalize="none" autoCorrect="off"
+                       placeholder={form.dominio || "mvkobranzaia.com"}
+                       onChange={(e) => setForm({ ...form, sitio: e.target.value })} />
+              </div>
+              <label className="checkbox">
+                <input type="checkbox" checked={form.video_en_landing}
+                       onChange={(e) => setForm({ ...form, video_en_landing: e.target.checked })} />
+                <span>{t("explorar.usar_video")}</span>
+              </label>
+              {["es", "pt", "en"].map((i) => (
+                <div className="campo crece" key={i}>
+                  <label htmlFor={`video-${i}`}>
+                    {t("explorar.video_url", { idioma: i.toUpperCase() })}{" "}
+                    <i>({t("explorar.opcional")})</i>
+                  </label>
+                  <input id={`video-${i}`} type="text" inputMode="url"
+                         autoCapitalize="none" autoCorrect="off"
+                         value={form.videos[i]} placeholder="https://…"
+                         onChange={(e) => setForm({
+                           ...form, videos: { ...form.videos, [i]: e.target.value } })} />
+                </div>
+              ))}
+              <p className="nota" style={{ marginTop: 0 }}>{t("explorar.ayuda_video")}</p>
+            </div>
+          ) : null}
+        </div>
       </form>
 
       {errLanzar ? <p className="error-note">{errLanzar}</p> : null}

@@ -26,11 +26,13 @@ SITIO = "https://mvclienteia.com"
 TEXTOS: dict[str, dict] = {
     "es": {
         "lang": "es", "locale": "es_UY", "ruta": "",
+        "marca_html": 'MV CLIENTE <span class="gr">IA</span>',
+        "marca": "MV Cliente IA",
         "titulo": "MV Cliente IA · Encontrá tus próximos clientes",
         "desc": "Pegá el enlace de tu producto: la IA investiga tu empresa, encuentra a tus "
                 "compradores, ubica a los decisores y escribe los correos. Uruguay primero, "
                 "después LATAM, después el mundo.",
-        "nav": ["Cómo funciona", "Orden de mercado", "Idiomas", "Descargar"],
+        "nav": ["Cómo funciona", "Orden de mercado", "Video", "Idiomas", "Descargar"],
         "hero_k": "Prospección automática",
         "hero_h1": ["¿Sin clientes? Meses construyendo,", "todavía $0 de ingresos."],
         "hero_p": "El problema nunca fue el producto — eran las ventas. Pegá el enlace de tu "
@@ -60,6 +62,10 @@ TEXTOS: dict[str, dict] = {
             ("LATAM", "Peso 0.72", "Argentina, Brasil, Chile, México y diez países más."),
             ("Resto del mundo", "Peso 0.45", "Donde el producto entra por el caso, no por la cercanía."),
         ],
+        "video_h": "Noventa segundos, de punta a punta",
+        "video_p": "Es el mismo video que va en los correos: cada país lo recibe en su idioma.",
+        "video_falta": "El video todavía no está publicado. Poné tu archivo en "
+                       "<code>landing/video/es/demo.mp4</code> y aparece acá.",
         "idiomas_h": "Tres idiomas, decididos por el país de quien recibe",
         "idiomas_p": "La interfaz la elegís vos. El correo no: sale en español, portugués o "
                      "inglés según el país del decisor. A Brasil se le escribe en portugués "
@@ -81,11 +87,13 @@ TEXTOS: dict[str, dict] = {
     },
     "pt": {
         "lang": "pt-BR", "locale": "pt_BR", "ruta": "pt/",
+        "marca_html": 'MV CLIENTE <span class="gr">IA</span>',
+        "marca": "MV Cliente IA",
         "titulo": "MV Cliente IA · Encontre seus próximos clientes",
         "desc": "Cole o link do seu produto: a IA pesquisa sua empresa, encontra seus "
                 "compradores, localiza os decisores e escreve os e-mails. Uruguai primeiro, "
                 "depois LATAM, depois o mundo.",
-        "nav": ["Como funciona", "Ordem de mercado", "Idiomas", "Baixar"],
+        "nav": ["Como funciona", "Ordem de mercado", "Vídeo", "Idiomas", "Baixar"],
         "hero_k": "Prospecção automática",
         "hero_h1": ["Sem clientes? Meses construindo,", "e ainda R$0 de receita."],
         "hero_p": "O problema nunca foi o produto — eram as vendas. Cole o link do seu site e o "
@@ -115,6 +123,10 @@ TEXTOS: dict[str, dict] = {
             ("LATAM", "Peso 0,72", "Argentina, Brasil, Chile, México e mais dez países."),
             ("Resto do mundo", "Peso 0,45", "Onde o produto entra pelo caso, não pela proximidade."),
         ],
+        "video_h": "Noventa segundos, de ponta a ponta",
+        "video_p": "É o mesmo vídeo que vai nos e-mails: cada país recebe no seu idioma.",
+        "video_falta": "O vídeo ainda não foi publicado. Coloque seu arquivo em "
+                       "<code>landing/video/pt/demo.mp4</code> e ele aparece aqui.",
         "idiomas_h": "Três idiomas, definidos pelo país de quem recebe",
         "idiomas_p": "A interface você escolhe. O e-mail não: sai em espanhol, português ou "
                      "inglês conforme o país do decisor. Para o Brasil se escreve em português "
@@ -136,11 +148,13 @@ TEXTOS: dict[str, dict] = {
     },
     "en": {
         "lang": "en", "locale": "en_US", "ruta": "en/",
-        "titulo": "MV Cliente IA · Find your next customers",
+        "marca_html": 'MV SearchCostumer <span class="gr">AI</span>',
+        "marca": "MV SearchCostumer AI",
+        "titulo": "MV SearchCostumer AI · Find your next customers",
         "desc": "Drop your product link: the AI researches your company, finds your buyers, "
                 "locates the decision makers and writes the emails. Uruguay first, then LATAM, "
                 "then the world.",
-        "nav": ["How it works", "Market order", "Languages", "Download"],
+        "nav": ["How it works", "Market order", "Video", "Languages", "Download"],
         "hero_k": "Automatic prospecting",
         "hero_h1": ["No customers? Months building,", "still $0 in revenue."],
         "hero_p": "The problem was never the product — it was sales. Drop your website link and "
@@ -170,6 +184,10 @@ TEXTOS: dict[str, dict] = {
             ("LATAM", "Weight 0.72", "Argentina, Brazil, Chile, Mexico and ten more countries."),
             ("Rest of the world", "Weight 0.45", "Where the product wins on the case, not on proximity."),
         ],
+        "video_h": "Ninety seconds, end to end",
+        "video_p": "It's the same video the emails carry: each country gets it in its language.",
+        "video_falta": "The video isn't published yet. Drop your file at "
+                       "<code>landing/video/en/demo.mp4</code> and it shows up here.",
         "idiomas_h": "Three languages, decided by the recipient's country",
         "idiomas_p": "You pick the interface language. The email's isn't yours to pick: it goes "
                      "out in Spanish, Portuguese or English depending on the decision maker's "
@@ -263,6 +281,12 @@ section{padding:64px 0;border-top:1px solid var(--line)}
 .ola .peso{color:var(--green);font-weight:800;font-size:13px;font-variant-numeric:tabular-nums}
 .ola p{margin:10px 0 0;color:var(--muted);font-size:13.5px}
 
+.video-caja{background:var(--navy2);border:1px solid var(--line);border-radius:16px;
+  padding:14px;max-width:820px}
+.video-caja video{display:block;width:100%;border-radius:10px;background:#000}
+.video-falta{color:var(--faint);font-size:13px;margin:12px 4px 4px}
+.video-falta code{background:var(--navy3);border:1px solid var(--line);border-radius:6px;
+  padding:2px 6px;font-size:12.5px}
 .idiomas{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
 .chip{background:var(--navy3);border:1px solid var(--line);border-radius:20px;
   padding:8px 16px;font-size:13.5px;font-weight:700}
@@ -318,7 +342,8 @@ def render(idioma: str) -> str:
         for n, d in t["desc_items"])
     enlaces = "".join(
         f'<a href="#{ancla}">{_esc(txt)}</a>'
-        for ancla, txt in zip(("pasos", "olas", "idiomas", "descargar"), t["nav"], strict=True))
+        for ancla, txt in zip(("pasos", "olas", "video", "idiomas", "descargar"),
+                              t["nav"], strict=True))
 
     return f"""<!DOCTYPE html>
 <html lang="{t['lang']}">
@@ -331,7 +356,7 @@ def render(idioma: str) -> str:
 <link rel="canonical" href="{SITIO}/{t['ruta']}">
 {_alternates()}
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="MV Cliente IA">
+<meta property="og:site_name" content="{html.escape(t['marca'])}">
 <meta property="og:locale" content="{t['locale']}">
 <meta property="og:url" content="{SITIO}/{t['ruta']}">
 <meta property="og:title" content="{html.escape(t['titulo'])}">
@@ -342,8 +367,8 @@ def render(idioma: str) -> str:
 <body>
 
 <nav><div class="wrap">
-  <a class="brand" href="{base}"><img src="{base}mv_icon.png" alt="MV Cliente IA">
-    <b>MV CLIENTE <span class="gr">IA</span></b></a>
+  <a class="brand" href="{base}"><img src="{base}mv_icon.png" alt="{html.escape(t['marca'])}">
+    <b>{t['marca_html']}</b></a>
   <div class="nlinks">{enlaces}</div>
   <div class="right">{_selector(idioma, base)}
     <a class="btn btn-a" href="{app}">{_esc(t['hero_cta'])}</a></div>
@@ -372,6 +397,17 @@ def render(idioma: str) -> str:
   <div class="olas">{olas}</div>
 </div></section>
 
+<section id="video"><div class="wrap">
+  <h2 class="sec-h">{_esc(t['video_h'])}</h2>
+  <p class="sec-p">{_esc(t['video_p'])}</p>
+  <div class="video-caja">
+    <video controls preload="none" playsinline poster="{base}banners/banner_{idioma}.png">
+      <source src="{base}video/{idioma}/demo.mp4" type="video/mp4">
+    </video>
+    <p class="video-falta">{t['video_falta']}</p>
+  </div>
+</div></section>
+
 <section id="idiomas"><div class="wrap">
   <h2 class="sec-h">{_esc(t['idiomas_h'])}</h2>
   <p class="sec-p">{_esc(t['idiomas_p'])}</p>
@@ -394,7 +430,7 @@ def render(idioma: str) -> str:
   <a class="btn btn-a" href="{app}">{_esc(t['cierre_cta'])} →</a>
 </div></section>
 
-<footer><div class="wrap"><p>{_esc(t['pie'])}</p><p>© MV Cliente IA</p></div></footer>
+<footer><div class="wrap"><p>{_esc(t['pie'])}</p><p>© {_esc(t['marca'])}</p></div></footer>
 
 </body>
 </html>

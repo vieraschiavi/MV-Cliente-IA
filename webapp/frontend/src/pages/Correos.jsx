@@ -4,10 +4,117 @@ import { Copiar, Idioma, Vacio } from "../componentes/Comunes.jsx";
 import { getCorridaId, useCorrida } from "../estado.js";
 import { t } from "../i18n/index.js";
 
+const PESTANAS = [
+  { id: "texto", clave: "correos.texto" },
+  { id: "html", clave: "correos.html" },
+  { id: "linkedin", clave: "correos.linkedin" },
+];
+
+/** Abre el HTML del correo en una pestaña nueva, sin servidor de por medio. */
+function abrirHtml(html) {
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank", "noopener");
+  // El objeto queda vivo hasta que la pestaña nueva termina de leerlo; medio
+  // minuto alcanza de sobra y evita dejar blobs colgados en memoria.
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
+
+function Enlaces({ correo }) {
+  if (!correo.landing_url && !correo.video_url) return null;
+  return (
+    <p className="enlaces-msg">
+      {correo.video_url ? (
+        <a href={correo.video_url} target="_blank" rel="noreferrer">▸ {t("correos.video")}</a>
+      ) : (
+        <span className="apagado">{t("correos.sin_video")}</span>
+      )}
+      {correo.landing_url ? (
+        <a href={correo.landing_url} target="_blank" rel="noreferrer">🔗 {t("correos.web")}</a>
+      ) : null}
+    </p>
+  );
+}
+
+function Mensaje({ correo }) {
+  const [pestana, setPestana] = useState("texto");
+  const [seguimiento, setSeguimiento] = useState(false);
+
+  return (
+    <article className="mail">
+      <div className="cab">
+        <span className="asunto">{correo.asunto}</span>
+        <Idioma codigo={correo.idioma} />
+        <span className="para">{correo.para}</span>
+      </div>
+
+      <div className="pestanas">
+        {PESTANAS.map((p) => (
+          <button key={p.id}
+                  className={"pest" + (pestana === p.id ? " on" : "")}
+                  onClick={() => setPestana(p.id)}>
+            {t(p.clave)}
+          </button>
+        ))}
+      </div>
+
+      {pestana === "texto" ? (
+        <>
+          <pre>{correo.cuerpo}</pre>
+          <div className="acciones">
+            <Copiar texto={`${correo.asunto}\n\n${correo.cuerpo}`} />
+            <button className="btn ghost" onClick={() => setSeguimiento(!seguimiento)}>
+              {t("correos.seguimiento")} {seguimiento ? "▴" : "▾"}
+            </button>
+          </div>
+          {seguimiento ? (
+            <>
+              <pre className="sep">{correo.seguimiento}</pre>
+              <div className="acciones"><Copiar texto={correo.seguimiento} /></div>
+            </>
+          ) : null}
+        </>
+      ) : null}
+
+      {pestana === "html" ? (
+        <>
+          {/* El correo se previsualiza dentro de un iframe aislado: es HTML de
+              cliente de correo (tablas, estilos en línea) y meterlo en el DOM
+              de la app le pisaría los estilos a las dos partes. */}
+          <iframe className="vista-html" title={correo.asunto} srcDoc={correo.cuerpo_html} />
+          <div className="acciones">
+            <Copiar texto={correo.cuerpo_html} etiqueta={t("correos.copiar_html")} />
+            <button className="btn ghost" onClick={() => abrirHtml(correo.cuerpo_html)}>
+              {t("correos.abrir_html")} ↗
+            </button>
+          </div>
+        </>
+      ) : null}
+
+      {pestana === "linkedin" ? (
+        <>
+          <h4 className="sub">{t("correos.mensaje_linkedin")}</h4>
+          <pre>{correo.linkedin}</pre>
+          <div className="acciones"><Copiar texto={correo.linkedin} /></div>
+          <h4 className="sub">
+            {t("correos.nota_linkedin")}{" "}
+            <span className="apagado">
+              · {t("correos.caracteres", { n: (correo.linkedin_nota || "").length })} / 300
+            </span>
+          </h4>
+          <pre>{correo.linkedin_nota}</pre>
+          <div className="acciones"><Copiar texto={correo.linkedin_nota} /></div>
+        </>
+      ) : null}
+
+      <Enlaces correo={correo} />
+    </article>
+  );
+}
+
 export default function Correos() {
   const { corrida } = useCorrida(getCorridaId());
   const [idioma, setIdioma] = useState("");
-  const [abierto, setAbierto] = useState("");
 
   if (!corrida) return <Vacio />;
 
@@ -37,31 +144,7 @@ export default function Correos() {
         </button>
       </div>
 
-      {filas.length ? filas.map((e) => (
-        <article className="mail" key={e.id}>
-          <div className="cab">
-            <span className="asunto">{e.asunto}</span>
-            <Idioma codigo={e.idioma} />
-            <span style={{ color: "var(--faint)", fontSize: 12.5 }}>{e.para}</span>
-          </div>
-          <pre>{e.cuerpo}</pre>
-          <div className="acciones">
-            <Copiar texto={`${e.asunto}\n\n${e.cuerpo}`} />
-            <button className="btn ghost"
-                    onClick={() => setAbierto(abierto === e.id ? "" : e.id)}>
-              {t("correos.seguimiento")} {abierto === e.id ? "▴" : "▾"}
-            </button>
-          </div>
-          {abierto === e.id ? (
-            <>
-              <pre style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--line)" }}>
-                {e.seguimiento}
-              </pre>
-              <div className="acciones"><Copiar texto={e.seguimiento} /></div>
-            </>
-          ) : null}
-        </article>
-      )) : <Vacio />}
+      {filas.length ? filas.map((e) => <Mensaje key={e.id} correo={e} />) : <Vacio />}
     </>
   );
 }

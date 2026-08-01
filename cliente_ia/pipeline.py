@@ -22,6 +22,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 
 from . import almacen, geo, proveedores, redaccion, scoring
+from . import enlaces as menlaces
 from .modelos import FASES, Corrida, Email, Prospecto
 
 LIMITE_PROSPECTOS_DEFAULT = 60
@@ -54,6 +55,7 @@ def ejecutar(dominio: str,
              idioma_ui: str = "es",
              firma: str = "",
              nombre: str = "",
+             enlaces: dict | menlaces.Enlaces | None = None,
              al_avanzar: Progreso | None = None,
              corrida_id: str = "") -> Corrida:
     """
@@ -62,6 +64,10 @@ def ejecutar(dominio: str,
     `al_avanzar` se llama después de cada fase con la corrida entera — es lo
     que usa el backend para persistir el avance y que el frontend lo lea sin
     esperar a que termine todo.
+
+    `enlaces` configura el sitio, el video y el banner que llevan los mensajes
+    de la fase 6, cada uno en el idioma del receptor (ver `cliente_ia.enlaces`).
+    Si no se pasa nada, se derivan del dominio del producto.
     """
     dominio = (dominio or "").strip().lower().removeprefix("https://") \
                                             .removeprefix("http://").rstrip("/")
@@ -77,6 +83,9 @@ def ejecutar(dominio: str,
         idioma_ui=idioma_ui if idioma_ui in geo.IDIOMAS else "es",
         pasos=[],
     )
+    cfg_enlaces = (enlaces if isinstance(enlaces, menlaces.Enlaces)
+                   else menlaces.desde_dict(enlaces, dominio))
+    corrida.enlaces = cfg_enlaces.a_dict()
     for clave in FASES:
         corrida.paso(clave)
 
@@ -140,7 +149,7 @@ def ejecutar(dominio: str,
 
         # --- Fase 6 · escribir los correos ------------------------------
         with _fase(corrida, "emails", avisar) as paso:
-            corrida.emails = _redactar_todos(corrida, limite_emails, firma)
+            corrida.emails = _redactar_todos(corrida, limite_emails, firma, cfg_enlaces)
             paso.items = len(corrida.emails)
             paso.detalle = _detalle_idiomas(corrida.emails)
 
@@ -191,7 +200,8 @@ class _fase:
 REPARTO_EMAILS = {"local": 0.45, "latam": 0.35, "mundo": 0.20}
 
 
-def _redactar_todos(corrida: Corrida, limite: int, firma: str) -> list[Email]:
+def _redactar_todos(corrida: Corrida, limite: int, firma: str,
+                    cfg_enlaces: menlaces.Enlaces) -> list[Email]:
     por_id = {p.id: p for p in corrida.prospectos}
     campanas = {c.id: c for c in corrida.campanas}
     emails: list[Email] = []
@@ -222,7 +232,7 @@ def _redactar_todos(corrida: Corrida, limite: int, firma: str) -> list[Email]:
                 prospecto = por_id[d.prospecto_id]
                 emails.append(redaccion.redactar(
                     d, prospecto, corrida.empresa,
-                    campanas.get(prospecto.campana_id), firma))
+                    campanas.get(prospecto.campana_id), firma, cfg_enlaces))
     return emails
 
 
@@ -257,6 +267,12 @@ def _cli() -> int:
     ap.add_argument("--idioma", default="es", choices=list(geo.IDIOMAS))
     ap.add_argument("--firma", default="")
     ap.add_argument("--nombre", default="", help="Nombre comercial, ej. 'MV Kobra AI'")
+    ap.add_argument("--sitio", default="", help="Sitio para los enlaces (por defecto, el dominio)")
+    ap.add_argument("--video-es", default="", help="URL del video en español")
+    ap.add_argument("--video-pt", default="", help="URL del video en portugués")
+    ap.add_argument("--video-en", default="", help="URL del video en inglés")
+    ap.add_argument("--video-en-landing", action="store_true",
+                    help="Sin videos propios, enlazar la sección de video de la landing")
     ap.add_argument("--json", action="store_true", help="Volcar la corrida entera a stdout")
     args = ap.parse_args()
 
@@ -272,6 +288,10 @@ def _cli() -> int:
                        decisores_por_empresa=args.decisores,
                        limite_emails=args.emails,
                        idioma_ui=args.idioma, firma=args.firma, nombre=args.nombre,
+                       enlaces={"sitio": args.sitio or args.dominio,
+                                "videos": {"es": args.video_es, "pt": args.video_pt,
+                                           "en": args.video_en},
+                                "video_en_landing": args.video_en_landing},
                        al_avanzar=mostrar)
     almacen.guardar(corrida)
     if args.json:
@@ -281,6 +301,7 @@ def _cli() -> int:
         print(f"\n  estado: {corrida.estado}")
         print(f"  prospectos por ola: {r['prospectos_por_nivel']}")
         print(f"  correos por idioma: {r['emails_por_idioma']}")
+        print(f"  con video: {r['con_video']} · con LinkedIn: {r['con_linkedin']}")
         print(f"  guardada en: {almacen.ruta_de(corrida.id)}")
     return 0 if corrida.estado == "listo" else 1
 

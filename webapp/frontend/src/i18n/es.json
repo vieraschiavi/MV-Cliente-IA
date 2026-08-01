@@ -1,6 +1,8 @@
 {
   "common": {
     "marca": "MV CLIENTE <span>IA</span>",
+    "marca_texto": "MV Cliente IA",
+    "titulo_pagina": "MV Cliente IA · Encontrá tus próximos clientes",
     "cargando": "Cargando…",
     "copiar": "Copiar",
     "copiado": "Copiado",
@@ -41,7 +43,13 @@
     "lanzando": "Buscando…",
     "otra": "Nueva búsqueda",
     "progreso": "{{hechas}} de {{total}} pasos",
-    "error": "No se pudo completar la búsqueda"
+    "error": "No se pudo completar la búsqueda",
+    "enlaces": "Enlaces del mensaje",
+    "sitio": "Sitio web",
+    "usar_video": "Incluir el video de mi web en los correos y en LinkedIn",
+    "video_url": "URL del video en {{idioma}}",
+    "opcional": "opcional",
+    "ayuda_video": "Si dejás las URL vacías se usa la sección de video de tu propia web, en el idioma de cada receptor. Si el video está en YouTube, Vimeo o un CDN, pegá acá la URL de cada idioma."
   },
   "fase": {
     "investigar": {
@@ -125,7 +133,18 @@
     "subtitulo": "Un primer contacto y su seguimiento por empresa, cada uno en el idioma del país de quien lo recibe.",
     "seguimiento": "Seguimiento (+3 días)",
     "filtro_idioma": "Idioma",
-    "todos": "Todos"
+    "todos": "Todos",
+    "texto": "Texto plano",
+    "html": "HTML",
+    "linkedin": "LinkedIn",
+    "nota_linkedin": "Nota de invitación",
+    "mensaje_linkedin": "Mensaje directo",
+    "video": "Video",
+    "web": "Web",
+    "sin_video": "Sin video configurado",
+    "abrir_html": "Abrir en pestaña",
+    "copiar_html": "Copiar HTML",
+    "caracteres": "{{n}} caracteres"
   },
   "historial": {
     "titulo": "Historial",

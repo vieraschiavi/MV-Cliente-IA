@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- En inglés el producto se llama MV SearchCostumer AI. Android elige este
+     archivo cuando el idioma del teléfono es inglés; en cualquier otro caso
+     usa values/strings.xml (MV Cliente IA). -->
+<resources>
+    <string name="app_name">MV SearchCostumer AI</string>
+    <string name="title_activity_main">MV SearchCostumer AI</string>
+</resources>

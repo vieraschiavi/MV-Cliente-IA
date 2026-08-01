@@ -26,22 +26,30 @@ diseño de **MV Kobra AI**: se le pasa la URL de un producto y recorre seis fase
 | Build web | `npm run build:web` |
 | APK | `npm run apk:debug` (necesita `ANDROID_HOME`) |
 | Landing | `python3 -m marketing.generar_landing` |
+| Banners | `python3 -m marketing.generar_banners` |
 
 ## Reglas que no se rompen
 1. **Uruguay primero.** El orden vive en `geo.py` (pesos 1.00 / 0.72 / 0.45) y en
    `scoring.ordenar_prospectos`, que ordena **por ola antes que por puntaje**. Si
    tocás pesos, corré `tests/test_scoring.py` — hay un test que existe sólo para
    impedir que un prospecto del exterior se cuele delante de uno uruguayo.
-2. **El idioma del correo lo decide el país del decisor**, no la interfaz. Todo
+2. **El nombre del producto cambia con el idioma**: MV Cliente IA en es/pt,
+   **MV SearchCostumer AI** en inglés. Vive en `common.marca` / `marca_texto` /
+   `titulo_pagina` de cada JSON de i18n, en `TEXTOS` del generador de landing y
+   en `android/app/src/main/res/values-en/strings.xml`. No lo cablees.
+3. **El idioma del receptor manda en todo el mensaje**: texto, banner, video y
+   enlace a la web (`cliente_ia/enlaces.py`). Si no hay video configurado, el
+   mensaje no lo menciona — nunca prometas un recurso que no existe.
+4. **El idioma del correo lo decide el país del decisor**, no la interfaz. Todo
    texto que entre a un correo tiene que existir en los tres idiomas
    (`Empresa.textos`, `Prospecto.dolor`). Regresión ya arreglada una vez: los
    correos en PT/EN llevaban un párrafo en español.
-3. **Los datos sintéticos se dicen sintéticos.** `sintetico=True` viaja en cada
+5. **Los datos sintéticos se dicen sintéticos.** `sintetico=True` viaja en cada
    registro del proveedor demo, la interfaz muestra el cartel y el CSV lleva la
    columna. Nunca generar personas reales con datos de contacto.
-4. **El proveedor LLM no hace la fase 5.** Propone organizaciones, nunca
+6. **El proveedor LLM no hace la fase 5.** Propone organizaciones, nunca
    personas. Está documentado en `proveedores/llm.py` y es a propósito.
-5. **Determinismo del modo demo.** La semilla sale del dominio. Si dejás de ser
+7. **Determinismo del modo demo.** La semilla sale del dominio. Si dejás de ser
    determinista, se cae medio `tests/test_pipeline.py`.
 
 ## Convenciones
@@ -64,4 +72,5 @@ diseño de **MV Kobra AI**: se le pasa la URL de un producto y recorre seis fase
 ## Do / Don't
 - ✅ Tests antes de commitear · ✅ Datos sintéticos marcados · ✅ Semilla fija.
 - ❌ `rm -rf` ni `git push --force` · ❌ Leer o loguear secretos · ❌ Listas de
-  personas reales · ❌ Editar `landing/*/index.html` a mano.
+  personas reales · ❌ Editar `landing/*/index.html` a mano · ❌ HTML de correo
+  con flexbox o `<style>` (Outlook no los soporta: tablas y estilos en línea).

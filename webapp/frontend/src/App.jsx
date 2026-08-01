@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { api, getToken, setToken } from "./api.js";
 import { IDIOMAS, cambiarIdioma, getIdioma, t } from "./i18n/index.js";
+
 import Correos from "./pages/Correos.jsx";
 import Configuracion from "./pages/Configuracion.jsx";
 import Decisores from "./pages/Decisores.jsx";
@@ -22,10 +23,23 @@ const NAV = [
 export function Marca() {
   return (
     <div className="brand">
-      <img src="./mv_icon.png" alt="MV Cliente IA" />
+      <img src="./mv_icon.png" alt={t("common.marca_texto")} />
       <b dangerouslySetInnerHTML={{ __html: t("common.marca") }} />
     </div>
   );
+}
+
+/**
+ * El nombre del producto cambia con el idioma —en inglés se llama
+ * "MV SearchCostumer AI"— así que el título de la pestaña y el atributo `lang`
+ * del documento no pueden quedar fijos en el index.html: se sincronizan con el
+ * idioma elegido en cuanto arranca la app.
+ */
+function useTituloDelDocumento() {
+  useEffect(() => {
+    document.title = t("common.titulo_pagina");
+    document.documentElement.lang = getIdioma() === "pt" ? "pt-BR" : getIdioma();
+  }, []);
 }
 
 export function SelectorIdioma() {
@@ -90,6 +104,7 @@ export default function App() {
   // hay contraseña ninguna.
   const [auth, setAuth] = useState(undefined);
   const loc = useLocation();
+  useTituloDelDocumento();
 
   useEffect(() => {
     api("/api/auth/estado")

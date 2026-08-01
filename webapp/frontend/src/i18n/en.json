@@ -1,6 +1,8 @@
 {
   "common": {
-    "marca": "MV CLIENTE <span>IA</span>",
+    "marca": "MV SearchCostumer <span>AI</span>",
+    "marca_texto": "MV SearchCostumer AI",
+    "titulo_pagina": "MV SearchCostumer AI · Find your next customers",
     "cargando": "Loading…",
     "copiar": "Copy",
     "copiado": "Copied",
@@ -41,7 +43,13 @@
     "lanzando": "Searching…",
     "otra": "New search",
     "progreso": "{{hechas}} of {{total}} steps",
-    "error": "The search could not be completed"
+    "error": "The search could not be completed",
+    "enlaces": "Message links",
+    "sitio": "Website",
+    "usar_video": "Include my website's video in emails and on LinkedIn",
+    "video_url": "Video URL in {{idioma}}",
+    "opcional": "optional",
+    "ayuda_video": "Leave the URLs empty to use your own site's video section, in each recipient's language. If the video lives on YouTube, Vimeo or a CDN, paste the URL for each language here."
   },
   "fase": {
     "investigar": {
@@ -125,7 +133,18 @@
     "subtitulo": "A first touch and its follow-up per company, each in the language of the recipient's country.",
     "seguimiento": "Follow-up (+3 days)",
     "filtro_idioma": "Language",
-    "todos": "All"
+    "todos": "All",
+    "texto": "Plain text",
+    "html": "HTML",
+    "linkedin": "LinkedIn",
+    "nota_linkedin": "Invitation note",
+    "mensaje_linkedin": "Direct message",
+    "video": "Video",
+    "web": "Website",
+    "sin_video": "No video configured",
+    "abrir_html": "Open in a tab",
+    "copiar_html": "Copy HTML",
+    "caracteres": "{{n}} characters"
   },
   "historial": {
     "titulo": "History",

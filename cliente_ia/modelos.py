@@ -144,7 +144,15 @@ class Decisor:
 
 @dataclass
 class Email:
-    """Fase 6 — el correo listo para enviar."""
+    """
+    Fase 6 — el mensaje listo para enviar, en las cuatro formas en que se
+    manda: correo en texto plano, correo HTML (con banner y video), mensaje
+    de LinkedIn y nota de invitación de LinkedIn.
+
+    Las tres piezas que no son texto —banner, video y enlace a la web— van
+    **en el idioma del país del receptor**, igual que el texto (ver
+    `cliente_ia.enlaces`).
+    """
     id: str
     decisor_id: str
     prospecto_id: str
@@ -153,6 +161,12 @@ class Email:
     asunto: str
     cuerpo: str
     seguimiento: str = ""                     # el segundo toque, +3 días
+    cuerpo_html: str = ""                     # versión HTML con banner y CTA
+    linkedin: str = ""                        # mensaje directo / InMail
+    linkedin_nota: str = ""                   # nota de invitación (≤300 car.)
+    landing_url: str = ""
+    video_url: str = ""                       # vacío = no hay video que ofrecer
+    banner_url: str = ""
     campana_id: str = ""
     palabras: int = 0
 
@@ -182,6 +196,10 @@ class Corrida:
     estado: str = "pendiente"
     modo: str = "demo"                        # "demo" | "web" | "llm"
     idioma_ui: str = "es"
+    # Configuración de enlaces (sitio, video y banner por idioma) tal como se
+    # usó en esta corrida — se guarda para que reabrir una corrida vieja
+    # muestre los mismos mensajes que se mandaron.
+    enlaces: dict = field(default_factory=dict)
     pasos: list[PasoFase] = field(default_factory=list)
     empresa: Empresa | None = None
     competidores: list[Competidor] = field(default_factory=list)
@@ -207,6 +225,7 @@ class Corrida:
             "estado": self.estado,
             "modo": self.modo,
             "idioma_ui": self.idioma_ui,
+            "enlaces": dict(self.enlaces),
             "error": self.error,
             "pasos": [p.a_dict() for p in self.pasos],
             "empresa": self.empresa.a_dict() if self.empresa else None,
@@ -227,6 +246,8 @@ class Corrida:
         for e in self.emails:
             por_idioma[e.idioma] = por_idioma.get(e.idioma, 0) + 1
         return {
+            "con_video": sum(1 for e in self.emails if e.video_url),
+            "con_linkedin": sum(1 for e in self.emails if e.linkedin),
             "competidores": len(self.competidores),
             "campanas": len(self.campanas),
             "prospectos": len(self.prospectos),
@@ -243,6 +264,7 @@ def desde_dict(d: dict) -> Corrida:
         id=d["id"], dominio=d["dominio"], creada=d.get("creada", ""),
         estado=d.get("estado", "pendiente"), modo=d.get("modo", "demo"),
         idioma_ui=d.get("idioma_ui", "es"), error=d.get("error", ""),
+        enlaces=d.get("enlaces") or {},
     )
     c.pasos = [PasoFase(**p) for p in d.get("pasos", [])]
     if d.get("empresa"):

@@ -29,7 +29,7 @@ export default function Login({ onEntrar }) {
   return (
     <div className="login-wrap">
       <div className="card login-card">
-        <img src="./mv_icon.png" alt="MV Cliente IA" />
+        <img src="./mv_icon.png" alt={t("common.marca_texto")} />
         <h1 dangerouslySetInnerHTML={{ __html: t("common.marca") }} />
         <p>{t("login.subtitulo")}</p>
         <form onSubmit={enviar}>

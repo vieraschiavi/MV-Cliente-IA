@@ -155,6 +155,11 @@ class CorridaIn(BaseModel):
     nombre: str = ""
     firma: str = ""
     idioma: str = "es"
+    # Enlaces de los mensajes (banner, video y web), cada uno en el idioma del
+    # receptor. Sin nada de esto se derivan del propio dominio del producto.
+    sitio: str = ""
+    videos: dict[str, str] = Field(default_factory=dict)
+    video_en_landing: bool = False
     prospectos: int = Field(default=pipeline.LIMITE_PROSPECTOS_DEFAULT, ge=5, le=400)
     decisores: int = Field(default=pipeline.DECISORES_POR_EMPRESA_DEFAULT, ge=1, le=5)
     emails: int = Field(default=pipeline.LIMITE_EMAILS_DEFAULT, ge=1, le=300)
@@ -172,6 +177,10 @@ def _lanzar(entrada: CorridaIn, corrida_id: str) -> None:
             decisores_por_empresa=entrada.decisores,
             limite_emails=entrada.emails,
             idioma_ui=entrada.idioma, firma=entrada.firma, nombre=entrada.nombre,
+            enlaces={"sitio": entrada.sitio or entrada.dominio,
+                     "videos": {k: v for k, v in entrada.videos.items()
+                                if k in geo.IDIOMAS},
+                     "video_en_landing": entrada.video_en_landing},
             al_avanzar=guardar_avance, corrida_id=corrida_id,
         )
     finally:

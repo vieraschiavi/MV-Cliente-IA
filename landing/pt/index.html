@@ -89,6 +89,12 @@ section{padding:64px 0;border-top:1px solid var(--line)}
 .ola .peso{color:var(--green);font-weight:800;font-size:13px;font-variant-numeric:tabular-nums}
 .ola p{margin:10px 0 0;color:var(--muted);font-size:13.5px}
 
+.video-caja{background:var(--navy2);border:1px solid var(--line);border-radius:16px;
+  padding:14px;max-width:820px}
+.video-caja video{display:block;width:100%;border-radius:10px;background:#000}
+.video-falta{color:var(--faint);font-size:13px;margin:12px 4px 4px}
+.video-falta code{background:var(--navy3);border:1px solid var(--line);border-radius:6px;
+  padding:2px 6px;font-size:12.5px}
 .idiomas{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
 .chip{background:var(--navy3);border:1px solid var(--line);border-radius:20px;
   padding:8px 16px;font-size:13.5px;font-weight:700}
@@ -110,7 +116,7 @@ footer p{max-width:78ch;margin:0 0 10px}
 <nav><div class="wrap">
   <a class="brand" href="../"><img src="../mv_icon.png" alt="MV Cliente IA">
     <b>MV CLIENTE <span class="gr">IA</span></b></a>
-  <div class="nlinks"><a href="#pasos">Como funciona</a><a href="#olas">Ordem de mercado</a><a href="#idiomas">Idiomas</a><a href="#descargar">Baixar</a></div>
+  <div class="nlinks"><a href="#pasos">Como funciona</a><a href="#olas">Ordem de mercado</a><a href="#video">Vídeo</a><a href="#idiomas">Idiomas</a><a href="#descargar">Baixar</a></div>
   <div class="right"><div class="lang"><a href="../">ES</a><a href="../pt/" class="on">PT</a><a href="../en/">EN</a></div>
     <a class="btn btn-a" href="../app/">Testar com meu site</a></div>
 </div></nav>
@@ -143,6 +149,17 @@ footer p{max-width:78ch;margin:0 0 10px}
   <div class="olas"><article class="ola uno"><b>Uruguai</b><span class="peso">Peso 1,00</span><p>O mercado onde uma reunião se consegue com um telefonema.</p></article>
 <article class="ola"><b>LATAM</b><span class="peso">Peso 0,72</span><p>Argentina, Brasil, Chile, México e mais dez países.</p></article>
 <article class="ola"><b>Resto do mundo</b><span class="peso">Peso 0,45</span><p>Onde o produto entra pelo caso, não pela proximidade.</p></article></div>
+</div></section>
+
+<section id="video"><div class="wrap">
+  <h2 class="sec-h">Noventa segundos, de ponta a ponta</h2>
+  <p class="sec-p">É o mesmo vídeo que vai nos e-mails: cada país recebe no seu idioma.</p>
+  <div class="video-caja">
+    <video controls preload="none" playsinline poster="../banners/banner_pt.png">
+      <source src="../video/pt/demo.mp4" type="video/mp4">
+    </video>
+    <p class="video-falta">O vídeo ainda não foi publicado. Coloque seu arquivo em <code>landing/video/pt/demo.mp4</code> e ele aparece aqui.</p>
+  </div>
 </div></section>
 
 <section id="idiomas"><div class="wrap">

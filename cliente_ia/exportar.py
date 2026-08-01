@@ -20,7 +20,8 @@ from .modelos import Corrida
 COLUMNAS = [
     "prioridad", "nivel", "pais", "score", "empresa", "dominio", "sector",
     "ciudad", "empleados", "decisor", "cargo", "seniority", "email", "idioma",
-    "asunto", "cuerpo", "seguimiento", "senales", "campana", "sintetico",
+    "asunto", "cuerpo", "seguimiento", "linkedin", "linkedin_nota",
+    "video_url", "landing_url", "senales", "campana", "sintetico",
 ]
 
 
@@ -54,6 +55,12 @@ def filas(corrida: Corrida) -> list[dict]:
             "asunto": e.asunto if e else "",
             "cuerpo": e.cuerpo if e else "",
             "seguimiento": e.seguimiento if e else "",
+            # LinkedIn y los enlaces viajan en el CSV para poder pegarlos
+            # directo en el secuenciador o en la herramienta de LinkedIn.
+            "linkedin": e.linkedin if e else "",
+            "linkedin_nota": e.linkedin_nota if e else "",
+            "video_url": e.video_url if e else "",
+            "landing_url": e.landing_url if e else "",
             "senales": " | ".join(p.senales),
             "campana": c.nombre if c else p.campana_id,
             "sintetico": "sí" if (d.sintetico or p.sintetico) else "no",
@@ -100,7 +107,9 @@ def guardar_xlsx(corrida: Corrida, destino: Path | None = None) -> Path:
     for fila in filas(corrida):
         ws.append([fila[c] for c in COLUMNAS])
     anchos = {"empresa": 34, "sector": 30, "decisor": 24, "cargo": 28, "email": 34,
-              "asunto": 46, "cuerpo": 70, "seguimiento": 60, "senales": 60, "campana": 34}
+              "asunto": 46, "cuerpo": 70, "seguimiento": 60, "linkedin": 70,
+              "linkedin_nota": 46, "video_url": 40, "landing_url": 40,
+              "senales": 60, "campana": 34}
     for i, col in enumerate(COLUMNAS, start=1):
         ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = anchos.get(col, 12)
     ws.freeze_panes = "A2"

@@ -1,4 +1,4 @@
-# MV Cliente IA
+# MV Cliente IA · MV SearchCostumer AI
 
 **Pegá el enlace de tu producto y el agente te trae los clientes.** Investiga tu
 empresa, explora la competencia, define campañas, encuentra empresas objetivo,
@@ -11,6 +11,10 @@ sobre el stack y el diseño de **MV Kobra AI**: mismo tema navy + verde, misma
 arquitectura (React + Vite al frente, FastAPI atrás, Electron para PC), y ahora
 también **APK de Android**.
 
+> **El nombre cambia con el idioma.** En español y portugués el producto se
+> llama **MV Cliente IA**; en inglés, **MV SearchCostumer AI**. Vale para la
+> interfaz, la landing y el nombre de la app en Android.
+
 ---
 
 ## Las seis fases
@@ -22,7 +26,7 @@ también **APK de Android**.
 | 3 | **Definí campañas** | Un ángulo de mensaje por sector × ola geográfica. |
 | 4 | **Encontrá clientes potenciales** | Empresas que encajan en el perfil, con la señal de *por qué ahora*. |
 | 5 | **Encontrá a los decisores** | Quién firma la decisión en cada empresa, con cargo y seniority. |
-| 6 | **Escribí los correos** | Un primer contacto y su seguimiento, **en el idioma del país de quien lo recibe**. |
+| 6 | **Escribí los mensajes** | Correo (texto y HTML), y mensaje + nota de LinkedIn, **en el idioma del país de quien lo recibe**. |
 
 ---
 
@@ -47,6 +51,42 @@ El reparto de la tanda es 45 % Uruguay / 35 % LATAM / 20 % resto. Las tres olas
 arrancan a la vez a propósito: si fuera estrictamente secuencial, LATAM y el
 mundo no recibirían un solo correo hasta agotar Uruguay, y el producto nunca
 probaría los otros dos idiomas en la calle.
+
+## Qué sale de la fase 6
+
+De cada contacto salen cuatro piezas, todas en el idioma del receptor:
+
+| pieza | dónde se usa |
+|-------|--------------|
+| `cuerpo` | correo en texto plano |
+| `cuerpo_html` | correo HTML: **banner** de marca, texto, botón y **video** |
+| `linkedin` | mensaje directo / InMail |
+| `linkedin_nota` | nota de la invitación a conectar (tope real de 300 caracteres) |
+
+### Banner, video y web — los tres en el idioma del receptor
+
+- **Banner**: `python3 -m marketing.generar_banners` genera
+  `landing/banners/banner_{es,pt,en}.png` con los tokens de la marca. Se
+  escriben como imagen y no como HTML porque un gradiente con divs se ve roto
+  en Outlook. Como la mitad de la gente lee con las imágenes bloqueadas, **todo
+  lo que dice el banner también está en el texto**.
+- **Web**: la landing en el idioma del receptor (`/`, `/pt/`, `/en/`).
+- **Video**: por defecto, la sección `#video` de tu propia landing en ese
+  idioma. Si tu video está en YouTube, Vimeo o un CDN, pasás la URL de cada
+  idioma (`--video-es`, `--video-pt`, `--video-en`, o el campo `videos` de la
+  API y el formulario).
+
+> **El producto arma el enlace; el video lo ponés vos.** Si no hay ni archivo
+> ni URL, ni el correo ni el mensaje de LinkedIn mencionan ningún video — no se
+> promete algo que no existe. Ver `landing/video/LEEME.md`.
+>
+> Lo mismo con el banner: para que se vea en el correo tiene que estar
+> publicado en tu dominio (`/landing/banners/`). Si desplegás la landing que
+> genera este repo, ya van incluidos.
+
+Todos los enlaces salen con **UTM** (`utm_source=email` o `linkedin`,
+`utm_term` = idioma, `utm_campaign` = campaña, `utm_content` = empresa), así
+que después se puede ver qué ola, qué idioma y qué campaña trajeron la visita.
 
 ## Los tres idiomas
 
@@ -118,6 +158,7 @@ cd webapp/frontend && npm run dev     # Vite en :5173, proxya /api a :8810
 | Linter | `ruff check .` |
 | Backend | `python3 -m uvicorn webapp.backend.api:app --port 8810` |
 | Landing (3 idiomas) | `python3 -m marketing.generar_landing` |
+| Banners de los correos | `python3 -m marketing.generar_banners` |
 | Build web | `npm run build:web` |
 | APK de Android | `npm run apk:debug` |
 | App de PC | `cd electron && npm install && npm start` |
@@ -190,21 +231,23 @@ cliente_ia/            motor
   scoring.py           la fórmula del puntaje, explicable línea por línea
   modelos.py           Empresa · Competidor · Campana · Prospecto · Decisor · Email
   pipeline.py          orquesta las 6 fases y publica el avance
-  redaccion.py         fase 6 — plantillas de correo en es/pt/en
+  redaccion.py         fase 6 — correo (texto y HTML) y LinkedIn en es/pt/en
+  enlaces.py           banner, video y web por idioma, con UTM
   proveedores/         demo (sintético) · web (tu sitio real) · llm (Claude)
   datos/mercado.json   semilla del catálogo de mercado
 webapp/backend/api.py  FastAPI + servido del build
 webapp/frontend/       React + Vite (tema de MV Kobra AI, i18n es/pt/en)
 electron/              app de PC
 android/               proyecto Capacitor
-landing/               landing en es · pt · en (generada)
+landing/               landing en es · pt · en (generada) + banners de correo
+marketing/             generadores de la landing y de los banners
 packaging/             PyInstaller
-tests/                 61 tests
+tests/                 80 tests
 ```
 
 ## Estado verificado
 
-- `python3 -m pytest -q tests/` → **61 pasan**; `ruff check .` limpio.
+- `python3 -m pytest -q tests/` → **80 pasan**; `ruff check .` limpio.
 - Corrida end-to-end sobre `mvkobranzaia.com` en modo `demo` y en modo `web`
   (leyendo el sitio real: detecta el nombre, el mercado UY y los tres idiomas
   que Kobra publica).
@@ -214,3 +257,6 @@ tests/                 61 tests
 - El payload que va **dentro del APK** probado por separado: arranca sin backend,
   se configura la dirección del servidor, corre el pipeline completo y muestra
   los correos en los tres idiomas.
+- Los tres correos HTML renderizados en un navegador: banner cargado, botón y
+  enlace al video, cada uno en su idioma, y sin URLs crudas repetidas en el
+  cuerpo.

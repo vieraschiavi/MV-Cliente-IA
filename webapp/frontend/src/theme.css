@@ -164,7 +164,37 @@ button { font-family: inherit; }
   margin: 0; font-family: var(--sans); font-size: 13px; white-space: pre-wrap;
   color: var(--muted); line-height: 1.6;
 }
-.mail .acciones { display: flex; gap: 8px; margin-top: 10px; }
+.mail .acciones { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.mail .para { color: var(--faint); font-size: 12.5px; }
+.mail .sub { margin: 16px 0 8px; font-size: 12px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .05em; font-weight: 700; }
+.mail .sub:first-of-type { margin-top: 4px; }
+.mail pre.sep { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.apagado { color: var(--faint); font-weight: 500; text-transform: none; letter-spacing: 0; }
+
+/* pestañas del mensaje: texto plano · HTML · LinkedIn */
+.pestanas { display: flex; gap: 4px; margin: 2px 0 12px; flex-wrap: wrap; }
+.pest {
+  background: var(--navy-900); border: 1px solid var(--line); color: var(--muted);
+  font-size: 12.5px; font-weight: 700; padding: 6px 13px; border-radius: 8px; cursor: pointer;
+}
+.pest:hover { color: var(--ink); }
+.pest.on { background: var(--navy-700); color: var(--ink); border-color: var(--green-deep); }
+
+/* previsualización del correo HTML — va en un iframe aislado */
+.vista-html {
+  width: 100%; height: 520px; border: 1px solid var(--line); border-radius: 10px;
+  background: #f4f6fa; display: block;
+}
+@media (max-width: 860px) { .vista-html { height: 420px; } }
+
+/* enlaces del mensaje (video y web), al pie de la ficha */
+.enlaces-msg {
+  margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--line);
+  display: flex; gap: 16px; flex-wrap: wrap; font-size: 12.5px;
+}
+.enlaces-msg a { color: var(--green-deep); font-weight: 600; }
+.enlaces-msg a:hover { text-decoration: underline; }
 
 /* ---- tablas ---- */
 .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--navy-900); }
@@ -208,6 +238,22 @@ select:focus, input:focus, textarea:focus { border-color: var(--green); }
   text-transform: uppercase; letter-spacing: .04em; }
 .campo.crece { flex: 1; min-width: 240px; }
 .nota { color: var(--faint); font-size: 12.5px; margin-top: 12px; }
+
+/* bloque desplegable de enlaces del mensaje, dentro del formulario */
+.enlaces-cfg { flex-basis: 100%; border-top: 1px solid var(--line); margin-top: 6px; padding-top: 12px; }
+.desplegar {
+  background: none; border: 0; color: var(--muted); font-size: 12.5px; font-weight: 700;
+  cursor: pointer; padding: 2px 0; text-transform: uppercase; letter-spacing: .04em;
+}
+.desplegar:hover { color: var(--ink); }
+.enlaces-cuerpo { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+.enlaces-cuerpo .campo.crece { min-width: 260px; }
+.campo label i { font-style: normal; color: var(--faint); text-transform: none; letter-spacing: 0; }
+.checkbox {
+  flex-basis: 100%; display: flex; align-items: center; gap: 9px;
+  font-size: 13px; color: var(--ink); cursor: pointer;
+}
+.checkbox input { width: 17px; height: 17px; accent-color: var(--green-deep); cursor: pointer; }
 .aviso {
   display: flex; align-items: center; gap: 10px; background: rgba(242, 180, 65, .12);
   border: 1px solid rgba(242, 180, 65, .3); color: var(--ink); font-size: 12.5px;
