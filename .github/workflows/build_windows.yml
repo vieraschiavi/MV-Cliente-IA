@@ -79,28 +79,38 @@ jobs:
           $v = python -c "import cliente_ia,sys;sys.stdout.write(cliente_ia.__version__)"
           "MVVER=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
-      - name: Construir instalador Electron (NSIS, con desinstalador)
+      - name: Construir instalador y edición portable (NSIS + ZIP)
+        # Dos artefactos: el instalador NSIS clásico, y un ZIP portable que se
+        # descomprime en el disco que el usuario elija (D:\, un pendrive) y se
+        # ejecuta directo — sin instalador y sin archivos temporales en C:,
+        # que es donde el NSIS puede chocar con el antivirus o un C: lleno.
         shell: pwsh
         run: |
           cd electron
           npm pkg set version=${{ steps.ver.outputs.MVVER }}
           npm install
-          npx electron-builder --win nsis --publish never
+          npx electron-builder --win --publish never
           if (-Not (Test-Path "dist_installer/MVClienteIA_Setup.exe")) {
             Write-Error "No se generó el instalador Electron"; exit 1
           }
+          if (-Not (Test-Path "dist_installer/MVClienteIA_Portable.zip")) {
+            Write-Error "No se generó el ZIP portable"; exit 1
+          }
           Copy-Item "dist_installer/MVClienteIA_Setup.exe" ../dist/
+          Copy-Item "dist_installer/MVClienteIA_Portable.zip" ../dist/
         env:
           # Sin firma de código por ahora: no fallar buscando certificado. La
           # landing avisa del cartel de SmartScreen y publica el SHA-256.
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
-      - name: Calcular SHA-256 (verificación de integridad de la descarga)
+      - name: Calcular SHA-256 (verificación de integridad de las descargas)
         shell: pwsh
         run: |
-          $h = (Get-FileHash dist/MVClienteIA_Setup.exe -Algorithm SHA256).Hash.ToLower()
-          "$h  MVClienteIA_Setup.exe" | Out-File -Encoding ascii dist/MVClienteIA_Setup.exe.sha256
-          Write-Host "SHA-256: $h"
+          foreach ($f in "MVClienteIA_Setup.exe", "MVClienteIA_Portable.zip") {
+            $h = (Get-FileHash "dist/$f" -Algorithm SHA256).Hash.ToLower()
+            "$h  $f" | Out-File -Encoding ascii "dist/$f.sha256"
+            Write-Host "SHA-256 ${f}: $h"
+          }
 
       - name: Publicar en la Release (canal de descarga de la landing)
         # Si la Release del tag todavía no existe la crea; si existe (la crea
@@ -112,11 +122,19 @@ jobs:
           name: MV Cliente IA v${{ steps.ver.outputs.MVVER }}
           body: >
             App de escritorio para Windows (Electron + React, no requiere
-            Python ni dependencias). Instalador con desinstalador en
+            Python ni dependencias). Dos formas de usarla —
+            `MVClienteIA_Setup.exe`: instalador con asistente (es/pt/en),
+            elección de carpeta, accesos directos y desinstalador en
             "Agregar o quitar programas", sin permisos de administrador.
-            Descargar `MVClienteIA_Setup.exe`, ejecutarlo y seguir el
-            asistente (es/pt/en). El `.sha256` permite verificar la
+            `MVClienteIA_Portable.zip`: descomprimir en el disco que quieras
+            (D:\, un pendrive) y ejecutar `MVClienteIA.exe` — sin instalador
+            ni archivos temporales en C:; corridas y exports quedan en la
+            carpeta `datos` al lado de la app. Si el instalador falla
+            escribiendo en Temp, suele ser el antivirus o falta de espacio
+            en C: — usá la portable. Cada `.sha256` permite verificar la
             integridad de la descarga.
           files: |
             dist/MVClienteIA_Setup.exe
             dist/MVClienteIA_Setup.exe.sha256
+            dist/MVClienteIA_Portable.zip
+            dist/MVClienteIA_Portable.zip.sha256

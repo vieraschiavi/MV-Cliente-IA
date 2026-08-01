@@ -60,6 +60,27 @@ function esperarBackend(url, timeoutMs) {
   });
 }
 
+/**
+ * Dónde guardar corridas y exports. Si la carpeta de la app es escribible
+ * (edición portable descomprimida en D:\, o instalación por usuario), los
+ * datos van AL LADO de la app: todo queda en el disco que eligió el usuario.
+ * Si no se puede escribir ahí (p. ej. instalada en Archivos de programa),
+ * el motor cae solo a la carpeta de datos del usuario.
+ */
+function dirDatos() {
+  if (!app.isPackaged) return null;                 // en desarrollo manda el repo
+  const candidato = path.join(path.dirname(process.execPath), "datos");
+  try {
+    fs.mkdirSync(candidato, { recursive: true });
+    const prueba = path.join(candidato, ".escritura");
+    fs.writeFileSync(prueba, "ok");
+    fs.unlinkSync(prueba);
+    return candidato;
+  } catch {
+    return null;
+  }
+}
+
 /** Ejecutable empaquetado si existe; si no, el código fuente con Python. */
 function comandoBackend(puerto) {
   const empaquetado = path.join(
@@ -97,7 +118,12 @@ async function arrancar(intento = 0) {
     cwd,
     // El backend escucha SÓLO en 127.0.0.1, así que no hace falta contraseña
     // para hablar con tu propia máquina (ver el docstring de webapp/backend).
-    env: { ...process.env, MVCLIENTE_PUERTO: String(puerto), PYTHONUNBUFFERED: "1" },
+    env: {
+      ...process.env,
+      MVCLIENTE_PUERTO: String(puerto),
+      PYTHONUNBUFFERED: "1",
+      ...(dirDatos() ? { MVCLIENTE_DIR_DATOS: dirDatos() } : {}),
+    },
     stdio: ["ignore", "pipe", "pipe"],
   });
   backend.stdout.on("data", (d) => process.stdout.write(`[motor] ${d}`));

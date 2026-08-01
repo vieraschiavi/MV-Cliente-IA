@@ -28,6 +28,7 @@ SITIO = "https://mvclienteia.com"
 # archivo viaja su .sha256 para verificar la integridad de la descarga.
 DESCARGAS = "https://github.com/vieraschiavi/MV-Cliente-IA/releases/latest/download"
 URL_EXE = f"{DESCARGAS}/MVClienteIA_Setup.exe"
+URL_ZIP = f"{DESCARGAS}/MVClienteIA_Portable.zip"
 URL_APK = f"{DESCARGAS}/MVClienteIA.apk"
 # Sentinela: en render() se reemplaza por la ruta relativa a /app/.
 APP = "@APP@"
@@ -92,7 +93,11 @@ TEXTOS: dict[str, dict] = {
              "los datos no salen.",
              "Descargar para Windows", URL_EXE,
              "Instalador sin firma de código: si SmartScreen avisa, «Más información → "
-             "Ejecutar de todas formas». El SHA-256 está publicado junto a la descarga."),
+             "Ejecutar de todas formas». El SHA-256 está publicado junto a la descarga.",
+             "Versión portable (ZIP)", URL_ZIP,
+             "100% en el disco que elijas: descomprimí el ZIP donde quieras (D:\\, un "
+             "pendrive), ejecutá MVClienteIA.exe y listo — sin instalador, sin archivos "
+             "temporales en C:, con corridas y exports guardados en la misma carpeta."),
             ("Android · APK", "La lista y los correos en el celular, apuntando a tu servidor "
              "(Configuración → Dirección del servidor).",
              "Descargar el APK", URL_APK,
@@ -165,7 +170,11 @@ TEXTOS: dict[str, dict] = {
              "os dados não saem.",
              "Baixar para Windows", URL_EXE,
              "Instalador sem assinatura de código: se o SmartScreen avisar, «Mais "
-             "informações → Executar assim mesmo». O SHA-256 está publicado junto ao download."),
+             "informações → Executar assim mesmo». O SHA-256 está publicado junto ao download.",
+             "Versão portátil (ZIP)", URL_ZIP,
+             "100% no disco que você escolher: descompacte o ZIP onde quiser (D:\\, um "
+             "pendrive), execute MVClienteIA.exe e pronto — sem instalador, sem arquivos "
+             "temporários em C:, com buscas e exports salvos na mesma pasta."),
             ("Android · APK", "A lista e os e-mails no celular, apontando para o seu servidor "
              "(Configuração → Endereço do servidor).",
              "Baixar o APK", URL_APK,
@@ -238,7 +247,11 @@ TEXTOS: dict[str, dict] = {
              "stays put.",
              "Download for Windows", URL_EXE,
              "The installer isn't code-signed: if SmartScreen warns you, \"More info → "
-             "Run anyway\". The SHA-256 is published next to the download."),
+             "Run anyway\". The SHA-256 is published next to the download.",
+             "Portable version (ZIP)", URL_ZIP,
+             "100% on the drive you choose: unzip it anywhere (D:\\, a USB stick), run "
+             "MVClienteIA.exe and that's it — no installer, no temp files on C:, with "
+             "searches and exports stored in that same folder."),
             ("Android · APK", "The list and the emails on your phone, pointing at your "
              "server (Settings → Server address).",
              "Download the APK", URL_APK,
@@ -385,13 +398,18 @@ def render(idioma: str) -> str:
         f'<article class="ola{" uno" if i == 0 else ""}"><b>{_esc(n)}</b>'
         f'<span class="peso">{_esc(p)}</span><p>{_esc(d)}</p></article>'
         for i, (n, p, d) in enumerate(t["olas"]))
-    def _tarjeta_descarga(n, d, cta, href, nota):
+    def _tarjeta_descarga(n, d, cta, href, nota, *extra):
         if href == APP:
             enlace = f'<a class="btn btn-o" href="{base}app/">{_esc(cta)} →</a>'
         else:
             enlace = f'<a class="btn btn-o" href="{href}" rel="noreferrer">⬇ {_esc(cta)}</a>'
-        return (f'<article class="d"><b>{_esc(n)}</b><p>{_esc(d)}</p>'
-                f'{enlace}<small>{_esc(nota)}</small></article>')
+        cuerpo = f'{enlace}<small>{_esc(nota)}</small>'
+        # Descarga secundaria opcional (la edición portable de Windows).
+        if extra:
+            cta2, href2, nota2 = extra
+            cuerpo += (f'<a class="btn btn-o" href="{href2}" rel="noreferrer">⬇ {_esc(cta2)}</a>'
+                       f'<small>{_esc(nota2)}</small>')
+        return f'<article class="d"><b>{_esc(n)}</b><p>{_esc(d)}</p>{cuerpo}</article>'
 
     descargas = "\n".join(_tarjeta_descarga(*item) for item in t["desc_items"])
     enlaces = "".join(

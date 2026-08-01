@@ -19,15 +19,19 @@
   "build": {
     "appId": "com.mvclienteia.desktop",
     "productName": "MV Cliente IA",
-    "artifactName": "MVClienteIA_Setup.exe",
     "directories": { "output": "dist_installer", "buildResources": "build" },
     "files": ["main.js", "preload.js"],
     "extraResources": [{ "from": "../dist/MVClienteIA", "to": "backend" }],
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "zip", "arch": ["x64"] }
+      ],
+      "artifactName": "MVClienteIA_Portable.${ext}",
       "icon": "build/icon.ico"
     },
     "nsis": {
+      "artifactName": "MVClienteIA_Setup.exe",
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
