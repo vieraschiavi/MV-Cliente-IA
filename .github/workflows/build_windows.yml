@@ -103,6 +103,9 @@ jobs:
           Write-Host "SHA-256: $h"
 
       - name: Publicar en la Release (canal de descarga de la landing)
+        # Si la Release del tag todavía no existe la crea; si existe (la crea
+        # el primer workflow que llega — la primera vez ganó el del APK y este
+        # paso perdió la carrera con "already_exists"), le agrega los archivos.
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.ver.outputs.MVVER }}
