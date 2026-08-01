@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { api, esNativo, getBase, setBase, setToken } from "../api.js";
+import { api, esNativo, getBase, getClaveIA, setBase, setClaveIA, setToken } from "../api.js";
 import { SelectorIdioma } from "../App.jsx";
 import { t } from "../i18n/index.js";
 
@@ -7,6 +7,16 @@ export default function Configuracion({ onSalir }) {
   const [base, setBaseLocal] = useState(getBase());
   const [aviso, setAviso] = useState("");
   const [error, setError] = useState("");
+  const [clave, setClaveLocal] = useState(getClaveIA());
+  const [verClave, setVerClave] = useState(false);
+  const [avisoClave, setAvisoClave] = useState("");
+
+  const guardarClave = (e) => {
+    e.preventDefault();
+    setClaveIA(clave);
+    setAvisoClave(clave.trim() ? t("config.clave_guardada") : t("config.clave_borrada"));
+    setTimeout(() => setAvisoClave(""), 2500);
+  };
 
   const guardar = (e) => {
     e.preventDefault();
@@ -45,6 +55,28 @@ export default function Configuracion({ onSalir }) {
         <h3>{t("config.idioma")}</h3>
         <div style={{ maxWidth: 220 }}><SelectorIdioma /></div>
       </div>
+
+      <form className="card" style={{ maxWidth: 620, marginBottom: 14 }} onSubmit={guardarClave}>
+        <h3>{t("config.clave_ia")}</h3>
+        <div className="campo crece" style={{ marginBottom: 10 }}>
+          {/* type=password para que no quede a la vista en una demo o una
+              captura; el botón de al lado la muestra si hace falta revisarla. */}
+          <input type={verClave ? "text" : "password"} value={clave}
+                 placeholder="sk-ant-…" autoCapitalize="none" autoCorrect="off"
+                 autoComplete="off" spellCheck="false"
+                 onChange={(e) => setClaveLocal(e.target.value)} />
+        </div>
+        <p className="nota" style={{ marginTop: 0 }}>{t("config.clave_ayuda")}</p>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+          <button className="btn" type="submit">{t("config.guardar")}</button>
+          <button className="btn ghost" type="button" onClick={() => setVerClave(!verClave)}>
+            {verClave ? t("config.clave_ocultar") : t("config.clave_ver")}
+          </button>
+        </div>
+        {avisoClave ? (
+          <p className="nota" style={{ color: "var(--green-deep)" }}>{avisoClave}</p>
+        ) : null}
+      </form>
 
       <form className="card" style={{ maxWidth: 620 }} onSubmit={guardar}>
         <h3>{t("config.servidor")}</h3>

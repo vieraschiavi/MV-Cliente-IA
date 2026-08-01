@@ -7,6 +7,10 @@
 const KEY_TOKEN = "mvcliente_token";
 const KEY_IDIOMA = "mvcliente_idioma";
 const KEY_BASE = "mvcliente_base";
+// La clave de la API de Claude que el usuario pega en Configuración. Vive en
+// SU navegador y viaja sólo dentro de cada corrida en modo IA: el servidor la
+// usa y la descarta — no la guarda ni la escribe en logs.
+const KEY_CLAVE_IA = "mvcliente_clave_ia";
 
 // Capacitor sirve la app desde capacitor://localhost o http://localhost —
 // ahí "/api" no existe y hay que pedirle al usuario la dirección del servidor.
@@ -30,6 +34,15 @@ export function getToken() {
 export function setToken(t) {
   if (t) localStorage.setItem(KEY_TOKEN, t);
   else localStorage.removeItem(KEY_TOKEN);
+}
+
+export function getClaveIA() {
+  return localStorage.getItem(KEY_CLAVE_IA) || "";
+}
+export function setClaveIA(clave) {
+  const limpia = (clave || "").trim();
+  if (limpia) localStorage.setItem(KEY_CLAVE_IA, limpia);
+  else localStorage.removeItem(KEY_CLAVE_IA);
 }
 
 export function getIdioma() {

@@ -185,6 +185,9 @@ class CorridaIn(BaseModel):
     sitio: str = ""
     videos: dict[str, str] = Field(default_factory=dict)
     video_en_landing: bool = False
+    # Clave de la API de Claude pegada por el usuario en Configuración. Vale
+    # para esta corrida: no se guarda, no se loguea y no entra en la corrida.
+    clave_ia: str = Field(default="", max_length=300)
     prospectos: int = Field(default=pipeline.LIMITE_PROSPECTOS_DEFAULT, ge=5, le=400)
     decisores: int = Field(default=pipeline.DECISORES_POR_EMPRESA_DEFAULT, ge=1, le=5)
     emails: int = Field(default=pipeline.LIMITE_EMAILS_DEFAULT, ge=1, le=300)
@@ -204,6 +207,7 @@ def _lanzar(entrada: CorridaIn, corrida_id: str) -> None:
             idioma_ui=entrada.idioma, firma=entrada.firma, nombre=entrada.nombre,
             enlaces=_config_enlaces(entrada),
             al_avanzar=guardar_avance, corrida_id=corrida_id,
+            clave_ia=entrada.clave_ia,
         )
     finally:
         with _lock:
@@ -222,11 +226,13 @@ def crear_corrida(entrada: CorridaIn):
         raise HTTPException(422, f"Modo inválido: {entrada.modo}")
 
     if SIN_ESTADO:
-        if entrada.modo not in modos_en_serverless():
+        # Con clave pegada en la interfaz el modo IA corre igual: la clave
+        # viaja en esta petición y no queda en ningún lado del servidor.
+        if entrada.modo not in modos_en_serverless() and not entrada.clave_ia:
             raise HTTPException(422,
-                "El modo de investigación con IA necesita una ANTHROPIC_API_KEY "
-                "configurada en el servidor (en Vercel: Settings → Environment "
-                "Variables). Mientras tanto usá «demo» o «leer mi sitio».")
+                "El modo de investigación con IA necesita una clave de la API "
+                "de Claude: pegala en Configuración, o definí ANTHROPIC_API_KEY "
+                "en el servidor. Mientras tanto usá «demo» o «leer mi sitio».")
         corrida = pipeline.ejecutar(
             entrada.dominio, modo=entrada.modo,
             limite_prospectos=entrada.prospectos,
@@ -234,6 +240,7 @@ def crear_corrida(entrada: CorridaIn):
             limite_emails=entrada.emails,
             idioma_ui=entrada.idioma, firma=entrada.firma, nombre=entrada.nombre,
             enlaces=_config_enlaces(entrada),
+            clave_ia=entrada.clave_ia,
         )
         if corrida.estado == "error":
             raise HTTPException(502, corrida.error or "La corrida falló")

@@ -159,6 +159,18 @@ def test_la_cadena_no_confunde_vacio_con_fallo():
         raise AssertionError("sin proveedores que respondan tiene que fallar")
 
 
+def test_la_clave_de_la_interfaz_habilita_el_modo_ia(monkeypatch):
+    """La clave pegada en Configuración vale igual que la del servidor: sin
+    ninguna de las dos, `llm` cae honesto a `web`."""
+    from cliente_ia import proveedores
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    assert proveedores.modo_efectivo("llm") == "web"
+    assert proveedores.modo_efectivo("llm", "sk-ant-loquesea") == "llm"
+    # Y la cadena se arma con el proveedor LLM adentro.
+    cadena = proveedores.construir("llm", clave_ia="sk-ant-loquesea")
+    assert "llm" in cadena.nombre
+
+
 def test_guardar_y_recuperar_no_pierde_nada(corrida_kobra):
     almacen.guardar(corrida_kobra)
     vuelta = almacen.cargar(corrida_kobra.id)

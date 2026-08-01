@@ -57,7 +57,8 @@ def ejecutar(dominio: str,
              nombre: str = "",
              enlaces: dict | menlaces.Enlaces | None = None,
              al_avanzar: Progreso | None = None,
-             corrida_id: str = "") -> Corrida:
+             corrida_id: str = "",
+             clave_ia: str = "") -> Corrida:
     """
     Corre el AutoGTM completo sobre `dominio` y devuelve la corrida.
 
@@ -79,7 +80,7 @@ def ejecutar(dominio: str,
         dominio=dominio,
         creada=_ahora(),
         estado="corriendo",
-        modo=proveedores.modo_efectivo(modo),
+        modo=proveedores.modo_efectivo(modo, clave_ia),
         idioma_ui=idioma_ui if idioma_ui in geo.IDIOMAS else "es",
         pasos=[],
     )
@@ -94,7 +95,9 @@ def ejecutar(dominio: str,
             al_avanzar(corrida)
 
     avisar()
-    proveedor = proveedores.construir(modo, corrida.idioma_ui)
+    # La clave de la interfaz vive lo que dura esta llamada: no entra en la
+    # corrida, ni en el disco, ni en ningún log.
+    proveedor = proveedores.construir(modo, corrida.idioma_ui, clave_ia)
 
     try:
         # --- Fase 1 · investigar la empresa -----------------------------

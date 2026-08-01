@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, descargar, esNativo, fmtScore, getBase } from "../api.js";
+import { api, descargar, esNativo, fmtScore, getBase, getClaveIA } from "../api.js";
 import { Aviso, Idioma, Kpis, Ola, Vacio } from "../componentes/Comunes.jsx";
 import { getCorridaId, setCorridaId, setCorridaLocal, useCorrida } from "../estado.js";
 import { t } from "../i18n/index.js";
@@ -59,9 +59,10 @@ export default function Explorar() {
   // usuario creería que la IA no busca nada — pasó en el despliegue público).
   const [salud, setSalud] = useState(null);
   useEffect(() => { api("/api/salud").then(setSalud).catch(() => {}); }, []);
-  // Antes de saber nada se muestra (igual que siempre); con respuesta manda
-  // la lista de modos del servidor.
-  const hayLLM = !salud || Boolean(salud.modos?.includes("llm"));
+  // El modo IA se ofrece si el servidor puede correrlo (tiene clave propia) o
+  // si el usuario pegó la suya en Configuración: en ese caso la clave viaja
+  // con la corrida. Antes de la respuesta de salud se muestra, como siempre.
+  const hayLLM = !salud || Boolean(salud.modos?.includes("llm")) || Boolean(getClaveIA());
   // Si el servidor no ofrece IA y el modo elegido era «llm», se baja a «web»
   // en vez de dejar el select apuntando a una opción que ya no existe.
   useEffect(() => {
@@ -105,6 +106,8 @@ export default function Explorar() {
           video_en_landing: form.video_en_landing,
           videos: Object.fromEntries(
             Object.entries(form.videos).filter(([, v]) => v.trim())),
+          // La clave sólo viaja cuando la corrida la necesita.
+          ...(form.modo === "llm" && getClaveIA() ? { clave_ia: getClaveIA() } : {}),
         },
       });
       // En un despliegue sin estado el POST devuelve la corrida YA TERMINADA

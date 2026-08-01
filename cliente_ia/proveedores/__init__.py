@@ -22,7 +22,10 @@ from .web import ErrorWeb, ProveedorWeb
 MODOS = ("demo", "web", "llm")
 
 
-def construir(modo: str = "demo", idioma_base: str = "es") -> Proveedor:
+def construir(modo: str = "demo", idioma_base: str = "es",
+              clave_ia: str = "") -> Proveedor:
+    """`clave_ia` es la clave que el usuario pegó en la interfaz: vale para
+    esta corrida y nada más. Nunca se guarda ni se escribe en un log."""
     modo = (modo or "demo").lower()
     if modo not in MODOS:
         raise ValueError(f"Modo desconocido: {modo} (esperaba uno de {MODOS})")
@@ -36,16 +39,16 @@ def construir(modo: str = "demo", idioma_base: str = "es") -> Proveedor:
         return ProveedorEncadenado(web, demo)
 
     from .llm import ProveedorLLM, hay_clave
-    if not hay_clave():
+    if not clave_ia and not hay_clave():
         return ProveedorEncadenado(web, demo)
-    return ProveedorEncadenado(web, ProveedorLLM(idioma_base), demo)
+    return ProveedorEncadenado(web, ProveedorLLM(idioma_base, clave=clave_ia), demo)
 
 
-def modo_efectivo(modo: str) -> str:
+def modo_efectivo(modo: str, clave_ia: str = "") -> str:
     """El modo que realmente va a correr, ya considerando si hay clave."""
     if modo == "llm":
         from .llm import hay_clave
-        return "llm" if hay_clave() else "web"
+        return "llm" if (clave_ia or hay_clave()) else "web"
     return modo
 
 

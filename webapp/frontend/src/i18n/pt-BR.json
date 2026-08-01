@@ -38,7 +38,7 @@
     "modo_demo": "Demo (sintético, sem conexão)",
     "modo_web": "Ler meu site real",
     "modo_llm": "Pesquisa com IA",
-    "modo_llm_falta": "Para pesquisar com IA de verdade, configure ANTHROPIC_API_KEY no servidor (na Vercel: Settings → Environment Variables) e a opção aparece sozinha.",
+    "modo_llm_falta": "Para pesquisar com IA de verdade, cole a sua chave da API do Claude em Configuração e a opção aparece sozinha.",
     "prospectos": "Quantas empresas",
     "lanzar": "Começar a buscar clientes",
     "lanzando": "Buscando…",
@@ -165,7 +165,13 @@
     "conexion_ok": "Conexão correta",
     "conexion_error": "Não foi possível conectar",
     "salir": "Sair",
-    "version": "Versão"
+    "version": "Versão",
+    "clave_ia": "Pesquisa com IA (API do Claude)",
+    "clave_ayuda": "Cole a sua chave da API do Claude (console.anthropic.com → API keys). Fica guardada só neste navegador e viaja apenas quando você lança uma busca com IA: o servidor usa e descarta, nunca guarda. Com a chave, a opção «Pesquisa com IA» aparece em Explorar.",
+    "clave_guardada": "Chave guardada neste navegador",
+    "clave_borrada": "Chave apagada",
+    "clave_ver": "Mostrar",
+    "clave_ocultar": "Ocultar"
   },
   "aviso": {
     "sintetico": "Dados de demonstração: as empresas e as pessoas desta lista são sintéticas, geradas para testar o fluxo. Mude a origem dos dados para «Ler meu site real» ou «Pesquisa com IA» para trabalhar com informação real.",

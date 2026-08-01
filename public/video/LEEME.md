@@ -19,7 +19,11 @@ pasá la URL de cada idioma al lanzar la corrida (`--video-es`, `--video-pt`,
 Mientras no haya ni archivo ni URL, los mensajes **no mencionan ningún video**:
 no se promete algo que no existe.
 
-> Estado actual: los tres idiomas sirven el **mismo** video (la demo real de
-> MV Kobra AI, en español). Es a propósito — un video real en español le gana a
-> un cartel de "no publicado" — pero cuando tengas las versiones en portugués
-> e inglés, reemplazá `pt/demo.mp4` y `en/demo.mp4` y listo.
+Los tres `demo.mp4` actuales los produce `python3 -m marketing.generar_video`:
+capturas de la aplicación real corriendo en cada idioma, placas con la marca
+que corresponde (MV Cliente IA en es/pt, MV SearchCostumer AI en inglés) y
+locución generada en el idioma del receptor. Si hay que cambiar una escena o
+un texto, se cambia el generador y se regenera — no se editan los videos a
+mano, que a la primera corrección quedan desincronizados. Un video grabado
+"de verdad" (con voz humana) puede reemplazar a cualquiera de los tres cuando
+exista: mismo nombre de archivo y listo.
