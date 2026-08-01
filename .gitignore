@@ -8,7 +8,11 @@ venv/
 .ruff_cache/
 
 # --- Datos de corridas (se generan al usar el producto) ---
-datos/
+# La barra inicial ancla la regla a la raíz. Sin ella, `datos/` también
+# ignoraba `cliente_ia/datos/`, que es código fuente (la semilla del catálogo
+# de mercado): el repo quedaba sin ese archivo y la suite entera reventaba con
+# FileNotFoundError en una máquina limpia.
+/datos/
 
 # --- Node / frontend ---
 node_modules/
