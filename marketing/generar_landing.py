@@ -345,6 +345,12 @@ def render(idioma: str) -> str:
         for ancla, txt in zip(("pasos", "olas", "video", "idiomas", "descargar"),
                               t["nav"], strict=True))
 
+    # El aviso «todavía no está publicado» sólo tiene sentido mientras el
+    # archivo no exista: dejarlo con el video andando confunde ("no tiene
+    # video", dijo un usuario mirando la página con el video ya arriba).
+    hay_video = (DESTINO / "video" / idioma / "demo.mp4").exists()
+    aviso_video = "" if hay_video else f'<p class="video-falta">{t["video_falta"]}</p>'
+
     return f"""<!DOCTYPE html>
 <html lang="{t['lang']}">
 <head>
@@ -404,7 +410,7 @@ def render(idioma: str) -> str:
     <video controls preload="none" playsinline poster="{base}banners/banner_{idioma}.png">
       <source src="{base}video/{idioma}/demo.mp4" type="video/mp4">
     </video>
-    <p class="video-falta">{t['video_falta']}</p>
+    {aviso_video}
   </div>
 </div></section>
 

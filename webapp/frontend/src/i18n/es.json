@@ -38,6 +38,7 @@
     "modo_demo": "Demo (sintético, sin conexión)",
     "modo_web": "Leer mi sitio real",
     "modo_llm": "Investigación con IA",
+    "modo_llm_falta": "Para investigar con IA de verdad, configurá ANTHROPIC_API_KEY en el servidor (en Vercel: Settings → Environment Variables) y la opción aparece sola.",
     "prospectos": "Cuántas empresas",
     "lanzar": "Empezar a buscar clientes",
     "lanzando": "Buscando…",

@@ -18,3 +18,8 @@ pasá la URL de cada idioma al lanzar la corrida (`--video-es`, `--video-pt`,
 
 Mientras no haya ni archivo ni URL, los mensajes **no mencionan ningún video**:
 no se promete algo que no existe.
+
+> Estado actual: los tres idiomas sirven el **mismo** video (la demo real de
+> MV Kobra AI, en español). Es a propósito — un video real en español le gana a
+> un cartel de "no publicado" — pero cuando tengas las versiones en portugués
+> e inglés, reemplazá `pt/demo.mp4` y `en/demo.mp4` y listo.

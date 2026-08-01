@@ -28,7 +28,7 @@ from ..modelos import Campana, Competidor, Empresa, Prospecto
 from .base import Proveedor
 from .demo import ProveedorDemo
 
-MODELO_DEFAULT = "claude-sonnet-4-5"
+MODELO_DEFAULT = "claude-sonnet-5"
 TIMEOUT = 90
 
 

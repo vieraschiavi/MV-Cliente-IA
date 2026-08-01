@@ -132,6 +132,33 @@ def test_funciona_con_un_producto_que_no_es_de_cobranzas():
     assert c.empresa.pais == "UY"          # el TLD .com.uy fija el mercado base
 
 
+def test_la_cadena_no_confunde_vacio_con_fallo():
+    """Regresión: un sitio inmobiliario en modo «leer mi sitio» tumbaba la
+    fase 2 con NotImplementedError. Su categoría no tiene competidores
+    precargados y la cadena trataba el [] legítimo como «nadie respondió»."""
+    from cliente_ia.proveedores.base import Proveedor, ProveedorEncadenado
+
+    class NoSabe(Proveedor):
+        nombre = "nosabe"
+
+    class RespondeVacio(Proveedor):
+        nombre = "vacio"
+
+        def competencia(self, empresa):
+            return []
+
+    cadena = ProveedorEncadenado(NoSabe(), RespondeVacio())
+    assert cadena.competencia(None) == []
+
+    # Y cuando de verdad nadie responde, el error claro tiene que seguir ahí.
+    try:
+        ProveedorEncadenado(NoSabe()).competencia(None)
+    except NotImplementedError:
+        pass
+    else:
+        raise AssertionError("sin proveedores que respondan tiene que fallar")
+
+
 def test_guardar_y_recuperar_no_pierde_nada(corrida_kobra):
     almacen.guardar(corrida_kobra)
     vuelta = almacen.cargar(corrida_kobra.id)

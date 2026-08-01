@@ -54,10 +54,21 @@ export default function Explorar() {
     sitio: "", video_en_landing: true, videos: { es: "", pt: "", en: "" },
   });
   const [verEnlaces, setVerEnlaces] = useState(false);
-  // El backend dice si corre sin estado (Vercel): ahí el modo con IA tarda
-  // más de lo que dura la función, así que ni se ofrece.
+  // El backend dice qué modos puede correr de verdad: sin ANTHROPIC_API_KEY
+  // el modo con IA no se ofrece (caería en silencio a «leer mi sitio» y el
+  // usuario creería que la IA no busca nada — pasó en el despliegue público).
   const [salud, setSalud] = useState(null);
   useEffect(() => { api("/api/salud").then(setSalud).catch(() => {}); }, []);
+  // Antes de saber nada se muestra (igual que siempre); con respuesta manda
+  // la lista de modos del servidor.
+  const hayLLM = !salud || Boolean(salud.modos?.includes("llm"));
+  // Si el servidor no ofrece IA y el modo elegido era «llm», se baja a «web»
+  // en vez de dejar el select apuntando a una opción que ya no existe.
+  useEffect(() => {
+    if (salud && !hayLLM) {
+      setForm((f) => (f.modo === "llm" ? { ...f, modo: "web" } : f));
+    }
+  }, [salud, hayLLM]);
   const [lanzando, setLanzando] = useState(false);
   const [errLanzar, setErrLanzar] = useState("");
   const [abierta, setAbierta] = useState("investigar");
@@ -152,9 +163,7 @@ export default function Explorar() {
                   onChange={(e) => setForm({ ...form, modo: e.target.value })}>
             <option value="demo">{t("explorar.modo_demo")}</option>
             <option value="web">{t("explorar.modo_web")}</option>
-            {salud?.sin_estado ? null : (
-              <option value="llm">{t("explorar.modo_llm")}</option>
-            )}
+            {hayLLM ? <option value="llm">{t("explorar.modo_llm")}</option> : null}
           </select>
         </div>
         <div className="campo">
@@ -208,6 +217,8 @@ export default function Explorar() {
           ) : null}
         </div>
       </form>
+
+      {salud && !hayLLM ? <p className="nota">{t("explorar.modo_llm_falta")}</p> : null}
 
       {errLanzar ? <p className="error-note">{errLanzar}</p> : null}
       {error ? <p className="error-note">{error}</p> : null}

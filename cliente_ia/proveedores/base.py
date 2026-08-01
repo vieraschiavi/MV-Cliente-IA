@@ -57,6 +57,13 @@ class ProveedorEncadenado(Proveedor):
 
     def _intentar(self, metodo: str, *args):
         ultimo_error: Exception | None = None
+        # "Respondió vacío" y "no respondió nadie" son cosas distintas. Un
+        # producto de una categoría sin competidores precargados devuelve []
+        # legítimamente, y eso NO es un fallo: tratarlo como tal tumbaba la
+        # corrida entera con NotImplementedError en la fase 2 (lo encontró un
+        # usuario con un sitio inmobiliario en modo web).
+        vacio_valido = None
+        alguno_respondio = False
         for p in self.proveedores:
             fn = getattr(p, metodo, None)
             if fn is None:
@@ -68,8 +75,12 @@ class ProveedorEncadenado(Proveedor):
             except Exception as e:                      # noqa: BLE001
                 ultimo_error = e                        # se prueba el siguiente
                 continue
+            alguno_respondio = True
             if r:
                 return r
+            vacio_valido = r                            # se sigue por si otro trae más
+        if alguno_respondio:
+            return vacio_valido
         if ultimo_error is not None:
             raise ultimo_error
         raise NotImplementedError(f"Ningún proveedor resolvió {metodo}")

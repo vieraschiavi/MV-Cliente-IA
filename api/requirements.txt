@@ -4,3 +4,6 @@
 fastapi>=0.110
 pydantic>=2.6
 openpyxl>=3.1
+# El modo «investigación con IA» en Vercel: sólo se activa si el proyecto
+# tiene ANTHROPIC_API_KEY, pero el paquete tiene que estar instalado ya.
+anthropic>=0.40

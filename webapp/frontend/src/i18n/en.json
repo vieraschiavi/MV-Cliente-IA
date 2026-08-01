@@ -38,6 +38,7 @@
     "modo_demo": "Demo (synthetic, offline)",
     "modo_web": "Read my real website",
     "modo_llm": "AI research",
+    "modo_llm_falta": "To research with real AI, set ANTHROPIC_API_KEY on the server (on Vercel: Settings → Environment Variables) and the option appears by itself.",
     "prospectos": "How many companies",
     "lanzar": "Start finding customers",
     "lanzando": "Searching…",

@@ -63,10 +63,14 @@ TTL_TOKEN = 12 * 3600
 # cuerpo, sin sondeo. El frontend detecta ese caso y no consulta el avance.
 SIN_ESTADO = rutas.en_serverless()
 
-# El modo `llm` hace varias llamadas a la API y tarda minutos: en una función
-# serverless se corta por timeout antes de terminar. Se rechaza con un mensaje
-# claro en vez de dejar que muera a los 10 segundos sin explicación.
-MODOS_EN_SERVERLESS = ("demo", "web")
+# En serverless el modo `llm` sólo se ofrece cuando hay ANTHROPIC_API_KEY:
+# sin clave caería en silencio a `web` y el usuario creería que la IA "no
+# busca nada" (pasó con el despliegue de Vercel). Con clave sí corre — el
+# maxDuration de vercel.json está subido justamente para darle tiempo.
+def modos_en_serverless() -> tuple[str, ...]:
+    if proveedores.modo_efectivo("llm") == "llm":
+        return ("demo", "web", "llm")
+    return ("demo", "web")
 
 app = FastAPI(title="MV Cliente IA", version=__version__)
 app.add_middleware(
@@ -147,10 +151,9 @@ def estado_auth():
 @app.get("/api/salud")
 def salud():
     return {"ok": True, "version": __version__,
-            "modos": list(MODOS_EN_SERVERLESS if SIN_ESTADO else proveedores.MODOS),
+            "modos": list(modos_en_serverless() if SIN_ESTADO else proveedores.MODOS),
             "sin_estado": SIN_ESTADO,
-            "modo_llm_disponible": (not SIN_ESTADO
-                                    and proveedores.modo_efectivo("llm") == "llm")}
+            "modo_llm_disponible": proveedores.modo_efectivo("llm") == "llm"}
 
 
 @app.get("/api/geo")
@@ -219,11 +222,11 @@ def crear_corrida(entrada: CorridaIn):
         raise HTTPException(422, f"Modo inválido: {entrada.modo}")
 
     if SIN_ESTADO:
-        if entrada.modo not in MODOS_EN_SERVERLESS:
+        if entrada.modo not in modos_en_serverless():
             raise HTTPException(422,
-                "El modo de investigación con IA tarda minutos y no entra en el "
-                "tiempo de una función serverless. Usá «demo» o «leer mi sitio», "
-                "o corré el backend en un servidor propio.")
+                "El modo de investigación con IA necesita una ANTHROPIC_API_KEY "
+                "configurada en el servidor (en Vercel: Settings → Environment "
+                "Variables). Mientras tanto usá «demo» o «leer mi sitio».")
         corrida = pipeline.ejecutar(
             entrada.dominio, modo=entrada.modo,
             limite_prospectos=entrada.prospectos,
