@@ -298,6 +298,7 @@ def test_contactos_publicos_salen_del_sitio_de_la_empresa(monkeypatch):
     PORTADA = """
     <html><body>
       <a href="/contacto">Contacto</a>
+      <script>const v = "bootstrap@4.0.0";</script>
       <img src="logo@2x.png">
       <a href="https://www.instagram.com/p/abc123/">post</a>
       <a href="https://www.instagram.com/empresareal.uy">IG</a>
@@ -320,6 +321,7 @@ def test_contactos_publicos_salen_del_sitio_de_la_empresa(monkeypatch):
     assert c["email"] == "info@empresareal.com.uy"      # el del dominio, primero
     assert "gerente.personal@gmail.com" in c["emails"]  # publicado, se lista
     assert all(not e.endswith(".png") for e in c["emails"])
+    assert all("bootstrap" not in e for e in c["emails"])
     assert c["telefono"] == "+598 99 123 456"
     assert c["linkedin"] == "https://www.linkedin.com/company/empresa-real"
     assert c["instagram"] == "https://www.instagram.com/empresareal.uy"

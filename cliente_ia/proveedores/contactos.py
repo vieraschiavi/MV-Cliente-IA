@@ -28,7 +28,9 @@ MAX_EMPRESAS = 30            # tope de sitios a visitar por corrida
 MAX_PAGINAS_EXTRA = 2        # además de la portada: contacto / nosotros
 HILOS = 8
 
-RE_EMAIL = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+")
+# El TLD tiene que ser alfabético: si no, "bootstrap@4.0.0" (una versión de
+# librería en el JS del sitio) pasa por correo.
+RE_EMAIL = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}\b")
 RE_TEL = re.compile(r'href=["\']tel:([+0-9() .\-]{7,20})', re.I)
 RE_LINKEDIN = re.compile(
     r"https?://(?:[a-z.]+\.)?linkedin\.com/(?:company|school)/[A-Za-z0-9._%\-]+", re.I)
@@ -80,13 +82,19 @@ def _instagram(html: str) -> str:
 
 def contactos_de(dominio: str, timeout: int = TIMEOUT) -> dict:
     """Contactos públicos de UN dominio. Devuelve {} si el sitio no responde."""
+    base = _base(dominio)
+    host = base
     try:
-        paginas = [bajar(dominio, timeout)]
+        paginas = [bajar(host, timeout)]
     except ErrorWeb:
-        return {}
+        # Sitios que sólo responden con www (el apex da 5xx o ni resuelve).
+        host = "www." + base
+        try:
+            paginas = [bajar(host, timeout)]
+        except ErrorWeb:
+            return {}
 
     # De la portada salen los enlaces a "contacto"/"nosotros" del MISMO sitio.
-    base = _base(dominio)
     extra = 0
     for enlace in RE_ENLACE.findall(paginas[0]):
         if extra >= MAX_PAGINAS_EXTRA:
@@ -95,7 +103,7 @@ def contactos_de(dominio: str, timeout: int = TIMEOUT) -> dict:
             continue
         if not RE_PAGINA_CONTACTO.search(enlace):
             continue
-        url = urllib.parse.urljoin(f"https://{base}/", enlace)
+        url = urllib.parse.urljoin(f"https://{host}/", enlace)
         if _base(url) != base:
             continue
         try:
@@ -106,6 +114,19 @@ def contactos_de(dominio: str, timeout: int = TIMEOUT) -> dict:
 
     junto = "\n".join(paginas)
     emails = _filtrar_emails(RE_EMAIL.findall(junto), dominio)
+    # Muchos sitios no enlazan su página de contacto desde el HTML crudo
+    # (menú por JavaScript): si la portada no dio correo, se prueban las
+    # rutas típicas directo, hasta encontrar uno.
+    if not emails:
+        for ruta in ("contacto", "contact", "contato", "contact-us", "contactenos"):
+            try:
+                paginas.append(bajar(f"{host}/{ruta}", timeout))
+            except ErrorWeb:
+                continue
+            junto = "\n".join(paginas)
+            emails = _filtrar_emails(RE_EMAIL.findall(junto), dominio)
+            if emails:
+                break
     tel = RE_TEL.search(junto)
     linkedin = RE_LINKEDIN.search(junto)
     salida = {

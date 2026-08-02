@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { api, fmtNum, getClaveIA, getEndpointIA, getProveedorIA } from "../api.js";
 import { Aviso, Vacio } from "../componentes/Comunes.jsx";
 import { getCorridaId, useCorrida } from "../estado.js";
@@ -89,9 +89,44 @@ function Foda({ foda }) {
   ));
 }
 
+/** Precio leído del texto real del sitio ("desde USD 99", "$ 4.990/mes"…).
+ *  Es una precarga editable, no una verdad: si no aparece, queda manual. */
+function precioDelSitio(empresa) {
+  const texto = `${empresa?.resumen_sitio || ""} ${empresa?.propuesta || ""}`;
+  const m = texto.match(
+    /(?:desde|from|a partir de)?\s*(?:US?\$|USD|U\$S|R\$|\$U|\$|€)\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?)/i);
+  if (!m) return 0;
+  // "4.990" es un separador de miles; "99.90" son centavos.
+  const crudo = m[1].replace(/[.,](?=\d{3}(?:\D|$))/g, "").replace(",", ".");
+  const n = Number(crudo);
+  return Number.isFinite(n) && n >= 1 ? Math.round(n) : 0;
+}
+
 export default function Analisis() {
   const { corrida } = useCorrida(getCorridaId());
   const [form, setForm] = useState(Object.fromEntries(CAMPOS.map(([c]) => [c, ""])));
+
+  // Precarga automática con fallback manual: el precio sale de la web del
+  // producto y los clientes nuevos se estiman de los prospectos de la
+  // corrida con una conversión declarada del 3%. Todo queda editable y la
+  // nota de abajo dice de dónde salió cada número.
+  const sugerencias = useMemo(() => ({
+    precio: precioDelSitio(corrida?.empresa),
+    prospectos: (corrida?.prospectos || []).length,
+    nuevos: (corrida?.prospectos || []).length
+      ? Math.max(1, Math.round((corrida?.prospectos || []).length * 0.03)) : 0,
+  }), [corrida]);
+  const precargado = useRef(false);
+  useEffect(() => {
+    if (precargado.current || !corrida) return;
+    precargado.current = true;
+    setForm((f) => ({
+      ...f,
+      precio: f.precio || (sugerencias.precio ? String(sugerencias.precio) : ""),
+      nuevos_por_mes: f.nuevos_por_mes
+        || (sugerencias.nuevos ? String(sugerencias.nuevos) : ""),
+    }));
+  }, [corrida, sugerencias]);
   const [resultado, setResultado] = useState(null);
   const [escenario, setEscenario] = useState("base");
   const [conAds, setConAds] = useState(true);
@@ -141,6 +176,15 @@ export default function Analisis() {
       <form className="card" style={{ maxWidth: 760, marginBottom: 14 }} onSubmit={lanzar}>
         <h3>{t("analisis.datos")} · {corrida.empresa?.nombre}</h3>
         <p className="nota" style={{ marginTop: 0 }}>{t("analisis.moneda")}</p>
+        {sugerencias.precio || sugerencias.nuevos ? (
+          <p className="nota" style={{ marginTop: 0 }}>
+            {sugerencias.precio ? `${t("analisis.prefill_precio")} ` : ""}
+            {sugerencias.nuevos
+              ? t("analisis.prefill_clientes",
+                  { n: sugerencias.prospectos, est: sugerencias.nuevos })
+              : ""}
+          </p>
+        ) : null}
         <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
           {CAMPOS.map(([clave, etiqueta, ejemplo]) => (
             <div className="campo" key={clave}>

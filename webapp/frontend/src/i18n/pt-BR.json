@@ -279,6 +279,8 @@
     "col_fijo": "Custo fixo",
     "col_variable": "Custo variável",
     "col_ads": "Ads",
-    "sin_movimiento": "Atenção: sem clientes atuais, sem clientes novos por mês e sem ads (com o CAC), a projeção dá zero com certeza. Preencha ao menos por onde entram clientes."
+    "sin_movimiento": "Atenção: sem clientes atuais, sem clientes novos por mês e sem ads (com o CAC), a projeção dá zero com certeza. Preencha ao menos por onde entram clientes.",
+    "prefill_precio": "O preço foi lido do seu site — corrija se não for o real.",
+    "prefill_clientes": "Os clientes novos por mês são estimados dos seus {{n}} prospectos com uma conversão típica de 3% (≈ {{est}}/mês) — substitua pelos seus dados reais se tiver."
   }
 }

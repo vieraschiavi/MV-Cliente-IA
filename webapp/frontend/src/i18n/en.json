@@ -279,6 +279,8 @@
     "col_fijo": "Fixed costs",
     "col_variable": "Variable costs",
     "col_ads": "Ads",
-    "sin_movimiento": "Heads up: with no current customers, no new customers per month and no ads (with a CAC), the projection is guaranteed zero. Fill in at least one way customers come in."
+    "sin_movimiento": "Heads up: with no current customers, no new customers per month and no ads (with a CAC), the projection is guaranteed zero. Fill in at least one way customers come in.",
+    "prefill_precio": "The price was read from your website — fix it if it's not the real one.",
+    "prefill_clientes": "New customers per month are estimated from your {{n}} prospects at a typical 3% conversion (≈ {{est}}/month) — replace with your real data if you have it."
   }
 }
