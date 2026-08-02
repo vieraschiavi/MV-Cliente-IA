@@ -109,16 +109,35 @@ class ProveedorLLM(Proveedor):
     # que pedirle al modelo que recuerde una empresa chica.
     # ------------------------------------------------------------------
 
+    def _contexto_producto(self, empresa: Empresa) -> str:
+        """El producto REAL, con el texto del propio sitio adelante: es la
+        diferencia entre buscar en el rubro correcto o en el del catálogo."""
+        partes = []
+        if empresa.resumen_sitio:
+            partes.append("Texto real extraído de la web del producto:\n"
+                          f"{empresa.resumen_sitio}")
+        partes.append(f"Empresa: {empresa.nombre} ({empresa.dominio}). "
+                      f"Propuesta: {empresa.propuesta}")
+        return "\n\n".join(partes)
+
     # Fase 2 · competencia
     def competencia(self, empresa: Empresa) -> list[Competidor]:
         prompt = (
-            f"Sos analista de mercado. La empresa es {empresa.nombre} ({empresa.dominio}): "
-            f"{empresa.propuesta}\nCategoría: {empresa.categoria}.\n\n"
-            "Listá hasta 12 competidores REALES y verificables de esa categoría. "
+            "Sos analista de mercado y tenés que identificar COMPETIDORES "
+            "DIRECTOS.\n\n"
+            f"{self._contexto_producto(empresa)}\n\n"
+            "Primero deducí, del texto real de la web, qué producto o servicio "
+            "concreto vende esta empresa y a qué tipo de cliente. Después listá "
+            "hasta 12 competidores DIRECTOS, reales y verificables: empresas que "
+            "venden ESE MISMO tipo de producto o servicio a un cliente "
+            "comparable. NO incluyas empresas de rubros vecinos, proveedores, "
+            "clientes del rubro ni marketplaces genéricos. "
             "Devolvé SOLO un array JSON, sin texto alrededor, con objetos: "
             '{"dominio": "ejemplo.com", "nombre": "Ejemplo", "posicionamiento": '
-            '"una frase", "pais": "US", "solapamiento": 0.0-1.0}. '
-            "Si no estás seguro de que una empresa existe, no la incluyas."
+            '"una frase", "pais": "US", "solapamiento": 0.0-1.0} — el '
+            "solapamiento mide qué tan directo es el competidor. Si no estás "
+            "seguro de que una empresa existe o de que compite de verdad, no "
+            "la incluyas."
         )
         datos = _json_del_texto(self._pedir(prompt, 8000))
         salida: list[Competidor] = []
@@ -165,23 +184,28 @@ class ProveedorLLM(Proveedor):
                    limite: int) -> list[Prospecto]:
         salida: list[Prospecto] = []
         fallos: list[str] = []
-        # El cupo se reparte con Uruguay primero: si el modelo devuelve de
-        # menos, falta mundo, no falta local.
+        # El cupo se reparte con Uruguay primero. Se renormaliza sobre las
+        # olas PRESENTES: con el filtro de mercado en «sólo Uruguay» la ola
+        # local se lleva el límite entero, no el 45%.
         reparto = {"local": 0.45, "latam": 0.35, "mundo": 0.20}
         niveles = [n for n in ("local", "latam", "mundo")
                    if any(c.nivel == n for c in campanas)]
+        peso_total = sum(reparto[n] for n in niveles) or 1.0
 
         def _pedir_ola(nivel: str):
             del_nivel = [c for c in campanas if c.nivel == nivel]
-            cupo = max(1, round(limite * reparto[nivel]))
+            cupo = max(1, round(limite * reparto[nivel] / peso_total))
             paises = sorted({p for c in del_nivel for p in c.paises})
-            sectores = sorted({c.sector for c in del_nivel})
             prompt = (
-                f"Producto que sale a vender: {empresa.nombre} — {empresa.propuesta}\n"
-                f"Perfil de cliente: {empresa.tamano_objetivo}, sectores: {'; '.join(sectores)}.\n"
-                f"Países del recorte: {', '.join(paises)}.\n\n"
-                f"Listá hasta {cupo} organizaciones REALES de esos países y sectores que "
-                "encajen en ese perfil. Devolvé SOLO un array JSON con objetos: "
+                f"{self._contexto_producto(empresa)}\n\n"
+                "Pensá primero qué tipo de organización COMPRA este producto o "
+                "servicio: quién tiene el problema que resuelve y presupuesto "
+                "para pagarlo. Los sectores objetivo los decidís vos a partir "
+                "del producto real — no busques empresas de otros rubros.\n"
+                f"Países del recorte (excluyente): {', '.join(paises)}.\n\n"
+                f"Listá hasta {cupo} organizaciones REALES de esos países que "
+                "sean compradoras plausibles de ESTE producto. Devolvé SOLO un "
+                "array JSON con objetos: "
                 '{"nombre": "...", "dominio": "ejemplo.com", "sector": "...", '
                 '"pais": "UY", "ciudad": "...", "empleados": 300, "senales": ["..."]}. '
                 "`senales` son hechos públicos y comprobables de por qué es buen momento "

@@ -113,10 +113,17 @@ class ProveedorWeb(Proveedor):
             m.lower() for m in re.findall(r'hreflang=["\']([a-z]{2})', html, re.I)
         } & set(geo.IDIOMAS)) or [idioma]
 
+        # El texto crudo del sitio viaja en la empresa: es lo que el proveedor
+        # LLM usa para razonar sobre el producto REAL (competidores directos,
+        # compradores del rubro correcto) en vez de la categoría del catálogo.
+        resumen_sitio = "\n".join(p for p in (
+            titulo, descripcion, _sin_html(h1 or ""), cuerpo[:1500]) if p).strip()[:2000]
+
         return Empresa(
             dominio=dominio,
             nombre=nombre,
             propuesta=f"{nombre} {textos[idioma]['propuesta']}.",
+            resumen_sitio=resumen_sitio,
             categoria=_texto(icp["categoria"], idioma),
             pais=pais.codigo,
             idiomas=idiomas,

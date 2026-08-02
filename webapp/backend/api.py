@@ -177,6 +177,10 @@ def catalogo_geo():
 class CorridaIn(BaseModel):
     dominio: str = Field(min_length=3, max_length=253)
     modo: str = "demo"
+    # Recorte geográfico: "todos" (Uruguay primero, en proporción), "local"
+    # (sólo Uruguay), "latam" o "mundo". Para productos que exigen presencia
+    # física, «sólo Uruguay» evita gastar el cupo en empresas inalcanzables.
+    mercado: str = "todos"
     nombre: str = ""
     firma: str = ""
     idioma: str = "es"
@@ -208,6 +212,7 @@ def _lanzar(entrada: CorridaIn, corrida_id: str) -> None:
             enlaces=_config_enlaces(entrada),
             al_avanzar=guardar_avance, corrida_id=corrida_id,
             clave_ia=entrada.clave_ia,
+            mercado=entrada.mercado,
         )
     finally:
         with _lock:
@@ -224,6 +229,8 @@ def _config_enlaces(entrada: CorridaIn) -> dict:
 def crear_corrida(entrada: CorridaIn):
     if entrada.modo not in proveedores.MODOS:
         raise HTTPException(422, f"Modo inválido: {entrada.modo}")
+    if entrada.mercado not in ("todos", "local", "latam", "mundo"):
+        raise HTTPException(422, f"Mercado inválido: {entrada.mercado}")
 
     if SIN_ESTADO:
         # Con clave pegada en la interfaz el modo IA corre igual: la clave
@@ -242,6 +249,7 @@ def crear_corrida(entrada: CorridaIn):
             idioma_ui=entrada.idioma, firma=entrada.firma, nombre=entrada.nombre,
             enlaces=_config_enlaces(entrada),
             clave_ia=entrada.clave_ia,
+            mercado=entrada.mercado,
         )
         # Una línea por corrida en el log del servidor (sin secretos): fue lo
         # que faltó cuando el modo IA "no funcionaba" y no se veía por qué.

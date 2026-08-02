@@ -58,7 +58,8 @@ def ejecutar(dominio: str,
              enlaces: dict | menlaces.Enlaces | None = None,
              al_avanzar: Progreso | None = None,
              corrida_id: str = "",
-             clave_ia: str = "") -> Corrida:
+             clave_ia: str = "",
+             mercado: str = "todos") -> Corrida:
     """
     Corre el AutoGTM completo sobre `dominio` y devuelve la corrida.
 
@@ -74,6 +75,8 @@ def ejecutar(dominio: str,
                                             .removeprefix("http://").rstrip("/")
     if not dominio:
         raise ValueError("Hace falta un dominio")
+    if mercado not in ("todos", "local", "latam", "mundo"):
+        raise ValueError(f"Mercado inválido: {mercado}")
 
     corrida = Corrida(
         id=corrida_id or uuid.uuid4().hex[:12],
@@ -81,6 +84,7 @@ def ejecutar(dominio: str,
         creada=_ahora(),
         estado="corriendo",
         modo=proveedores.modo_efectivo(modo, clave_ia),
+        mercado=mercado,
         idioma_ui=idioma_ui if idioma_ui in geo.IDIOMAS else "es",
         pasos=[],
     )
@@ -121,6 +125,18 @@ def ejecutar(dominio: str,
         # --- Fase 3 · definir campañas ----------------------------------
         with _fase(corrida, "campanas", avisar) as paso:
             corrida.campanas = proveedor.campanas(corrida.empresa, corrida.competidores)
+            # Filtro de mercado: con «sólo Uruguay» (o LATAM, o mundo) las
+            # campañas de las otras olas se descartan acá, ANTES de buscar
+            # prospectos — los proveedores derivan las olas de las campañas
+            # que reciben y renormalizan el reparto sobre las presentes.
+            if mercado != "todos":
+                filtradas = [c for c in corrida.campanas if c.nivel == mercado]
+                if filtradas:
+                    corrida.campanas = filtradas
+                else:
+                    corrida.avisos.append(
+                        f"El recorte de mercado «{mercado}» no dejó campañas; "
+                        "se usaron todas las olas.")
             paso.items = len(corrida.campanas)
             paso.detalle = _detalle_olas(corrida)
 
@@ -165,8 +181,10 @@ def ejecutar(dominio: str,
                 p.estado = "error"
                 p.detalle = corrida.error
     # Lo que la cadena de proveedores absorbió sin tumbar la corrida (p. ej.
-    # el LLM falló y lo cubrió el demo) se muestra, no se esconde.
-    corrida.avisos = list(getattr(proveedor, "errores", []))
+    # el LLM falló y lo cubrió el demo) se muestra, no se esconde. Se suma a
+    # los avisos que el propio pipeline haya dejado (p. ej. el del filtro de
+    # mercado) en vez de pisarlos.
+    corrida.avisos.extend(getattr(proveedor, "errores", []))
     avisar()
     return corrida
 

@@ -42,6 +42,11 @@ class Empresa:
     dolores: list[str] = field(default_factory=list)
     diferenciales: list[str] = field(default_factory=list)
     tamano_objetivo: str = ""                 # ej. "50-5000 empleados"
+    # Texto crudo extraído de la web real (título + descripción + cuerpo).
+    # Es lo que le damos al LLM para que razone sobre el producto VERDADERO:
+    # sin esto usaba la categoría del catálogo demo y traía competidores y
+    # prospectos de cualquier rubro menos el del sitio.
+    resumen_sitio: str = ""
     fuente: str = "demo"                      # "web" | "llm" | "demo"
     # Los mismos textos en los tres idiomas del producto:
     #   {"es": {"propuesta": str, "dolores": [str], "diferenciales": [str]}, ...}
@@ -195,6 +200,9 @@ class Corrida:
     creada: str = ""
     estado: str = "pendiente"
     modo: str = "demo"                        # "demo" | "web" | "llm"
+    # Recorte geográfico elegido: "todos" (Uruguay primero, en proporción),
+    # "local" (sólo Uruguay), "latam" o "mundo".
+    mercado: str = "todos"
     idioma_ui: str = "es"
     # Configuración de enlaces (sitio, video y banner por idioma) tal como se
     # usó en esta corrida — se guarda para que reabrir una corrida vieja
@@ -229,6 +237,7 @@ class Corrida:
             "creada": self.creada,
             "estado": self.estado,
             "modo": self.modo,
+            "mercado": self.mercado,
             "idioma_ui": self.idioma_ui,
             "enlaces": dict(self.enlaces),
             "error": self.error,
@@ -269,6 +278,7 @@ def desde_dict(d: dict) -> Corrida:
     c = Corrida(
         id=d["id"], dominio=d["dominio"], creada=d.get("creada", ""),
         estado=d.get("estado", "pendiente"), modo=d.get("modo", "demo"),
+        mercado=d.get("mercado", "todos"),
         idioma_ui=d.get("idioma_ui", "es"), error=d.get("error", ""),
         enlaces=d.get("enlaces") or {},
     )

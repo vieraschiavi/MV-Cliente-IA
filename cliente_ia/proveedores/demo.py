@@ -237,16 +237,19 @@ class ProveedorDemo(Proveedor):
         modificadores = self.datos["nombres_empresa"]["modificadores"]
 
         # Cuántos prospectos le toca a cada ola. Uruguay primero y con la
-        # mayor tajada: es el mercado donde se puede tocar la puerta.
+        # mayor tajada: es el mercado donde se puede tocar la puerta. El peso
+        # se renormaliza sobre las olas presentes: con el filtro de mercado en
+        # «sólo Uruguay» la ola local se lleva el límite entero, no el 45%.
         reparto = {"local": 0.45, "latam": 0.35, "mundo": 0.20}
+        presentes = [n for n in ("local", "latam", "mundo")
+                     if any(c.nivel == n for c in campanas)]
+        peso_total = sum(reparto[n] for n in presentes) or 1.0
         usados: set[str] = set()
         salida: list[Prospecto] = []
 
-        for nivel in ("local", "latam", "mundo"):
+        for nivel in presentes:
             campanas_nivel = [c for c in campanas if c.nivel == nivel]
-            if not campanas_nivel:
-                continue
-            cupo = max(1, round(limite * reparto[nivel]))
+            cupo = max(1, round(limite * reparto[nivel] / peso_total))
             # Peso de cada país dentro de la ola: la densidad de la semilla
             # (Uruguay 1.0, mercados chicos menos) evita listas irreales.
             pares: list[tuple[Campana, str, float]] = []

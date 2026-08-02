@@ -183,6 +183,34 @@ def test_la_clave_de_la_interfaz_habilita_el_modo_ia(monkeypatch):
     assert "llm" in cadena.nombre
 
 
+def test_mercado_solo_uruguay_llena_el_cupo_con_locales():
+    """El filtro «sólo Uruguay» renormaliza el reparto: la ola local se lleva
+    el límite entero, no el 45% que le tocaba cuando estaban las tres olas."""
+    c = pipeline.ejecutar("mvkobranzaia.com", modo="demo",
+                          limite_prospectos=20, mercado="local")
+    assert c.estado == "listo"
+    assert c.mercado == "local"
+    assert len(c.prospectos) == 20
+    assert all(p.nivel == "local" for p in c.prospectos)
+    assert all(p.pais == "UY" for p in c.prospectos)
+
+
+def test_mercado_solo_latam():
+    c = pipeline.ejecutar("mvkobranzaia.com", modo="demo",
+                          limite_prospectos=20, mercado="latam")
+    assert c.estado == "listo"
+    assert all(p.nivel == "latam" for p in c.prospectos)
+
+
+def test_mercado_invalido_falla_claro():
+    try:
+        pipeline.ejecutar("mvkobranzaia.com", modo="demo", mercado="marte")
+    except ValueError as e:
+        assert "ercado" in str(e)
+    else:
+        raise AssertionError("tendría que haber fallado")
+
+
 def test_guardar_y_recuperar_no_pierde_nada(corrida_kobra):
     almacen.guardar(corrida_kobra)
     vuelta = almacen.cargar(corrida_kobra.id)

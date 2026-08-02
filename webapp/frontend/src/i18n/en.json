@@ -51,7 +51,12 @@
     "video_url": "Video URL in {{idioma}}",
     "opcional": "optional",
     "ayuda_video": "Leave the URLs empty to use your own site's video section, in each recipient's language. If the video lives on YouTube, Vimeo or a CDN, paste the URL for each language here.",
-    "llm_esperando": "AI research queries Claude several times and takes 1–3 minutes. Keep the tab open: the result shows up on its own when it finishes."
+    "llm_esperando": "AI research queries Claude several times and takes 1–3 minutes. Keep the tab open: the result shows up on its own when it finishes.",
+    "mercado": "Market",
+    "mercado_todos": "All (Uruguay first)",
+    "mercado_local": "Uruguay only",
+    "mercado_latam": "LATAM only",
+    "mercado_mundo": "Rest of the world only"
   },
   "fase": {
     "investigar": {

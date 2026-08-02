@@ -49,6 +49,9 @@ export default function Explorar() {
   const { corrida, error } = useCorrida(id);
   const [form, setForm] = useState({
     dominio: "mvkobranzaia.com", nombre: "MV Kobra AI", modo: "demo", prospectos: 60,
+    // Recorte geográfico: "todos" mantiene Uruguay primero en proporción;
+    // "local" es para productos que exigen presencia física.
+    mercado: "todos",
     // Enlaces del mensaje: el banner, el video y la web que llevan el correo y
     // el mensaje de LinkedIn, cada uno en el idioma del receptor.
     sitio: "", video_en_landing: true, videos: { es: "", pt: "", en: "" },
@@ -100,6 +103,7 @@ export default function Explorar() {
           dominio: form.dominio.trim(),
           nombre: form.nombre.trim(),
           modo: form.modo,
+          mercado: form.mercado,
           idioma: "es",
           prospectos: Number(form.prospectos) || 60,
           sitio: form.sitio.trim() || form.dominio.trim(),
@@ -167,6 +171,16 @@ export default function Explorar() {
             <option value="demo">{t("explorar.modo_demo")}</option>
             <option value="web">{t("explorar.modo_web")}</option>
             {hayLLM ? <option value="llm">{t("explorar.modo_llm")}</option> : null}
+          </select>
+        </div>
+        <div className="campo">
+          <label htmlFor="mercado">{t("explorar.mercado")}</label>
+          <select id="mercado" value={form.mercado}
+                  onChange={(e) => setForm({ ...form, mercado: e.target.value })}>
+            <option value="todos">{t("explorar.mercado_todos")}</option>
+            <option value="local">{t("explorar.mercado_local")}</option>
+            <option value="latam">{t("explorar.mercado_latam")}</option>
+            <option value="mundo">{t("explorar.mercado_mundo")}</option>
           </select>
         </div>
         <div className="campo">
