@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, apiStream, descargar, ErrorApi, esNativo, fmtScore, getBase, getClaveIA, getEndpointIA, getProveedorIA } from "../api.js";
+import { api, apiStream, descargar, ErrorApi, esNativo, fmtScore, getBase, getClaveIA, getEmail, getEndpointIA, getProveedorIA, setEmail } from "../api.js";
 import { Aviso, Idioma, Kpis, Ola, Vacio } from "../componentes/Comunes.jsx";
 import { getCorridaId, setCorridaId, setCorridaLocal, useCorrida } from "../estado.js";
 import { t } from "../i18n/index.js";
@@ -62,9 +62,13 @@ export default function Explorar() {
   // usuario creería que la IA no busca nada — pasó en el despliegue público).
   const [salud, setSalud] = useState(null);
   useEffect(() => { api("/api/salud").then(setSalud).catch(() => {}); }, []);
-  // Cupo gratis de la web pública: cuántas búsquedas reales quedan.
+  // Cupo gratis de la web pública: cuántas búsquedas reales quedan. Se pide
+  // con el correo guardado para que el del dueño se vea sin límite.
   const [cupo, setCupo] = useState(null);
-  const traerCupo = () => api("/api/cupo").then(setCupo).catch(() => {});
+  const [email, setEmailLocal] = useState(getEmail());
+  const traerCupo = () => api("/api/cupo"
+    + (getEmail() ? `?email=${encodeURIComponent(getEmail())}` : ""))
+    .then(setCupo).catch(() => {});
   useEffect(() => { traerCupo(); }, []);
   // El modo IA se ofrece si el servidor puede correrlo (tiene clave propia) o
   // si el usuario pegó la suya en Configuración: en ese caso la clave viaja
@@ -100,6 +104,7 @@ export default function Explorar() {
     e.preventDefault();
     setErrLanzar("");
     setLanzando(true);
+    setEmail(email);                     // queda para la próxima visita
     try {
       const cuerpo = {
         dominio: form.dominio.trim(),
@@ -112,6 +117,9 @@ export default function Explorar() {
         video_en_landing: form.video_en_landing,
         videos: Object.fromEntries(
           Object.entries(form.videos).filter(([, v]) => v.trim())),
+        // El correo sólo hace falta para las búsquedas reales de la web
+        // pública (cuenta el cupo gratis; el del dueño no descuenta).
+        ...(form.modo !== "demo" && email.trim() ? { email: email.trim() } : {}),
         // La clave sólo viaja cuando la corrida la necesita; el proveedor y
         // el endpoint (Copilot/Azure) acompañan para que el servidor sepa a
         // qué API llamar con ella.
@@ -215,6 +223,17 @@ export default function Explorar() {
             {[20, 40, 60, 100, 150].map((n) => <option key={n} value={n}>{n}</option>)}
           </select>
         </div>
+        {/* Las búsquedas reales gratis de la web piden un correo válido:
+            cuenta el cupo por correo además de por navegador/IP. */}
+        {cupo?.pide_email && form.modo !== "demo" ? (
+          <div className="campo crece">
+            <label htmlFor="email-cupo">{t("explorar.email")}</label>
+            <input id="email-cupo" type="email" value={email} required
+                   placeholder="vos@tuempresa.com" autoCapitalize="none"
+                   autoCorrect="off" spellCheck="false"
+                   onChange={(e) => setEmailLocal(e.target.value)} />
+          </div>
+        ) : null}
         <button className="btn cta" type="submit" disabled={lanzando || corriendo}>
           {lanzando || corriendo ? t("explorar.lanzando") : t("explorar.lanzar")} →
         </button>

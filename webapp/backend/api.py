@@ -41,6 +41,7 @@ import hmac
 import json
 import os
 import queue as colas
+import re
 import secrets
 import threading
 import time
@@ -114,6 +115,19 @@ _secreto = secrets.token_bytes(32)          # se renueva en cada arranque
 CUPO_GRATIS = int(os.getenv("MVCLIENTE_CUPO_GRATIS", "3"))
 _COOKIE_CUPO = "mv_cupo"
 _cupo_por_ip: dict[str, int] = {}
+# Las búsquedas reales piden además un correo: suma una dimensión más al
+# conteo (cookie + IP + correo) y deja un dato de contacto del interesado.
+# El correo del dueño queda exento — atención: es un dato público, así que
+# es una cortesía para el dueño, no un candado; el candado de verdad sigue
+# siendo el código MVCLIENTE_OWNER.
+OWNER_EMAIL = os.getenv("MVCLIENTE_OWNER_EMAIL", "vieraschiavi@gmail.com").lower()
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]{2,}$")
+_cupo_por_email: dict[str, int] = {}
+
+
+def _es_owner_email(email: str) -> bool:
+    return bool(OWNER_EMAIL) and hmac.compare_digest(email.strip().lower(),
+                                                     OWNER_EMAIL)
 
 
 def _secreto_cupo() -> bytes:
@@ -226,13 +240,19 @@ def salud():
 
 
 @app.get("/api/cupo")
-def cupo(request: Request):
-    """Cuántas búsquedas reales gratis quedan en este navegador/IP."""
+def cupo(request: Request, email: str = ""):
+    """Cuántas búsquedas reales gratis quedan en este navegador/IP/correo.
+    `pide_email` le dice a la interfaz que el campo de correo es obligatorio
+    para lanzar una búsqueda real."""
     if not SIN_ESTADO:
-        return {"aplica": False, "gratis": 0, "usadas": 0, "owner": False}
+        return {"aplica": False, "gratis": 0, "usadas": 0, "owner": False,
+                "pide_email": False}
+    owner = _es_owner(request) or _es_owner_email(email)
+    correo = email.strip().lower()
+    usadas = max(_cupo_usado(request), _cupo_por_email.get(correo, 0))
     return {"aplica": True, "gratis": CUPO_GRATIS,
-            "usadas": min(_cupo_usado(request), CUPO_GRATIS),
-            "owner": _es_owner(request)}
+            "usadas": min(usadas, CUPO_GRATIS),
+            "owner": owner, "pide_email": True}
 
 
 # ---------------------------------------------------------------------------
@@ -479,6 +499,9 @@ class CorridaIn(BaseModel):
     sitio: str = ""
     videos: dict[str, str] = Field(default_factory=dict)
     video_en_landing: bool = False
+    # Correo del usuario: obligatorio para las búsquedas reales gratis de la
+    # web (el del dueño no descuenta). No entra en la corrida ni en logs.
+    email: str = Field(default="", max_length=200)
     # Clave de IA pegada por el usuario en Configuración. Vale para esta
     # corrida: no se guarda, no se loguea y no entra en la corrida.
     clave_ia: str = Field(default="", max_length=300)
@@ -564,11 +587,20 @@ def crear_corrida(entrada: CorridaIn, request: Request, stream: int = 0):
                 "de Claude: pegala en Configuración, o definí ANTHROPIC_API_KEY "
                 "en el servidor. Mientras tanto usá «demo» o «leer mi sitio».")
 
-        # Cupo gratis de la web: sólo las búsquedas reales lo gastan.
+        # Cupo gratis de la web: sólo las búsquedas reales lo gastan, y piden
+        # un correo válido (el del dueño no descuenta).
         usadas = 0
+        correo = entrada.email.strip().lower()
         cuenta = entrada.modo != "demo" and not _es_owner(request)
         if cuenta:
-            usadas = _cupo_usado(request)
+            if not _EMAIL_RE.match(correo):
+                raise HTTPException(422,
+                    "Las búsquedas reales gratis piden un correo válido: "
+                    "escribilo en el formulario de Explorar y lanzá de nuevo.")
+            if _es_owner_email(correo):
+                cuenta = False
+        if cuenta:
+            usadas = max(_cupo_usado(request), _cupo_por_email.get(correo, 0))
             if usadas >= CUPO_GRATIS:
                 raise HTTPException(402,
                     f"Se terminaron las {CUPO_GRATIS} búsquedas reales gratis "
@@ -577,6 +609,8 @@ def crear_corrida(entrada: CorridaIn, request: Request, stream: int = 0):
                     "desde la sección Precios de la portada.")
             usadas += 1
             _cupo_por_ip[_ip_de(request)] = usadas
+            if len(_cupo_por_email) < 50000:             # tope, por las dudas
+                _cupo_por_email[correo] = usadas
 
         if stream:
             # La corrida va saliendo por fases (NDJSON): el navegador pinta

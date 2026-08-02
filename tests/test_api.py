@@ -209,6 +209,7 @@ def test_cupo_gratis_de_la_web(monkeypatch):
     monkeypatch.setattr(api, "SIN_ESTADO", True)
     monkeypatch.setattr(api, "CUPO_GRATIS", 2)
     api._cupo_por_ip.clear()
+    api._cupo_por_email.clear()
 
     def corrida_falsa(dominio, **kwargs):
         return modelos.Corrida(id="fake01", dominio=dominio, estado="listo")
@@ -216,7 +217,14 @@ def test_cupo_gratis_de_la_web(monkeypatch):
     monkeypatch.setattr(api.pipeline, "ejecutar", corrida_falsa)
 
     cliente = TestClient(api.app)
-    real = {"dominio": "mvkobranzaia.com", "modo": "web", "prospectos": 5}
+    real = {"dominio": "mvkobranzaia.com", "modo": "web", "prospectos": 5,
+            "email": "alguien@empresa.com"}
+
+    # Sin correo (o con uno inválido) la búsqueda real no arranca.
+    sin_correo = {k: v for k, v in real.items() if k != "email"}
+    assert cliente.post("/api/corridas", json=sin_correo).status_code == 422
+    assert cliente.post("/api/corridas",
+                        json={**real, "email": "no-es-correo"}).status_code == 422
 
     assert cliente.post("/api/corridas", json=real).status_code == 200
     assert cliente.get("/api/cupo").json()["usadas"] == 1
@@ -225,13 +233,24 @@ def test_cupo_gratis_de_la_web(monkeypatch):
     assert r.status_code == 402
     assert "gratis" in r.json()["detail"]
 
-    # La demo sintética no descuenta nunca.
+    # El conteo también sigue al correo: mismo correo en un "navegador"
+    # limpio no reinicia el cupo.
+    otro = TestClient(api.app)
+    assert otro.post("/api/corridas", json=real).status_code == 402
+
+    # La demo sintética no descuenta nunca (y no pide correo).
     demo = {"dominio": "mvkobranzaia.com", "modo": "demo", "prospectos": 5}
     assert cliente.post("/api/corridas", json=demo).status_code == 200
 
-    # El dueño queda exento con el código de MVCLIENTE_OWNER.
+    # El correo del dueño no descuenta ni se bloquea.
+    assert cliente.post(
+        "/api/corridas",
+        json={**real, "email": api.OWNER_EMAIL}).status_code == 200
+    assert cliente.get(f"/api/cupo?email={api.OWNER_EMAIL}").json()["owner"]
+
+    # El dueño también queda exento con el código de MVCLIENTE_OWNER.
     monkeypatch.setenv("MVCLIENTE_OWNER", "clave-owner")
-    assert cliente.post("/api/corridas", json=real,
+    assert cliente.post("/api/corridas", json=sin_correo,
                         headers={"X-MV-Owner": "clave-owner"}).status_code == 200
 
     # Y el streaming devuelve la corrida por líneas NDJSON.

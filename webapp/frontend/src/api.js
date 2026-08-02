@@ -72,6 +72,19 @@ export function setEndpointIA(url) {
   else localStorage.removeItem(KEY_ENDPOINT_IA);
 }
 
+// Correo del usuario para las búsquedas reales gratis de la web: el servidor
+// lo pide para contar el cupo (y el del dueño no descuenta).
+const KEY_EMAIL = "mvcliente_email";
+
+export function getEmail() {
+  return localStorage.getItem(KEY_EMAIL) || "";
+}
+export function setEmail(correo) {
+  const limpio = (correo || "").trim();
+  if (limpio) localStorage.setItem(KEY_EMAIL, limpio);
+  else localStorage.removeItem(KEY_EMAIL);
+}
+
 // Configuración SMTP para el envío real de correos. Vive en el navegador del
 // usuario; las credenciales viajan sólo dentro de cada envío y el servidor
 // las usa y las descarta (misma política que la clave de IA).
