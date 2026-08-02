@@ -7,10 +7,14 @@
 const KEY_TOKEN = "mvcliente_token";
 const KEY_IDIOMA = "mvcliente_idioma";
 const KEY_BASE = "mvcliente_base";
-// La clave de la API de Claude que el usuario pega en Configuración. Vive en
-// SU navegador y viaja sólo dentro de cada corrida en modo IA: el servidor la
-// usa y la descarta — no la guarda ni la escribe en logs.
+// La clave de IA que el usuario pega en Configuración. Vive en SU navegador
+// y viaja sólo dentro de cada corrida en modo IA: el servidor la usa y la
+// descarta — no la guarda ni la escribe en logs. El proveedor dice de quién
+// es la clave (Claude, ChatGPT, Gemini o Copilot); el endpoint sólo aplica a
+// Copilot/Azure, que no tiene una URL fija.
 const KEY_CLAVE_IA = "mvcliente_clave_ia";
+const KEY_PROVEEDOR_IA = "mvcliente_proveedor_ia";
+const KEY_ENDPOINT_IA = "mvcliente_endpoint_ia";
 // Código de dueño del despliegue web: exime del cupo gratis. Se compara en
 // el servidor contra la variable MVCLIENTE_OWNER.
 const KEY_OWNER = "mvcliente_owner";
@@ -46,6 +50,26 @@ export function setClaveIA(clave) {
   const limpia = (clave || "").trim();
   if (limpia) localStorage.setItem(KEY_CLAVE_IA, limpia);
   else localStorage.removeItem(KEY_CLAVE_IA);
+}
+
+export const PROVEEDORES_IA = ["claude", "openai", "gemini", "copilot"];
+
+export function getProveedorIA() {
+  const p = localStorage.getItem(KEY_PROVEEDOR_IA) || "claude";
+  return PROVEEDORES_IA.includes(p) ? p : "claude";
+}
+export function setProveedorIA(p) {
+  if (p && p !== "claude") localStorage.setItem(KEY_PROVEEDOR_IA, p);
+  else localStorage.removeItem(KEY_PROVEEDOR_IA);
+}
+
+export function getEndpointIA() {
+  return localStorage.getItem(KEY_ENDPOINT_IA) || "";
+}
+export function setEndpointIA(url) {
+  const limpia = (url || "").trim();
+  if (limpia) localStorage.setItem(KEY_ENDPOINT_IA, limpia);
+  else localStorage.removeItem(KEY_ENDPOINT_IA);
 }
 
 export function getOwner() {

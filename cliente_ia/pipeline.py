@@ -59,6 +59,8 @@ def ejecutar(dominio: str,
              al_avanzar: Progreso | None = None,
              corrida_id: str = "",
              clave_ia: str = "",
+             proveedor_ia: str = "claude",
+             endpoint_ia: str = "",
              mercado: str = "todos") -> Corrida:
     """
     Corre el AutoGTM completo sobre `dominio` y devuelve la corrida.
@@ -101,7 +103,8 @@ def ejecutar(dominio: str,
     avisar()
     # La clave de la interfaz vive lo que dura esta llamada: no entra en la
     # corrida, ni en el disco, ni en ningún log.
-    proveedor = proveedores.construir(modo, corrida.idioma_ui, clave_ia)
+    proveedor = proveedores.construir(modo, corrida.idioma_ui, clave_ia,
+                                      proveedor_ia, endpoint_ia)
 
     try:
         # --- Fase 1 · investigar la empresa -----------------------------

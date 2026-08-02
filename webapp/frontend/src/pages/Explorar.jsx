@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, apiStream, descargar, ErrorApi, esNativo, fmtScore, getBase, getClaveIA } from "../api.js";
+import { api, apiStream, descargar, ErrorApi, esNativo, fmtScore, getBase, getClaveIA, getEndpointIA, getProveedorIA } from "../api.js";
 import { Aviso, Idioma, Kpis, Ola, Vacio } from "../componentes/Comunes.jsx";
 import { getCorridaId, setCorridaId, setCorridaLocal, useCorrida } from "../estado.js";
 import { t } from "../i18n/index.js";
@@ -112,8 +112,13 @@ export default function Explorar() {
         video_en_landing: form.video_en_landing,
         videos: Object.fromEntries(
           Object.entries(form.videos).filter(([, v]) => v.trim())),
-        // La clave sólo viaja cuando la corrida la necesita.
-        ...(form.modo === "llm" && getClaveIA() ? { clave_ia: getClaveIA() } : {}),
+        // La clave sólo viaja cuando la corrida la necesita; el proveedor y
+        // el endpoint (Copilot/Azure) acompañan para que el servidor sepa a
+        // qué API llamar con ella.
+        ...(form.modo === "llm" && getClaveIA()
+          ? { clave_ia: getClaveIA(), proveedor_ia: getProveedorIA(),
+              endpoint_ia: getEndpointIA() }
+          : {}),
       };
       let r;
       if (salud?.sin_estado) {

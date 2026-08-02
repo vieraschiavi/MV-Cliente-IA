@@ -183,6 +183,87 @@ def test_la_clave_de_la_interfaz_habilita_el_modo_ia(monkeypatch):
     assert "llm" in cadena.nombre
 
 
+def test_proveedor_ia_elige_la_api_y_firma_los_avisos(monkeypatch):
+    """La clave puede ser de Claude, ChatGPT, Gemini o Copilot. El nombre del
+    proveedor tiene que viajar en la cadena (y por lo tanto en los avisos):
+    «openai · competencia: …» le dice al usuario QUÉ clave falló."""
+    from cliente_ia import proveedores
+    from cliente_ia.proveedores.llm import ErrorLLM, ProveedorLLM
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+    cadena = proveedores.construir("llm", clave_ia="sk-cualquiera",
+                                   proveedor_ia="openai")
+    assert "openai" in cadena.nombre
+
+    # Un proveedor desconocido no se acepta en silencio.
+    try:
+        ProveedorLLM(clave="x", proveedor="grok")
+    except ErrorLLM as e:
+        assert "grok" in str(e)
+    else:
+        raise AssertionError("proveedor desconocido tenía que fallar")
+
+    # Copilot es Azure OpenAI: sin la URL del endpoint no hay a quién llamar.
+    try:
+        ProveedorLLM(clave="x", proveedor="copilot")
+    except ErrorLLM as e:
+        assert "endpoint" in str(e)
+    else:
+        raise AssertionError("copilot sin endpoint tenía que fallar")
+    p = ProveedorLLM(clave="x", proveedor="copilot",
+                     endpoint="https://r.openai.azure.com/openai/deployments/g/chat/completions?api-version=1")
+    assert p.nombre == "copilot"
+
+
+def test_una_corrida_con_clave_openai_falsa_termina_con_aviso(monkeypatch):
+    """Camino completo con proveedor no-Claude: la llamada REST falla (clave
+    falsa, sin red), la cadena absorbe el error, la corrida termina con demo y
+    el aviso nombra a openai — nunca la URL ni la clave. La fase web también
+    se anula: el test no puede depender de que haya internet."""
+    from cliente_ia.proveedores import llm as mod_llm
+    from cliente_ia.proveedores import web as mod_web
+
+    def _sin_red(self, url, cuerpo, cabeceras):
+        raise mod_llm.ErrorLLM("openai respondió 401: clave inválida")
+
+    def _sin_web(self, dominio):
+        raise mod_web.ErrorWeb("sin red en el test")
+
+    monkeypatch.setattr(mod_llm.ProveedorLLM, "_post_json", _sin_red)
+    monkeypatch.setattr(mod_web.ProveedorWeb, "investigar", _sin_web)
+    c = pipeline.ejecutar("mvkobranzaia.com", modo="llm", limite_prospectos=10,
+                          clave_ia="sk-falsa", proveedor_ia="openai")
+    assert c.estado == "listo"          # la demo cubre lo que la IA no pudo
+    assert any("openai" in a for a in c.avisos)
+    assert not any("sk-falsa" in a for a in c.avisos)
+
+
+def test_el_error_http_del_proveedor_no_repite_la_clave(monkeypatch):
+    """OpenAI repite la clave entera en su mensaje de 401. Ese texto termina
+    en los avisos de la corrida (que se guardan) y en el log del servidor,
+    así que se tacha antes de armar el error."""
+    import io
+    import urllib.error
+
+    from cliente_ia.proveedores.llm import ErrorLLM, ProveedorLLM
+
+    def _falla_401(*args, **kwargs):
+        raise urllib.error.HTTPError(
+            "https://api.openai.com/v1/chat/completions", 401, "Unauthorized",
+            {}, io.BytesIO(b'{"error": {"message": "Incorrect API key '
+                           b'provided: sk-super-secreta-123"}}'))
+
+    monkeypatch.setattr("urllib.request.urlopen", _falla_401)
+    p = ProveedorLLM(clave="sk-super-secreta-123", proveedor="openai")
+    try:
+        p._pedir("hola")
+    except ErrorLLM as e:
+        assert "sk-super-secreta-123" not in str(e)
+        assert "401" in str(e)
+    else:
+        raise AssertionError("el 401 tenía que propagarse como ErrorLLM")
+
+
 def test_mercado_solo_uruguay_llena_el_cupo_con_locales():
     """El filtro «sólo Uruguay» renormaliza el reparto: la ola local se lleva
     el límite entero, no el 45% que le tocaba cuando estaban las tres olas."""

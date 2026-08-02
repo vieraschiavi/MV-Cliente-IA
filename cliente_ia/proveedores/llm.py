@@ -1,10 +1,18 @@
 """
-MV Cliente IA · proveedor LLM (Claude)
-=======================================
+MV Cliente IA · proveedor LLM (Claude / ChatGPT / Gemini / Copilot)
+====================================================================
 Cubre las fases abiertas —competencia, campañas y listas de empresas
-objetivo— consultando la API de Claude. Es opcional: sin `ANTHROPIC_API_KEY`
-la clase no se instancia y el pipeline sigue con demo/web, que es el camino
-que corren los tests.
+objetivo— consultando el modelo del proveedor elegido. El usuario pega SU
+clave en Configuración y elige proveedor:
+
+- **claude**  → API de Anthropic (SDK `anthropic`; default del servidor).
+- **openai**  → ChatGPT vía chat completions (REST, sin dependencias).
+- **gemini**  → Google Gemini vía generateContent (REST).
+- **copilot** → Azure OpenAI (el Copilot "de consumo" no vende clave de API;
+  la vía real es un recurso de Azure OpenAI: URL del endpoint + api-key).
+
+Es opcional: sin clave la clase no se instancia y el pipeline sigue con
+demo/web, que es el camino que corren los tests.
 
 Dos reglas duras acá:
 
@@ -22,6 +30,8 @@ from __future__ import annotations
 import json
 import os
 import re
+import urllib.error
+import urllib.request
 
 from .. import geo
 from ..modelos import Campana, Competidor, Empresa, Prospecto
@@ -29,6 +39,15 @@ from .base import Proveedor
 from .demo import ProveedorDemo
 
 MODELO_DEFAULT = "claude-opus-5"
+PROVEEDORES_IA = ("claude", "openai", "gemini", "copilot")
+# Modelos por defecto de cada proveedor, pisables por variable de entorno.
+# Copilot no lleva: en Azure el modelo lo decide el deployment del endpoint.
+MODELOS_IA = {
+    "claude": lambda: os.getenv("MVCLIENTE_MODELO", MODELO_DEFAULT),
+    "openai": lambda: os.getenv("MVCLIENTE_MODELO_OPENAI", "gpt-4o"),
+    "gemini": lambda: os.getenv("MVCLIENTE_MODELO_GEMINI", "gemini-2.5-flash"),
+    "copilot": lambda: os.getenv("MVCLIENTE_MODELO_COPILOT", ""),
+}
 TIMEOUT = 90
 
 
@@ -58,16 +77,99 @@ def _json_del_texto(texto: str):
 class ProveedorLLM(Proveedor):
     nombre = "llm"
 
-    def __init__(self, idioma_base: str = "es", modelo: str = "", clave: str = ""):
-        self.clave = clave or os.getenv("ANTHROPIC_API_KEY", "")
+    def __init__(self, idioma_base: str = "es", modelo: str = "", clave: str = "",
+                 proveedor: str = "claude", endpoint: str = ""):
+        self.proveedor = (proveedor or "claude").lower()
+        if self.proveedor not in PROVEEDORES_IA:
+            raise ErrorLLM(f"Proveedor de IA desconocido: {proveedor}")
+        self.clave = clave or (os.getenv("ANTHROPIC_API_KEY", "")
+                               if self.proveedor == "claude" else "")
         if not self.clave:
-            raise ErrorLLM("Falta ANTHROPIC_API_KEY")
-        self.modelo = modelo or os.getenv("MVCLIENTE_MODELO", MODELO_DEFAULT)
+            raise ErrorLLM(f"Falta la clave de API de {self.proveedor}")
+        self.endpoint = (endpoint or "").strip()
+        if self.proveedor == "copilot":
+            if not self.endpoint.startswith("https://"):
+                raise ErrorLLM("Copilot (Azure OpenAI) necesita la URL https "
+                               "del endpoint de chat completions")
+        self.modelo = modelo or MODELOS_IA[self.proveedor]()
         self.idioma_base = idioma_base
         self._demo = ProveedorDemo(idioma_base)
+        # El proveedor viaja en `fuente` y en los avisos: si algo falla, el
+        # usuario tiene que ver "openai · competencia: …", no un "llm" mudo.
+        if self.proveedor != "claude":
+            self.nombre = self.proveedor
 
     # ------------------------------------------------------------------
+    def _post_json(self, url: str, cuerpo: dict, cabeceras: dict) -> dict:
+        peticion = urllib.request.Request(
+            url, data=json.dumps(cuerpo).encode(),
+            headers={"content-type": "application/json", **cabeceras})
+        try:
+            with urllib.request.urlopen(peticion, timeout=TIMEOUT) as r:
+                return json.load(r)
+        except urllib.error.HTTPError as e:
+            # Sólo código y detalle del cuerpo: nunca la URL (la de Gemini
+            # lleva la clave como parámetro). Y la clave se tacha del detalle:
+            # OpenAI la repite entera en su mensaje de 401, y este texto va a
+            # los avisos de la corrida, que sí se guardan.
+            detalle = ""
+            try:
+                detalle = e.read().decode()[:300]
+            except Exception:                            # noqa: BLE001
+                pass
+            detalle = detalle.replace(self.clave, "•••")[:200]
+            raise ErrorLLM(f"{self.proveedor} respondió {e.code}: {detalle}") from e
+        except ErrorLLM:
+            raise
+        except Exception as e:                           # noqa: BLE001
+            raise ErrorLLM(f"No se pudo llamar a {self.proveedor}: "
+                           f"{type(e).__name__}") from e
+
     def _pedir(self, prompt: str, max_tokens: int = 8000) -> str:
+        if self.proveedor == "openai" or self.proveedor == "copilot":
+            if self.proveedor == "openai":
+                url = "https://api.openai.com/v1/chat/completions"
+                cabeceras = {"Authorization": f"Bearer {self.clave}"}
+            else:
+                url = self.endpoint                      # Azure: deployment en la URL
+                cabeceras = {"api-key": self.clave}
+            cuerpo = {"messages": [{"role": "user", "content": prompt}],
+                      "max_completion_tokens": max_tokens}
+            if self.modelo:
+                cuerpo["model"] = self.modelo
+            d = self._post_json(url, cuerpo, cabeceras)
+            try:
+                eleccion = d["choices"][0]
+                texto = eleccion["message"]["content"] or ""
+            except (KeyError, IndexError, TypeError) as e:
+                raise ErrorLLM(f"{self.proveedor} devolvió una respuesta "
+                               "con forma inesperada") from e
+            if eleccion.get("finish_reason") == "length":
+                raise ErrorLLM("La respuesta del modelo quedó truncada por el "
+                               "límite de tokens — se descarta para no parsear "
+                               "JSON a medias")
+            return texto
+
+        if self.proveedor == "gemini":
+            url = ("https://generativelanguage.googleapis.com/v1beta/models/"
+                   f"{self.modelo}:generateContent?key={self.clave}")
+            cuerpo = {"contents": [{"parts": [{"text": prompt}]}],
+                      "generationConfig": {"maxOutputTokens": max_tokens}}
+            d = self._post_json(url, cuerpo, {})
+            candidatos = d.get("candidates") or []
+            if not candidatos:
+                raise ErrorLLM("gemini no devolvió candidatos "
+                               f"({(d.get('promptFeedback') or {}).get('blockReason', 'sin motivo')})")
+            if candidatos[0].get("finishReason") == "MAX_TOKENS":
+                raise ErrorLLM("La respuesta del modelo quedó truncada por el "
+                               "límite de tokens — se descarta para no parsear "
+                               "JSON a medias")
+            partes = (candidatos[0].get("content") or {}).get("parts") or []
+            return "".join(p.get("text", "") for p in partes)
+
+        return self._pedir_claude(prompt, max_tokens)
+
+    def _pedir_claude(self, prompt: str, max_tokens: int) -> str:
         try:
             import anthropic
         except ImportError as e:                       # pragma: no cover - depende del entorno

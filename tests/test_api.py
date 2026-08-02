@@ -85,6 +85,7 @@ def test_modo_invalido_se_rechaza(cliente):
     {"dominio": "x"},                                    # dominio muy corto
     {"dominio": "ejemplo.com", "prospectos": 0},         # fuera de rango
     {"dominio": "ejemplo.com", "prospectos": 99999},     # fuera de rango
+    {"dominio": "ejemplo.com", "proveedor_ia": "grok"},  # proveedor desconocido
 ])
 def test_entrada_invalida_se_rechaza(cliente, cuerpo):
     assert cliente.post("/api/corridas", json=cuerpo).status_code == 422

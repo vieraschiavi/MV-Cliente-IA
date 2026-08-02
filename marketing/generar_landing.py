@@ -106,11 +106,12 @@ TEXTOS: dict[str, dict] = {
         ],
         "precios_h": "Precios",
         "precios_p": "La web es la prueba: demo sintética ilimitada y 3 búsquedas reales gratis "
-                     "por visitante, con tu propia clave de Claude. El programa completo se paga "
+                     "por visitante, con tu propia clave de IA (Claude, ChatGPT, Gemini o "
+                     "Copilot). El programa completo se paga "
                      "una sola vez.",
         "plan_gratis_t": "Web gratis",
         "plan_gratis": ["Demo sintética ilimitada",
-                        "3 búsquedas reales gratis (con tu clave de Claude)",
+                        "3 búsquedas reales gratis (con tu clave de Claude, ChatGPT, Gemini o Copilot)",
                         "Los tres idiomas y el export CSV/Excel"],
         "plan_gratis_cta": "Probar ahora",
         "plan_pago_t": "Licencia completa · PC + Android",
@@ -201,11 +202,12 @@ TEXTOS: dict[str, dict] = {
         ],
         "precios_h": "Preços",
         "precios_p": "A web é o teste: demo sintética ilimitada e 3 buscas reais grátis por "
-                     "visitante, com a sua própria chave do Claude. O programa completo se paga "
+                     "visitante, com a sua própria chave de IA (Claude, ChatGPT, Gemini ou "
+                     "Copilot). O programa completo se paga "
                      "uma única vez.",
         "plan_gratis_t": "Web grátis",
         "plan_gratis": ["Demo sintética ilimitada",
-                        "3 buscas reais grátis (com a sua chave do Claude)",
+                        "3 buscas reais grátis (com a sua chave do Claude, ChatGPT, Gemini ou Copilot)",
                         "Os três idiomas e o export CSV/Excel"],
         "plan_gratis_cta": "Testar agora",
         "plan_pago_t": "Licença completa · PC + Android",
@@ -296,11 +298,12 @@ TEXTOS: dict[str, dict] = {
         ],
         "precios_h": "Pricing",
         "precios_p": "The web is the trial: unlimited synthetic demo and 3 free real searches "
-                     "per visitor, with your own Claude key. The full program is a one-time "
+                     "per visitor, with your own AI key (Claude, ChatGPT, Gemini or Copilot). "
+                     "The full program is a one-time "
                      "purchase.",
         "plan_gratis_t": "Free web",
         "plan_gratis": ["Unlimited synthetic demo",
-                        "3 free real searches (with your Claude key)",
+                        "3 free real searches (with your Claude, ChatGPT, Gemini or Copilot key)",
                         "All three languages plus CSV/Excel export"],
         "plan_gratis_cta": "Try it now",
         "plan_pago_t": "Full license · PC + Android",

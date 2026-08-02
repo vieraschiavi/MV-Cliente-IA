@@ -325,9 +325,13 @@ class CorridaIn(BaseModel):
     sitio: str = ""
     videos: dict[str, str] = Field(default_factory=dict)
     video_en_landing: bool = False
-    # Clave de la API de Claude pegada por el usuario en Configuración. Vale
-    # para esta corrida: no se guarda, no se loguea y no entra en la corrida.
+    # Clave de IA pegada por el usuario en Configuración. Vale para esta
+    # corrida: no se guarda, no se loguea y no entra en la corrida.
     clave_ia: str = Field(default="", max_length=300)
+    # Qué modelo hay detrás de la clave: claude | openai | gemini | copilot.
+    # Copilot es Azure OpenAI y necesita además la URL del endpoint.
+    proveedor_ia: str = "claude"
+    endpoint_ia: str = Field(default="", max_length=500)
     prospectos: int = Field(default=pipeline.LIMITE_PROSPECTOS_DEFAULT, ge=5, le=400)
     decisores: int = Field(default=pipeline.DECISORES_POR_EMPRESA_DEFAULT, ge=1, le=5)
     emails: int = Field(default=pipeline.LIMITE_EMAILS_DEFAULT, ge=1, le=300)
@@ -348,6 +352,8 @@ def _lanzar(entrada: CorridaIn, corrida_id: str) -> None:
             enlaces=_config_enlaces(entrada),
             al_avanzar=guardar_avance, corrida_id=corrida_id,
             clave_ia=entrada.clave_ia,
+            proveedor_ia=entrada.proveedor_ia,
+            endpoint_ia=entrada.endpoint_ia,
             mercado=entrada.mercado,
         )
     finally:
@@ -371,6 +377,8 @@ def _ejecutar_sin_estado(entrada: CorridaIn, al_avanzar=None):
         idioma_ui=entrada.idioma, firma=entrada.firma, nombre=entrada.nombre,
         enlaces=_config_enlaces(entrada),
         clave_ia=entrada.clave_ia,
+        proveedor_ia=entrada.proveedor_ia,
+        endpoint_ia=entrada.endpoint_ia,
         mercado=entrada.mercado,
         al_avanzar=al_avanzar,
     )
@@ -390,6 +398,8 @@ def crear_corrida(entrada: CorridaIn, request: Request, stream: int = 0):
         raise HTTPException(422, f"Modo inválido: {entrada.modo}")
     if entrada.mercado not in ("todos", "local", "latam", "mundo"):
         raise HTTPException(422, f"Mercado inválido: {entrada.mercado}")
+    if entrada.proveedor_ia not in ("claude", "openai", "gemini", "copilot"):
+        raise HTTPException(422, f"Proveedor de IA inválido: {entrada.proveedor_ia}")
 
     if SIN_ESTADO:
         # Con clave pegada en la interfaz el modo IA corre igual: la clave
