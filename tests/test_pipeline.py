@@ -393,6 +393,38 @@ def test_proyeccion_financiera_es_matematica_declarada():
     assert base["sin_ads"]["filas"][0]["gasto_ads"] == 0
 
 
+def test_claude_funciona_sin_el_sdk_instalado(monkeypatch):
+    """La app de PC no empaqueta `anthropic` (son decenas de MB): sin el SDK,
+    Claude tiene que salir igual por la API de mensajes vía REST, o una clave
+    de Claude pegada en el escritorio no serviría para nada."""
+    import builtins
+
+    from cliente_ia.proveedores.llm import ProveedorLLM
+
+    real_import = builtins.__import__
+
+    def sin_anthropic(nombre, *a, **k):
+        if nombre == "anthropic":
+            raise ImportError("no instalado")
+        return real_import(nombre, *a, **k)
+
+    monkeypatch.setattr(builtins, "__import__", sin_anthropic)
+
+    visto = {}
+
+    def post_falso(self, url, cuerpo, cabeceras):
+        visto.update(url=url, cuerpo=cuerpo, cabeceras=cabeceras)
+        return {"content": [{"type": "text", "text": "[]"}], "stop_reason": "end_turn"}
+
+    monkeypatch.setattr(ProveedorLLM, "_post_json", post_falso)
+    p = ProveedorLLM(clave="sk-ant-x", proveedor="claude")
+    assert p._pedir("hola", 8000) == "[]"
+    assert visto["url"] == "https://api.anthropic.com/v1/messages"
+    assert visto["cabeceras"]["x-api-key"] == "sk-ant-x"
+    assert visto["cabeceras"]["anthropic-version"]      # sin versión, 400
+    assert visto["cuerpo"]["max_tokens"] == 8000
+
+
 def test_el_error_http_del_proveedor_no_repite_la_clave(monkeypatch):
     """OpenAI repite la clave entera en su mensaje de 401. Ese texto termina
     en los avisos de la corrida (que se guardan) y en el log del servidor,

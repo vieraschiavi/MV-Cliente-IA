@@ -38,6 +38,13 @@ a = Analysis(
         "uvicorn.protocols.http.auto",
         "uvicorn.protocols.websockets.auto",
         "uvicorn.lifespan.on",
+        # Estos tres se importan DENTRO de funciones (para no pagarlos en
+        # cada arranque). Van explícitos por las dudas: si alguno faltara,
+        # la app de PC se quedaría sin pestaña de Análisis, sin contactos
+        # públicos o sin modo IA, y recién se notaría al usarla.
+        "cliente_ia.analisis",
+        "cliente_ia.proveedores.contactos",
+        "cliente_ia.proveedores.llm",
     ],
     hookspath=[],
     runtime_hooks=[],

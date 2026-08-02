@@ -172,11 +172,30 @@ class ProveedorLLM(Proveedor):
 
         return self._pedir_claude(prompt, max_tokens)
 
+    def _pedir_claude_rest(self, prompt: str, max_tokens: int) -> str:
+        """Claude sin el SDK, por la API de mensajes. Es el camino de la app
+        de PC: el instalador no lleva `anthropic` adentro (son decenas de MB
+        para algo que se resuelve con urllib) y sin esto una clave de Claude
+        pegada en la app de escritorio no servía para nada."""
+        d = self._post_json(
+            "https://api.anthropic.com/v1/messages",
+            {"model": self.modelo, "max_tokens": max_tokens,
+             "messages": [{"role": "user", "content": prompt}]},
+            {"x-api-key": self.clave, "anthropic-version": "2023-06-01"})
+        if d.get("stop_reason") == "max_tokens":
+            raise ErrorLLM("La respuesta del modelo quedó truncada por el "
+                           "límite de tokens — se descarta para no parsear "
+                           "JSON a medias")
+        if d.get("stop_reason") == "refusal":
+            raise ErrorLLM("El modelo declinó responder este pedido")
+        return "".join(b.get("text", "") for b in (d.get("content") or [])
+                       if b.get("type") == "text")
+
     def _pedir_claude(self, prompt: str, max_tokens: int) -> str:
         try:
             import anthropic
-        except ImportError as e:                       # pragma: no cover - depende del entorno
-            raise ErrorLLM("Falta el paquete `anthropic` (pip install anthropic)") from e
+        except ImportError:                            # pragma: no cover - depende del entorno
+            return self._pedir_claude_rest(prompt, max_tokens)
         cliente = anthropic.Anthropic(api_key=self.clave, timeout=TIMEOUT)
         # En los modelos Claude actuales el razonamiento viene activado por
         # defecto y CUENTA contra max_tokens: con un tope chico la respuesta
