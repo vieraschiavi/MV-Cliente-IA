@@ -273,6 +273,12 @@
     "neto_acum": "Neto acumulado",
     "equilibrio": "Punto de equilibrio",
     "sin_equilibrio": "No llega al punto de equilibrio en 24 meses con estos números.",
-    "supuestos": "Supuestos declarados: el escenario pesimista consigue la mitad de clientes y pierde 1,5× más; el optimista consigue 1,5× y pierde 0,7×. Con ads se suman gasto en ads ÷ CAC clientes por mes."
+    "supuestos": "Supuestos declarados: el escenario pesimista consigue la mitad de clientes y pierde 1,5× más; el optimista consigue 1,5× y pierde 0,7×. Con ads se suman gasto en ads ÷ CAC clientes por mes.",
+    "ej": "ej.:",
+    "ventas": "Ventas",
+    "col_fijo": "Gasto fijo",
+    "col_variable": "Gasto variable",
+    "col_ads": "Ads",
+    "sin_movimiento": "Ojo: sin clientes actuales, sin clientes nuevos por mes y sin ads (con su CAC), la proyección da cero sí o sí. Cargá al menos por dónde entran clientes."
   }
 }

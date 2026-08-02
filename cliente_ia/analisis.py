@@ -53,10 +53,15 @@ def proyectar(precio: float, nuevos_por_mes: float, churn_pct: float,
             if equilibrio is None and neto >= 0:
                 equilibrio = mes
             if mes in MESES:
+                # Desglose completo: ventas y cada componente del gasto por
+                # separado — un "gastos: 800" sin abrir no deja ver qué pesa.
                 filas.append({
                     "mes": mes,
                     "clientes": round(clientes),
                     "ingresos": round(ingresos),
+                    "gasto_fijo": round(gasto_fijo),
+                    "gasto_variable": round(clientes * costo_por_cliente),
+                    "gasto_ads": round(gasto_ads if con_ads else 0.0),
                     "gastos": round(gastos),
                     "neto_mes": round(neto),
                     "neto_acumulado": round(acumulado),

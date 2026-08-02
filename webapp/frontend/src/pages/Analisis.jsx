@@ -4,17 +4,33 @@ import { Aviso, Vacio } from "../componentes/Comunes.jsx";
 import { getCorridaId, useCorrida } from "../estado.js";
 import { getIdioma, t } from "../i18n/index.js";
 
-// Campos financieros del formulario: [clave, i18n]. Todo en la misma moneda,
-// la que el usuario use en su negocio — acá no se convierte nada.
+// Campos financieros del formulario: [clave, i18n, ejemplo]. Todo en la
+// misma moneda, la que el usuario use en su negocio — acá no se convierte
+// nada. El ejemplo del placeholder muestra un caso típico de SaaS chico.
 const CAMPOS = [
-  ["precio", "analisis.precio"],
-  ["clientes_iniciales", "analisis.clientes_iniciales"],
-  ["nuevos_por_mes", "analisis.nuevos_por_mes"],
-  ["churn_pct", "analisis.churn"],
-  ["gasto_fijo", "analisis.gasto_fijo"],
-  ["costo_por_cliente", "analisis.costo_por_cliente"],
-  ["gasto_ads", "analisis.gasto_ads"],
-  ["cac", "analisis.cac"],
+  ["precio", "analisis.precio", "99"],
+  ["clientes_iniciales", "analisis.clientes_iniciales", "0"],
+  ["nuevos_por_mes", "analisis.nuevos_por_mes", "3"],
+  ["churn_pct", "analisis.churn", "5"],
+  ["gasto_fijo", "analisis.gasto_fijo", "500"],
+  ["costo_por_cliente", "analisis.costo_por_cliente", "10"],
+  ["gasto_ads", "analisis.gasto_ads", "300"],
+  ["cac", "analisis.cac", "150"],
+];
+
+// Columnas de la proyección: [clave del dato, clave i18n, ¿lleva color?].
+// data-col en cada celda es lo que le pone el título a la vista de tarjetas
+// del celular — sin él quedaban números sueltos sin etiqueta.
+const COLS = [
+  ["mes", "analisis.mes", false],
+  ["clientes", "analisis.clientes", false],
+  ["ingresos", "analisis.ventas", false],
+  ["gasto_fijo", "analisis.col_fijo", false],
+  ["gasto_variable", "analisis.col_variable", false],
+  ["gasto_ads", "analisis.col_ads", false],
+  ["gastos", "analisis.gastos", false],
+  ["neto_mes", "analisis.neto_mes", true],
+  ["neto_acumulado", "analisis.neto_acum", true],
 ];
 
 function TablaEscenario({ serie }) {
@@ -23,28 +39,19 @@ function TablaEscenario({ serie }) {
     <div className="tablewrap">
       <table>
         <thead>
-          <tr>
-            <th>{t("analisis.mes")}</th>
-            <th>{t("analisis.clientes")}</th>
-            <th>{t("analisis.ingresos")}</th>
-            <th>{t("analisis.gastos")}</th>
-            <th>{t("analisis.neto_mes")}</th>
-            <th>{t("analisis.neto_acum")}</th>
-          </tr>
+          <tr>{COLS.map(([, clave]) => <th key={clave}>{t(clave)}</th>)}</tr>
         </thead>
         <tbody>
           {serie.filas.map((f) => (
             <tr key={f.mes}>
-              <td className="tnum">{f.mes}</td>
-              <td className="tnum">{fmtNum(f.clientes, idioma)}</td>
-              <td className="tnum">{fmtNum(f.ingresos, idioma)}</td>
-              <td className="tnum">{fmtNum(f.gastos, idioma)}</td>
-              <td className="tnum" style={{ color: f.neto_mes >= 0 ? "var(--green-deep)" : "var(--red, #e05555)" }}>
-                {fmtNum(f.neto_mes, idioma)}
-              </td>
-              <td className="tnum" style={{ color: f.neto_acumulado >= 0 ? "var(--green-deep)" : "var(--red, #e05555)" }}>
-                {fmtNum(f.neto_acumulado, idioma)}
-              </td>
+              {COLS.map(([campo, clave, coloreada]) => (
+                <td key={campo} className="tnum" data-col={t(clave)}
+                    style={coloreada
+                      ? { color: f[campo] >= 0 ? "var(--green-deep)" : "var(--red, #e05555)" }
+                      : undefined}>
+                  {campo === "mes" ? f.mes : fmtNum(f[campo], idioma)}
+                </td>
+              ))}
             </tr>
           ))}
         </tbody>
@@ -117,6 +124,11 @@ export default function Analisis() {
 
   if (!corrida) return <Vacio />;
 
+  // ¿Hay alguna vía de entrada de clientes cargada? Sin ninguna, los tres
+  // escenarios dan cero seguro y hay que decirlo, no mostrarlo.
+  const sinEntrada = !Number(form.clientes_iniciales) && !Number(form.nuevos_por_mes)
+    && !(Number(form.gasto_ads) > 0 && Number(form.cac) > 0);
+
   const q = resultado?.cualitativo;
   const fin = resultado?.financiero;
   const serie = fin?.escenarios?.[escenario]?.[conAds ? "con_ads" : "sin_ads"];
@@ -130,15 +142,20 @@ export default function Analisis() {
         <h3>{t("analisis.datos")} · {corrida.empresa?.nombre}</h3>
         <p className="nota" style={{ marginTop: 0 }}>{t("analisis.moneda")}</p>
         <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
-          {CAMPOS.map(([clave, etiqueta]) => (
+          {CAMPOS.map(([clave, etiqueta, ejemplo]) => (
             <div className="campo" key={clave}>
               <label htmlFor={`an-${clave}`}>{t(etiqueta)}</label>
               <input id={`an-${clave}`} type="number" min="0" step="any"
                      value={form[clave]} inputMode="decimal"
+                     placeholder={`${t("analisis.ej")} ${ejemplo}`}
                      onChange={(e2) => setForm({ ...form, [clave]: e2.target.value })} />
             </div>
           ))}
         </div>
+        {/* Sin clientes actuales, sin altas por mes y sin ads con CAC, la
+            proyección da cero por definición — se avisa ANTES de mostrar
+            una tabla llena de ceros que parece un bug. */}
+        {sinEntrada ? <p className="nota" style={{ marginBottom: 0 }}>{t("analisis.sin_movimiento")}</p> : null}
         <div style={{ marginTop: 12 }}>
           <button className="btn" type="submit" disabled={cargando || !Number(form.precio)}>
             {cargando ? t("analisis.analizando") : t("analisis.analizar")}

@@ -370,9 +370,12 @@ def test_proyeccion_financiera_es_matematica_declarada():
     # El optimista termina con más clientes que el pesimista.
     assert (r["escenarios"]["optimista"]["sin_ads"]["filas"][-1]["clientes"]
             > r["escenarios"]["pesimista"]["sin_ads"]["filas"][-1]["clientes"])
-    # Aritmética de una fila: neto = ingresos - gastos.
+    # Aritmética de una fila: el gasto se desglosa y el neto cierra.
     f = base["con_ads"]["filas"][0]
     assert f["neto_mes"] == f["ingresos"] - f["gastos"]
+    assert f["gastos"] == f["gasto_fijo"] + f["gasto_variable"] + f["gasto_ads"]
+    assert f["gasto_ads"] == 300
+    assert base["sin_ads"]["filas"][0]["gasto_ads"] == 0
 
 
 def test_el_error_http_del_proveedor_no_repite_la_clave(monkeypatch):

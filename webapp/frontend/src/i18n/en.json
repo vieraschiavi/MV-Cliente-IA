@@ -273,6 +273,12 @@
     "neto_acum": "Cumulative net",
     "equilibrio": "Break-even",
     "sin_equilibrio": "It doesn't break even within 24 months with these numbers.",
-    "supuestos": "Declared assumptions: the pessimistic scenario acquires half the customers and churns 1.5× more; the optimistic one acquires 1.5× and churns 0.7×. With ads, ad spend ÷ CAC extra customers join per month."
+    "supuestos": "Declared assumptions: the pessimistic scenario acquires half the customers and churns 1.5× more; the optimistic one acquires 1.5× and churns 0.7×. With ads, ad spend ÷ CAC extra customers join per month.",
+    "ej": "e.g.",
+    "ventas": "Sales",
+    "col_fijo": "Fixed costs",
+    "col_variable": "Variable costs",
+    "col_ads": "Ads",
+    "sin_movimiento": "Heads up: with no current customers, no new customers per month and no ads (with a CAC), the projection is guaranteed zero. Fill in at least one way customers come in."
   }
 }
