@@ -30,15 +30,27 @@ export default function Decisores() {
     { id: "pais", titulo: t("tabla.pais"), render: (d) => d.pais },
     { id: "email", titulo: t("tabla.email"),
       // Sin persona identificada se muestra la casilla comercial que la
-      // empresa publica en su sitio; si tampoco hay, se explica por qué.
+      // empresa publica en su sitio; sin casilla, el resto de sus canales
+      // públicos (teléfono, LinkedIn, Instagram) — recién sin nada de nada
+      // se explica por qué está vacío.
       render: (d) => {
         if (d.email) return d.email;
-        const publico = d.prospecto?.contactos?.email;
-        if (publico) {
+        const c = d.prospecto?.contactos || {};
+        if (c.email) {
           return <>
-            <a href={`mailto:${publico}`}>{publico}</a>{" "}
+            <a href={`mailto:${c.email}`}>{c.email}</a>{" "}
             <span className="pill mundo">{t("decisores.correo_empresa")}</span>
           </>;
+        }
+        const canales = [
+          c.telefono ? <a key="t" href={`tel:${c.telefono}`}>☎ {c.telefono}</a> : null,
+          c.linkedin ? <a key="l" href={c.linkedin} target="_blank" rel="noreferrer">LinkedIn</a> : null,
+          c.instagram ? <a key="i" href={c.instagram} target="_blank" rel="noreferrer">Instagram</a> : null,
+        ].filter(Boolean);
+        if (canales.length) {
+          return <span style={{ display: "inline-flex", gap: 10, flexWrap: "wrap" }}>
+            {canales} <span className="pill mundo">{t("decisores.canales_empresa")}</span>
+          </span>;
         }
         return <span className="nota" style={{ margin: 0 }}>{t("decisores.sin_correo")}</span>;
       } },

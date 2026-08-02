@@ -145,7 +145,8 @@
     "sintetico": "sintético",
     "buscar_linkedin": "Buscar decisor no LinkedIn →",
     "sin_correo": "Sem e-mail: é uma empresa real e não inventamos caixas de correio. Encontre a pessoa no LinkedIn e complete.",
-    "correo_empresa": "e-mail da empresa"
+    "correo_empresa": "e-mail da empresa",
+    "canales_empresa": "canais da empresa"
   },
   "correos": {
     "titulo": "E-mails",
