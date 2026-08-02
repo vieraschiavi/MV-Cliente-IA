@@ -107,6 +107,15 @@ section{padding:64px 0;border-top:1px solid var(--line)}
 .d .btn{display:inline-block;margin-top:14px}
 .d small{display:block;margin-top:10px;color:var(--faint);font-size:12px;line-height:1.5}
 
+.planes{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px;max-width:820px}
+.plan{background:var(--navy2);border:1px solid var(--line);border-radius:14px;padding:24px}
+.plan.destacado{border-color:var(--green)}
+.plan b{display:block;font-size:15px;margin-bottom:10px}
+.plan .precio{font-size:34px;font-weight:800;letter-spacing:-.5px}
+.plan .precio-nota{display:block;color:var(--faint);font-size:12px;margin:4px 0 12px}
+.plan ul{margin:0 0 16px;padding-left:18px;color:var(--muted);font-size:13.5px}
+.plan li{margin-bottom:6px}
+
 .cierre{text-align:center;background:linear-gradient(180deg,transparent,rgba(0,200,150,.07))}
 .cierre .sec-p{margin-left:auto;margin-right:auto}
 footer{border-top:1px solid var(--line);padding:30px 0 46px;color:var(--faint);font-size:12.5px}
@@ -118,7 +127,7 @@ footer p{max-width:78ch;margin:0 0 10px}
 <nav><div class="wrap">
   <a class="brand" href="../"><img src="../mv_icon.png" alt="MV SearchCostumer AI">
     <b>MV SearchCostumer <span class="gr">AI</span></b></a>
-  <div class="nlinks"><a href="#pasos">How it works</a><a href="#olas">Market order</a><a href="#video">Video</a><a href="#idiomas">Languages</a><a href="#descargar">Download</a></div>
+  <div class="nlinks"><a href="#pasos">How it works</a><a href="#olas">Market order</a><a href="#video">Video</a><a href="#idiomas">Languages</a><a href="#descargar">Download</a><a href="#precios">Pricing</a></div>
   <div class="right"><div class="lang"><a href="../">ES</a><a href="../pt/">PT</a><a href="../en/" class="on">EN</a></div>
     <a class="btn btn-a" href="../app/">Try it with my site</a></div>
 </div></nav>
@@ -181,6 +190,54 @@ footer p{max-width:78ch;margin:0 0 10px}
 <article class="d"><b>PC · Windows</b><p>Its own installer with an uninstaller in "Add or remove programs", no admin rights needed. The engine runs on your machine; data stays put.</p><a class="btn btn-o" href="https://github.com/vieraschiavi/MV-Cliente-IA/releases/latest/download/MVClienteIA_Setup.exe" rel="noreferrer">⬇ Download for Windows</a><small>The installer isn't code-signed: if SmartScreen warns you, "More info → Run anyway". The SHA-256 is published next to the download.</small><a class="btn btn-o" href="https://github.com/vieraschiavi/MV-Cliente-IA/releases/latest/download/MVClienteIA_Portable.zip" rel="noreferrer">⬇ Portable version (ZIP)</a><small>100% on the drive you choose: unzip it anywhere (D:\, a USB stick), run MVClienteIA.exe and that's it — no installer, no temp files on C:, with searches and exports stored in that same folder.</small></article>
 <article class="d"><b>Android · APK</b><p>The list and the emails on your phone, pointing at your server (Settings → Server address).</p><a class="btn btn-o" href="https://github.com/vieraschiavi/MV-Cliente-IA/releases/latest/download/MVClienteIA.apk" rel="noreferrer">⬇ Download the APK</a><small>Direct APK, not from the Play Store: when installing, allow "Install unknown apps" for your browser. The SHA-256 is published next to the download.</small></article></div>
 </div></section>
+
+<section id="precios"><div class="wrap">
+  <h2 class="sec-h">Pricing</h2>
+  <p class="sec-p">The web is the trial: unlimited synthetic demo and 3 free real searches per visitor, with your own Claude key. The full program is a one-time purchase.</p>
+  <div class="planes">
+    <article class="plan">
+      <b>Free web</b>
+      <span class="precio">US$ 0</span>
+      <span class="precio-nota">&nbsp;</span>
+      <ul><li>Unlimited synthetic demo</li><li>3 free real searches (with your Claude key)</li><li>All three languages plus CSV/Excel export</li></ul>
+      <a class="btn btn-o" href="../app/">Try it now →</a>
+    </article>
+    <article class="plan destacado">
+      <b>Full license · PC + Android</b>
+      <span class="precio">US$ 149</span>
+      <span class="precio-nota">one-time payment · ≈ $U 6,000 · charged in Uruguayan pesos via MercadoPago</span>
+      <ul><li>Windows installer + portable edition</li><li>Android APK</li><li>Unlimited searches, with your own keys</li><li>Updates included</li></ul>
+      <button class="btn btn-a" type="button" data-pay="licencia"
+              data-error="Could not start the payment. Try again in a bit or write to vieraschiavi@gmail.com.">Buy with MercadoPago</button>
+    </article>
+  </div>
+</div></section>
+
+<script>
+/* Mismo flujo que MV Kobra AI: el botón le pide al backend la preferencia de
+   MercadoPago y redirige; la plata cae directo en la cuenta del dueño. */
+document.querySelectorAll("[data-pay]").forEach(function (btn) {
+  btn.addEventListener("click", function () {
+    var original = btn.textContent;
+    btn.disabled = true; btn.textContent = "…";
+    fetch("/api/checkout", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ plan: btn.getAttribute("data-pay") }),
+    })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (res) {
+        if (res.ok && res.d && res.d.url) { window.location.href = res.d.url; return; }
+        btn.disabled = false; btn.textContent = original;
+        alert((res.d && res.d.detail) || btn.getAttribute("data-error"));
+      })
+      .catch(function () {
+        btn.disabled = false; btn.textContent = original;
+        alert(btn.getAttribute("data-error"));
+      });
+  });
+});
+</script>
 
 <section class="cierre"><div class="wrap">
   <h2 class="sec-h">Drop your link and see what comes out</h2>

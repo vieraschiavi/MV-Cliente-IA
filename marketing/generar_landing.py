@@ -43,7 +43,7 @@ TEXTOS: dict[str, dict] = {
         "desc": "Pegá el enlace de tu producto: la IA investiga tu empresa, encuentra a tus "
                 "compradores, ubica a los decisores y escribe los correos. Uruguay primero, "
                 "después LATAM, después el mundo.",
-        "nav": ["Cómo funciona", "Orden de mercado", "Video", "Idiomas", "Descargar"],
+        "nav": ["Cómo funciona", "Orden de mercado", "Video", "Idiomas", "Descargar", "Precios"],
         "hero_k": "Prospección automática, 24/7",
         "hero_h1": ["¿Sin clientes? Meses construyendo,", "todavía $0 de ingresos."],
         "hero_p": "El problema nunca fue el producto — eran las ventas. Pegá el enlace de tu "
@@ -104,6 +104,24 @@ TEXTOS: dict[str, dict] = {
              "APK directo, no viene de Play Store: al instalarlo habilitá «Instalar apps "
              "desconocidas» para tu navegador. El SHA-256 está publicado junto a la descarga."),
         ],
+        "precios_h": "Precios",
+        "precios_p": "La web es la prueba: demo sintética ilimitada y 3 búsquedas reales gratis "
+                     "por visitante, con tu propia clave de Claude. El programa completo se paga "
+                     "una sola vez.",
+        "plan_gratis_t": "Web gratis",
+        "plan_gratis": ["Demo sintética ilimitada",
+                        "3 búsquedas reales gratis (con tu clave de Claude)",
+                        "Los tres idiomas y el export CSV/Excel"],
+        "plan_gratis_cta": "Probar ahora",
+        "plan_pago_t": "Licencia completa · PC + Android",
+        "plan_pago_precio": "US$ 149",
+        "plan_pago_nota": "pago único · ≈ $U 6.000 · se cobra en pesos por MercadoPago",
+        "plan_pago": ["Instalador de Windows + versión portable",
+                      "APK de Android",
+                      "Búsquedas sin límite, con tus propias claves",
+                      "Actualizaciones incluidas"],
+        "plan_pago_cta": "Comprar con MercadoPago",
+        "plan_pago_error": "No se pudo iniciar el pago. Probá de nuevo en un rato o escribinos a vieraschiavi@gmail.com.",
         "cierre_h": "Pegá tu enlace y mirá qué sale",
         "cierre_p": "La demo corre con datos sintéticos: no tenés que entregar nada para ver "
                     "cómo funciona el flujo completo.",
@@ -120,7 +138,7 @@ TEXTOS: dict[str, dict] = {
         "desc": "Cole o link do seu produto: a IA pesquisa sua empresa, encontra seus "
                 "compradores, localiza os decisores e escreve os e-mails. Uruguai primeiro, "
                 "depois LATAM, depois o mundo.",
-        "nav": ["Como funciona", "Ordem de mercado", "Vídeo", "Idiomas", "Baixar"],
+        "nav": ["Como funciona", "Ordem de mercado", "Vídeo", "Idiomas", "Baixar", "Preços"],
         "hero_k": "Prospecção automática, 24/7",
         "hero_h1": ["Sem clientes? Meses construindo,", "e ainda R$0 de receita."],
         "hero_p": "O problema nunca foi o produto — eram as vendas. Cole o link do seu site e o "
@@ -181,6 +199,24 @@ TEXTOS: dict[str, dict] = {
              "APK direto, não vem da Play Store: ao instalar, habilite «Instalar apps "
              "desconhecidos» para o seu navegador. O SHA-256 está publicado junto ao download."),
         ],
+        "precios_h": "Preços",
+        "precios_p": "A web é o teste: demo sintética ilimitada e 3 buscas reais grátis por "
+                     "visitante, com a sua própria chave do Claude. O programa completo se paga "
+                     "uma única vez.",
+        "plan_gratis_t": "Web grátis",
+        "plan_gratis": ["Demo sintética ilimitada",
+                        "3 buscas reais grátis (com a sua chave do Claude)",
+                        "Os três idiomas e o export CSV/Excel"],
+        "plan_gratis_cta": "Testar agora",
+        "plan_pago_t": "Licença completa · PC + Android",
+        "plan_pago_precio": "US$ 149",
+        "plan_pago_nota": "pagamento único · ≈ $U 6.000 · cobrado em pesos via MercadoPago",
+        "plan_pago": ["Instalador do Windows + versão portátil",
+                      "APK do Android",
+                      "Buscas sem limite, com as suas próprias chaves",
+                      "Atualizações incluídas"],
+        "plan_pago_cta": "Comprar com MercadoPago",
+        "plan_pago_error": "Não foi possível iniciar o pagamento. Tente de novo em instantes ou escreva para vieraschiavi@gmail.com.",
         "cierre_h": "Cole seu link e veja o que sai",
         "cierre_p": "A demo roda com dados sintéticos: você não precisa entregar nada para ver "
                     "o fluxo completo funcionando.",
@@ -197,7 +233,7 @@ TEXTOS: dict[str, dict] = {
         "desc": "Drop your product link: the AI researches your company, finds your buyers, "
                 "locates the decision makers and writes the emails. Uruguay first, then LATAM, "
                 "then the world.",
-        "nav": ["How it works", "Market order", "Video", "Languages", "Download"],
+        "nav": ["How it works", "Market order", "Video", "Languages", "Download", "Pricing"],
         "hero_k": "Automatic prospecting, 24/7",
         "hero_h1": ["No customers? Months building,", "still $0 in revenue."],
         "hero_p": "The problem was never the product — it was sales. Drop your website link and "
@@ -258,6 +294,24 @@ TEXTOS: dict[str, dict] = {
              "Direct APK, not from the Play Store: when installing, allow \"Install "
              "unknown apps\" for your browser. The SHA-256 is published next to the download."),
         ],
+        "precios_h": "Pricing",
+        "precios_p": "The web is the trial: unlimited synthetic demo and 3 free real searches "
+                     "per visitor, with your own Claude key. The full program is a one-time "
+                     "purchase.",
+        "plan_gratis_t": "Free web",
+        "plan_gratis": ["Unlimited synthetic demo",
+                        "3 free real searches (with your Claude key)",
+                        "All three languages plus CSV/Excel export"],
+        "plan_gratis_cta": "Try it now",
+        "plan_pago_t": "Full license · PC + Android",
+        "plan_pago_precio": "US$ 149",
+        "plan_pago_nota": "one-time payment · ≈ $U 6,000 · charged in Uruguayan pesos via MercadoPago",
+        "plan_pago": ["Windows installer + portable edition",
+                      "Android APK",
+                      "Unlimited searches, with your own keys",
+                      "Updates included"],
+        "plan_pago_cta": "Buy with MercadoPago",
+        "plan_pago_error": "Could not start the payment. Try again in a bit or write to vieraschiavi@gmail.com.",
         "cierre_h": "Drop your link and see what comes out",
         "cierre_p": "The demo runs on synthetic data: you don't have to hand anything over to "
                     "see the whole flow work.",
@@ -358,6 +412,15 @@ section{padding:64px 0;border-top:1px solid var(--line)}
 .d .btn{display:inline-block;margin-top:14px}
 .d small{display:block;margin-top:10px;color:var(--faint);font-size:12px;line-height:1.5}
 
+.planes{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px;max-width:820px}
+.plan{background:var(--navy2);border:1px solid var(--line);border-radius:14px;padding:24px}
+.plan.destacado{border-color:var(--green)}
+.plan b{display:block;font-size:15px;margin-bottom:10px}
+.plan .precio{font-size:34px;font-weight:800;letter-spacing:-.5px}
+.plan .precio-nota{display:block;color:var(--faint);font-size:12px;margin:4px 0 12px}
+.plan ul{margin:0 0 16px;padding-left:18px;color:var(--muted);font-size:13.5px}
+.plan li{margin-bottom:6px}
+
 .cierre{text-align:center;background:linear-gradient(180deg,transparent,rgba(0,200,150,.07))}
 .cierre .sec-p{margin-left:auto;margin-right:auto}
 footer{border-top:1px solid var(--line);padding:30px 0 46px;color:var(--faint);font-size:12.5px}
@@ -412,9 +475,11 @@ def render(idioma: str) -> str:
         return f'<article class="d"><b>{_esc(n)}</b><p>{_esc(d)}</p>{cuerpo}</article>'
 
     descargas = "\n".join(_tarjeta_descarga(*item) for item in t["desc_items"])
+    items_gratis = "".join(f"<li>{_esc(x)}</li>" for x in t["plan_gratis"])
+    items_pago = "".join(f"<li>{_esc(x)}</li>" for x in t["plan_pago"])
     enlaces = "".join(
         f'<a href="#{ancla}">{_esc(txt)}</a>'
-        for ancla, txt in zip(("pasos", "olas", "video", "idiomas", "descargar"),
+        for ancla, txt in zip(("pasos", "olas", "video", "idiomas", "descargar", "precios"),
                               t["nav"], strict=True))
 
     # El aviso «todavía no está publicado» sólo tiene sentido mientras el
@@ -501,6 +566,54 @@ def render(idioma: str) -> str:
   <p class="sec-p">{_esc(t['desc_p'])}</p>
   <div class="desc">{descargas}</div>
 </div></section>
+
+<section id="precios"><div class="wrap">
+  <h2 class="sec-h">{_esc(t['precios_h'])}</h2>
+  <p class="sec-p">{_esc(t['precios_p'])}</p>
+  <div class="planes">
+    <article class="plan">
+      <b>{_esc(t['plan_gratis_t'])}</b>
+      <span class="precio">US$ 0</span>
+      <span class="precio-nota">&nbsp;</span>
+      <ul>{items_gratis}</ul>
+      <a class="btn btn-o" href="{app}">{_esc(t['plan_gratis_cta'])} →</a>
+    </article>
+    <article class="plan destacado">
+      <b>{_esc(t['plan_pago_t'])}</b>
+      <span class="precio">{_esc(t['plan_pago_precio'])}</span>
+      <span class="precio-nota">{_esc(t['plan_pago_nota'])}</span>
+      <ul>{items_pago}</ul>
+      <button class="btn btn-a" type="button" data-pay="licencia"
+              data-error="{_esc(t['plan_pago_error'])}">{_esc(t['plan_pago_cta'])}</button>
+    </article>
+  </div>
+</div></section>
+
+<script>
+/* Mismo flujo que MV Kobra AI: el botón le pide al backend la preferencia de
+   MercadoPago y redirige; la plata cae directo en la cuenta del dueño. */
+document.querySelectorAll("[data-pay]").forEach(function (btn) {{
+  btn.addEventListener("click", function () {{
+    var original = btn.textContent;
+    btn.disabled = true; btn.textContent = "…";
+    fetch("/api/checkout", {{
+      method: "POST",
+      headers: {{ "content-type": "application/json" }},
+      body: JSON.stringify({{ plan: btn.getAttribute("data-pay") }}),
+    }})
+      .then(function (r) {{ return r.json().then(function (d) {{ return {{ ok: r.ok, d: d }}; }}); }})
+      .then(function (res) {{
+        if (res.ok && res.d && res.d.url) {{ window.location.href = res.d.url; return; }}
+        btn.disabled = false; btn.textContent = original;
+        alert((res.d && res.d.detail) || btn.getAttribute("data-error"));
+      }})
+      .catch(function () {{
+        btn.disabled = false; btn.textContent = original;
+        alert(btn.getAttribute("data-error"));
+      }});
+  }});
+}});
+</script>
 
 <section class="cierre"><div class="wrap">
   <h2 class="sec-h">{_esc(t['cierre_h'])}</h2>

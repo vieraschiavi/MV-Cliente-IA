@@ -134,3 +134,48 @@ def test_con_password_la_api_exige_token(monkeypatch):
     # Un token inventado no entra.
     assert cliente.get("/api/corridas",
                        headers={"Authorization": "Bearer 99999999999.falso"}).status_code == 401
+
+
+def test_cupo_gratis_de_la_web(monkeypatch):
+    """En el despliegue web las búsquedas reales tienen cupo; la demo no lo
+    gasta, y el código de dueño exime. El aviso es un 402 con explicación."""
+    import json as jsonmod
+
+    from cliente_ia import modelos
+    from webapp.backend import api
+
+    monkeypatch.setattr(api, "SIN_ESTADO", True)
+    monkeypatch.setattr(api, "CUPO_GRATIS", 2)
+    api._cupo_por_ip.clear()
+
+    def corrida_falsa(dominio, **kwargs):
+        return modelos.Corrida(id="fake01", dominio=dominio, estado="listo")
+
+    monkeypatch.setattr(api.pipeline, "ejecutar", corrida_falsa)
+
+    cliente = TestClient(api.app)
+    real = {"dominio": "mvkobranzaia.com", "modo": "web", "prospectos": 5}
+
+    assert cliente.post("/api/corridas", json=real).status_code == 200
+    assert cliente.get("/api/cupo").json()["usadas"] == 1
+    assert cliente.post("/api/corridas", json=real).status_code == 200
+    r = cliente.post("/api/corridas", json=real)
+    assert r.status_code == 402
+    assert "gratis" in r.json()["detail"]
+
+    # La demo sintética no descuenta nunca.
+    demo = {"dominio": "mvkobranzaia.com", "modo": "demo", "prospectos": 5}
+    assert cliente.post("/api/corridas", json=demo).status_code == 200
+
+    # El dueño queda exento con el código de MVCLIENTE_OWNER.
+    monkeypatch.setenv("MVCLIENTE_OWNER", "clave-owner")
+    assert cliente.post("/api/corridas", json=real,
+                        headers={"X-MV-Owner": "clave-owner"}).status_code == 200
+
+    # Y el streaming devuelve la corrida por líneas NDJSON.
+    api._cupo_por_ip.clear()
+    limpio = TestClient(api.app)
+    rs = limpio.post("/api/corridas?stream=1", json=demo)
+    assert rs.status_code == 200
+    lineas = [jsonmod.loads(x) for x in rs.text.strip().splitlines()]
+    assert lineas and lineas[-1]["estado"] == "listo"

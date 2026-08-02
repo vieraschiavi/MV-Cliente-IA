@@ -56,7 +56,10 @@
     "mercado_todos": "Todos (Uruguay primero)",
     "mercado_local": "Sólo Uruguay",
     "mercado_latam": "Sólo LATAM",
-    "mercado_mundo": "Sólo resto del mundo"
+    "mercado_mundo": "Sólo resto del mundo",
+    "cupo_restante": "Web gratis: te quedan {{quedan}} de {{total}} búsquedas reales (la demo no descuenta).",
+    "cupo_agotado": "Se terminaron las {{total}} búsquedas reales gratis de la web. La demo sigue libre.",
+    "cupo_comprar": "Comprar el programa completo →"
   },
   "fase": {
     "investigar": {
@@ -177,7 +180,9 @@
     "clave_guardada": "Clave guardada en este navegador",
     "clave_borrada": "Clave borrada",
     "clave_ver": "Mostrar",
-    "clave_ocultar": "Ocultar"
+    "clave_ocultar": "Ocultar",
+    "owner": "Código de dueño",
+    "owner_ayuda": "Sólo para el dueño del despliegue: si coincide con la variable MVCLIENTE_OWNER del servidor, este navegador queda exento del cupo gratis de la web."
   },
   "aviso": {
     "sintetico": "Datos de demostración: las empresas y las personas de esta lista son sintéticas, generadas para probar el flujo. Cambiá el origen de datos a «Leer mi sitio real» o «Investigación con IA» para trabajar con información real.",

@@ -37,15 +37,24 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import json
 import os
+import queue as colas
 import secrets
 import threading
 import time
+import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, PlainTextResponse, Response
+from fastapi.responses import (
+    FileResponse,
+    JSONResponse,
+    PlainTextResponse,
+    Response,
+    StreamingResponse,
+)
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -87,6 +96,65 @@ _ejecutor = ThreadPoolExecutor(max_workers=MAX_CORRIDAS_PARALELAS,
 _lock = threading.Lock()
 _en_curso: set[str] = set()
 _secreto = secrets.token_bytes(32)          # se renueva en cada arranque
+
+
+# ---------------------------------------------------------------------------
+# Cupo gratis del despliegue web
+# ---------------------------------------------------------------------------
+# En la web pública las búsquedas REALES («leer mi sitio» e IA) son una
+# prueba: 3 gratis y después se compra el programa. La demo sintética no
+# descuenta — es la vidriera. El dueño queda exento con el código de
+# `MVCLIENTE_OWNER` (variable en Vercel + Configuración de la app).
+#
+# El conteo va en una cookie firmada (sirve entre instancias serverless
+# porque el secreto es determinista) más un mapa por IP como refuerzo dentro
+# de cada instancia caliente. No es un candado criptográfico contra alguien
+# decidido a borrarla — es el aviso honesto de dónde termina lo gratis.
+CUPO_GRATIS = int(os.getenv("MVCLIENTE_CUPO_GRATIS", "3"))
+_COOKIE_CUPO = "mv_cupo"
+_cupo_por_ip: dict[str, int] = {}
+
+
+def _secreto_cupo() -> bytes:
+    base = ("mv-cupo-v1" + os.getenv("MVCLIENTE_OWNER", "")
+            + os.getenv("MVCLIENTE_PASSWORD", ""))
+    return hashlib.sha256(base.encode()).digest()
+
+
+def _firmar_cupo(n: int) -> str:
+    mac = hmac.new(_secreto_cupo(), str(n).encode(), hashlib.sha256).hexdigest()
+    return f"{n}.{mac}"
+
+
+def _ip_de(request: Request) -> str:
+    xff = request.headers.get("x-forwarded-for", "")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host if request.client else "?"
+
+
+def _es_owner(request: Request) -> bool:
+    owner = os.getenv("MVCLIENTE_OWNER", "")
+    return bool(owner) and hmac.compare_digest(
+        request.headers.get("x-mv-owner", ""), owner)
+
+
+def _cupo_usado(request: Request) -> int:
+    de_cookie = 0
+    crudo = request.cookies.get(_COOKIE_CUPO, "")
+    try:
+        n, mac = crudo.split(".", 1)
+        if hmac.compare_digest(mac, hmac.new(_secreto_cupo(), n.encode(),
+                                             hashlib.sha256).hexdigest()):
+            de_cookie = max(0, int(n))
+    except (ValueError, AttributeError):
+        pass
+    return max(de_cookie, _cupo_por_ip.get(_ip_de(request), 0))
+
+
+def _poner_cookie_cupo(respuesta: Response, n: int) -> None:
+    respuesta.set_cookie(_COOKIE_CUPO, _firmar_cupo(n),
+                         max_age=365 * 24 * 3600, samesite="lax")
 
 
 # ---------------------------------------------------------------------------
@@ -154,6 +222,74 @@ def salud():
             "modos": list(modos_en_serverless() if SIN_ESTADO else proveedores.MODOS),
             "sin_estado": SIN_ESTADO,
             "modo_llm_disponible": proveedores.modo_efectivo("llm") == "llm"}
+
+
+@app.get("/api/cupo")
+def cupo(request: Request):
+    """Cuántas búsquedas reales gratis quedan en este navegador/IP."""
+    if not SIN_ESTADO:
+        return {"aplica": False, "gratis": 0, "usadas": 0, "owner": False}
+    return {"aplica": True, "gratis": CUPO_GRATIS,
+            "usadas": min(_cupo_usado(request), CUPO_GRATIS),
+            "owner": _es_owner(request)}
+
+
+# ---------------------------------------------------------------------------
+# Pago (MercadoPago, mismo esquema que MV Kobra AI)
+# ---------------------------------------------------------------------------
+# El botón de la landing hace POST acá; el backend crea la preferencia con el
+# token del dueño (variable MERCADOPAGO_ACCESS_TOKEN en el servidor) y
+# devuelve la URL de pago. La plata cae directo en la cuenta de MercadoPago
+# del dueño — nunca pasa por acá. Precio de referencia en dólares, se cobra
+# en pesos uruguayos, igual que Kobra.
+PLANES = {
+    "licencia": {
+        "titulo": "MV Cliente IA · Licencia completa (PC + Android)",
+        "usd": int(os.getenv("MVCLIENTE_PRECIO_USD", "149")),
+        "uyu": int(os.getenv("MVCLIENTE_PRECIO_UYU", "6000")),
+    },
+}
+
+
+class CheckoutIn(BaseModel):
+    plan: str = "licencia"
+
+
+@app.post("/api/checkout")
+def checkout(datos: CheckoutIn, request: Request):
+    plan = PLANES.get(datos.plan)
+    if plan is None:
+        raise HTTPException(404, f"Plan desconocido: {datos.plan}")
+    token = os.getenv("MERCADOPAGO_ACCESS_TOKEN", "")
+    if not token:
+        raise HTTPException(503,
+            "El pago todavía no está configurado en este servidor. "
+            "Escribinos a vieraschiavi@gmail.com y lo resolvemos a mano.")
+
+    origen = request.headers.get("origin") or f"https://{request.headers.get('host', '')}"
+    cuerpo = {
+        "items": [{"title": plan["titulo"], "quantity": 1,
+                   "unit_price": float(plan["uyu"]), "currency_id": "UYU"}],
+        "back_urls": {"success": f"{origen}/?pago=ok",
+                      "pending": f"{origen}/?pago=pendiente",
+                      "failure": f"{origen}/?pago=error"},
+        "auto_return": "approved",
+        "statement_descriptor": "MV CLIENTE IA",
+    }
+    peticion = urllib.request.Request(
+        "https://api.mercadopago.com/checkout/preferences",
+        data=json.dumps(cuerpo).encode(),
+        headers={"Authorization": f"Bearer {token}",
+                 "content-type": "application/json"})
+    try:
+        with urllib.request.urlopen(peticion, timeout=20) as r:
+            d = json.load(r)
+    except Exception as e:                              # noqa: BLE001
+        raise HTTPException(502, f"MercadoPago no respondió: {e}") from e
+    url = d.get("init_point") or d.get("sandbox_init_point")
+    if not url:
+        raise HTTPException(502, "MercadoPago no devolvió la URL de pago")
+    return {"url": url}
 
 
 @app.get("/api/geo")
@@ -225,8 +361,31 @@ def _config_enlaces(entrada: CorridaIn) -> dict:
             "video_en_landing": entrada.video_en_landing}
 
 
+def _ejecutar_sin_estado(entrada: CorridaIn, al_avanzar=None):
+    t0 = time.monotonic()
+    corrida = pipeline.ejecutar(
+        entrada.dominio, modo=entrada.modo,
+        limite_prospectos=entrada.prospectos,
+        decisores_por_empresa=entrada.decisores,
+        limite_emails=entrada.emails,
+        idioma_ui=entrada.idioma, firma=entrada.firma, nombre=entrada.nombre,
+        enlaces=_config_enlaces(entrada),
+        clave_ia=entrada.clave_ia,
+        mercado=entrada.mercado,
+        al_avanzar=al_avanzar,
+    )
+    # Una línea por corrida en el log del servidor (sin secretos): fue lo
+    # que faltó cuando el modo IA "no funcionaba" y no se veía por qué.
+    reales = sum(1 for p in corrida.prospectos if not p.sintetico)
+    print(f"[corrida] modo={corrida.modo} estado={corrida.estado} "
+          f"{time.monotonic() - t0:.0f}s competidores={len(corrida.competidores)} "
+          f"prospectos_reales={reales}/{len(corrida.prospectos)} "
+          f"avisos={corrida.avisos or 'ninguno'}", flush=True)
+    return corrida
+
+
 @app.post("/api/corridas", dependencies=[Depends(requiere_auth)])
-def crear_corrida(entrada: CorridaIn):
+def crear_corrida(entrada: CorridaIn, request: Request, stream: int = 0):
     if entrada.modo not in proveedores.MODOS:
         raise HTTPException(422, f"Modo inválido: {entrada.modo}")
     if entrada.mercado not in ("todos", "local", "latam", "mundo"):
@@ -240,29 +399,61 @@ def crear_corrida(entrada: CorridaIn):
                 "El modo de investigación con IA necesita una clave de la API "
                 "de Claude: pegala en Configuración, o definí ANTHROPIC_API_KEY "
                 "en el servidor. Mientras tanto usá «demo» o «leer mi sitio».")
-        t0 = time.monotonic()
-        corrida = pipeline.ejecutar(
-            entrada.dominio, modo=entrada.modo,
-            limite_prospectos=entrada.prospectos,
-            decisores_por_empresa=entrada.decisores,
-            limite_emails=entrada.emails,
-            idioma_ui=entrada.idioma, firma=entrada.firma, nombre=entrada.nombre,
-            enlaces=_config_enlaces(entrada),
-            clave_ia=entrada.clave_ia,
-            mercado=entrada.mercado,
-        )
-        # Una línea por corrida en el log del servidor (sin secretos): fue lo
-        # que faltó cuando el modo IA "no funcionaba" y no se veía por qué.
-        reales = sum(1 for p in corrida.prospectos if not p.sintetico)
-        print(f"[corrida] modo={corrida.modo} estado={corrida.estado} "
-              f"{time.monotonic() - t0:.0f}s competidores={len(corrida.competidores)} "
-              f"prospectos_reales={reales}/{len(corrida.prospectos)} "
-              f"avisos={corrida.avisos or 'ninguno'}", flush=True)
+
+        # Cupo gratis de la web: sólo las búsquedas reales lo gastan.
+        usadas = 0
+        cuenta = entrada.modo != "demo" and not _es_owner(request)
+        if cuenta:
+            usadas = _cupo_usado(request)
+            if usadas >= CUPO_GRATIS:
+                raise HTTPException(402,
+                    f"Se terminaron las {CUPO_GRATIS} búsquedas reales gratis "
+                    "de la web. La demo sigue libre, y el programa completo "
+                    "(PC + Android, sin límite y con tus claves) se compra "
+                    "desde la sección Precios de la portada.")
+            usadas += 1
+            _cupo_por_ip[_ip_de(request)] = usadas
+
+        if stream:
+            # La corrida va saliendo por fases (NDJSON): el navegador pinta
+            # empresa, competidores, campañas y prospectos a medida que
+            # existen, en vez de mirar "Buscando…" un par de minutos.
+            cola: colas.Queue = colas.Queue()
+
+            def correr():
+                try:
+                    corrida = _ejecutar_sin_estado(
+                        entrada, al_avanzar=lambda c: cola.put(c.a_dict()))
+                    cola.put(corrida.a_dict())
+                except Exception as e:                  # noqa: BLE001
+                    cola.put({"estado": "error", "error": f"{type(e).__name__}: {e}"})
+                finally:
+                    cola.put(None)
+
+            def generar():
+                hilo = threading.Thread(target=correr, daemon=True)
+                hilo.start()
+                while True:
+                    item = cola.get()
+                    if item is None:
+                        break
+                    yield json.dumps(item, ensure_ascii=False) + "\n"
+
+            respuesta = StreamingResponse(generar(),
+                                          media_type="application/x-ndjson")
+            if cuenta:
+                _poner_cookie_cupo(respuesta, usadas)
+            return respuesta
+
+        corrida = _ejecutar_sin_estado(entrada)
         if corrida.estado == "error":
             raise HTTPException(502, corrida.error or "La corrida falló")
         # La corrida entera, ya terminada: no hay dónde guardarla ni a quién
         # preguntarle después.
-        return corrida.a_dict()
+        respuesta = JSONResponse(corrida.a_dict())
+        if cuenta:
+            _poner_cookie_cupo(respuesta, usadas)
+        return respuesta
 
     with _lock:
         if len(_en_curso) >= MAX_CORRIDAS_PARALELAS:

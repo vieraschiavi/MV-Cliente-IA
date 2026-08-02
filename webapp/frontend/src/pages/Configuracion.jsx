@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { api, esNativo, getBase, getClaveIA, setBase, setClaveIA, setToken } from "../api.js";
+import { api, esNativo, getBase, getClaveIA, getOwner, setBase, setClaveIA, setOwner, setToken } from "../api.js";
 import { SelectorIdioma } from "../App.jsx";
 import { t } from "../i18n/index.js";
 
@@ -10,11 +10,16 @@ export default function Configuracion({ onSalir }) {
   const [clave, setClaveLocal] = useState(getClaveIA());
   const [verClave, setVerClave] = useState(false);
   const [avisoClave, setAvisoClave] = useState("");
+  const [owner, setOwnerLocal] = useState(getOwner());
 
   const guardarClave = (e) => {
     e.preventDefault();
     setClaveIA(clave);
-    setAvisoClave(clave.trim() ? t("config.clave_guardada") : t("config.clave_borrada"));
+    // El código de dueño se guarda junto: viaja como encabezado y exime del
+    // cupo gratis de la web (se valida en el servidor contra MVCLIENTE_OWNER).
+    setOwner(owner);
+    setAvisoClave(clave.trim() || owner.trim()
+      ? t("config.clave_guardada") : t("config.clave_borrada"));
     setTimeout(() => setAvisoClave(""), 2500);
   };
 
@@ -67,6 +72,13 @@ export default function Configuracion({ onSalir }) {
                  onChange={(e) => setClaveLocal(e.target.value)} />
         </div>
         <p className="nota" style={{ marginTop: 0 }}>{t("config.clave_ayuda")}</p>
+        <div className="campo crece" style={{ margin: "12px 0 6px" }}>
+          <label htmlFor="owner">{t("config.owner")} <i>({t("explorar.opcional")})</i></label>
+          <input id="owner" type="password" value={owner}
+                 autoCapitalize="none" autoCorrect="off" autoComplete="off"
+                 onChange={(e) => setOwnerLocal(e.target.value)} />
+        </div>
+        <p className="nota" style={{ marginTop: 0 }}>{t("config.owner_ayuda")}</p>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
           <button className="btn" type="submit">{t("config.guardar")}</button>
           <button className="btn ghost" type="button" onClick={() => setVerClave(!verClave)}>

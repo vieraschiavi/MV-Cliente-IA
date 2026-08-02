@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, descargar, esNativo, fmtScore, getBase, getClaveIA } from "../api.js";
+import { api, apiStream, descargar, ErrorApi, esNativo, fmtScore, getBase, getClaveIA } from "../api.js";
 import { Aviso, Idioma, Kpis, Ola, Vacio } from "../componentes/Comunes.jsx";
 import { getCorridaId, setCorridaId, setCorridaLocal, useCorrida } from "../estado.js";
 import { t } from "../i18n/index.js";
@@ -62,6 +62,10 @@ export default function Explorar() {
   // usuario creería que la IA no busca nada — pasó en el despliegue público).
   const [salud, setSalud] = useState(null);
   useEffect(() => { api("/api/salud").then(setSalud).catch(() => {}); }, []);
+  // Cupo gratis de la web pública: cuántas búsquedas reales quedan.
+  const [cupo, setCupo] = useState(null);
+  const traerCupo = () => api("/api/cupo").then(setCupo).catch(() => {});
+  useEffect(() => { traerCupo(); }, []);
   // El modo IA se ofrece si el servidor puede correrlo (tiene clave propia) o
   // si el usuario pegó la suya en Configuración: en ese caso la clave viaja
   // con la corrida. Antes de la respuesta de salud se muestra, como siempre.
@@ -97,31 +101,47 @@ export default function Explorar() {
     setErrLanzar("");
     setLanzando(true);
     try {
-      const r = await api("/api/corridas", {
-        metodo: "POST",
-        cuerpo: {
-          dominio: form.dominio.trim(),
-          nombre: form.nombre.trim(),
-          modo: form.modo,
-          mercado: form.mercado,
-          idioma: "es",
-          prospectos: Number(form.prospectos) || 60,
-          sitio: form.sitio.trim() || form.dominio.trim(),
-          video_en_landing: form.video_en_landing,
-          videos: Object.fromEntries(
-            Object.entries(form.videos).filter(([, v]) => v.trim())),
-          // La clave sólo viaja cuando la corrida la necesita.
-          ...(form.modo === "llm" && getClaveIA() ? { clave_ia: getClaveIA() } : {}),
-        },
-      });
-      // En un despliegue sin estado el POST devuelve la corrida YA TERMINADA
-      // (no hay hilo de fondo ni disco donde consultarla después): se guarda
-      // en el navegador y se muestra directo, sin sondear.
-      if (r.estado === "listo" || r.pasos?.length) setCorridaLocal(r);
-      setCorridaId(r.id);
-      setId(r.id);
+      const cuerpo = {
+        dominio: form.dominio.trim(),
+        nombre: form.nombre.trim(),
+        modo: form.modo,
+        mercado: form.mercado,
+        idioma: "es",
+        prospectos: Number(form.prospectos) || 60,
+        sitio: form.sitio.trim() || form.dominio.trim(),
+        video_en_landing: form.video_en_landing,
+        videos: Object.fromEntries(
+          Object.entries(form.videos).filter(([, v]) => v.trim())),
+        // La clave sólo viaja cuando la corrida la necesita.
+        ...(form.modo === "llm" && getClaveIA() ? { clave_ia: getClaveIA() } : {}),
+      };
+      let r;
+      if (salud?.sin_estado) {
+        // Sin estado, la corrida llega POR FASES (streaming NDJSON): cada
+        // línea es la corrida hasta ese momento, se guarda y la pantalla se
+        // va pintando — empresa, competidores, campañas, prospectos…
+        setTocada(false);
+        r = await apiStream("/api/corridas?stream=1", cuerpo, (parcial) => {
+          if (parcial && parcial.id) {
+            setCorridaLocal(parcial);
+            setCorridaId(parcial.id);
+            setId(parcial.id);
+          }
+        });
+        if (r && r.estado === "error") {
+          throw new ErrorApi(r.error || "La corrida falló", 502);
+        }
+      } else {
+        r = await api("/api/corridas", { metodo: "POST", cuerpo });
+        if (r.estado === "listo" || r.pasos?.length) setCorridaLocal(r);
+      }
+      if (r && r.id) {
+        setCorridaId(r.id);
+        setId(r.id);
+      }
       setTocada(false);
-      setAbierta(r.estado === "listo" ? "prospectos" : "investigar");
+      setAbierta(r && r.estado === "listo" ? "prospectos" : "investigar");
+      traerCupo();                       // la búsqueda real pudo gastar cupo
     } catch (e2) {
       setErrLanzar(e2.status === 0 && esNativo() && !getBase()
         ? t("aviso.sin_servidor") : `${t("explorar.error")}: ${e2.message}`);
@@ -236,6 +256,21 @@ export default function Explorar() {
       </form>
 
       {salud && !hayLLM ? <p className="nota">{t("explorar.modo_llm_falta")}</p> : null}
+
+      {/* Aviso del cupo gratis de la web: cuántas búsquedas reales quedan y
+          qué pasa cuando se terminan. El dueño no lo ve. */}
+      {cupo?.aplica && !cupo.owner ? (
+        cupo.usadas >= cupo.gratis ? (
+          <p className="nota">
+            {t("explorar.cupo_agotado", { total: cupo.gratis })}{" "}
+            <a href="/#precios">{t("explorar.cupo_comprar")}</a>
+          </p>
+        ) : (
+          <p className="nota">
+            {t("explorar.cupo_restante", { quedan: cupo.gratis - cupo.usadas, total: cupo.gratis })}
+          </p>
+        )
+      ) : null}
 
       {/* La corrida con IA es una sola petición larga: sin este cartel el
           usuario ve "Buscando…" un par de minutos y asume que se colgó. */}

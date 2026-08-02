@@ -11,6 +11,9 @@ const KEY_BASE = "mvcliente_base";
 // SU navegador y viaja sólo dentro de cada corrida en modo IA: el servidor la
 // usa y la descarta — no la guarda ni la escribe en logs.
 const KEY_CLAVE_IA = "mvcliente_clave_ia";
+// Código de dueño del despliegue web: exime del cupo gratis. Se compara en
+// el servidor contra la variable MVCLIENTE_OWNER.
+const KEY_OWNER = "mvcliente_owner";
 
 // Capacitor sirve la app desde capacitor://localhost o http://localhost —
 // ahí "/api" no existe y hay que pedirle al usuario la dirección del servidor.
@@ -45,6 +48,15 @@ export function setClaveIA(clave) {
   else localStorage.removeItem(KEY_CLAVE_IA);
 }
 
+export function getOwner() {
+  return localStorage.getItem(KEY_OWNER) || "";
+}
+export function setOwner(codigo) {
+  const limpio = (codigo || "").trim();
+  if (limpio) localStorage.setItem(KEY_OWNER, limpio);
+  else localStorage.removeItem(KEY_OWNER);
+}
+
 export function getIdioma() {
   const guardado = localStorage.getItem(KEY_IDIOMA);
   if (guardado) return guardado;
@@ -64,16 +76,22 @@ export class ErrorApi extends Error {
   }
 }
 
-export async function api(ruta, { metodo = "GET", cuerpo, crudo = false } = {}) {
+function cabeceras(cuerpo) {
   const token = getToken();
+  const owner = getOwner();
+  return {
+    ...(cuerpo ? { "content-type": "application/json" } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(owner ? { "X-MV-Owner": owner } : {}),
+  };
+}
+
+export async function api(ruta, { metodo = "GET", cuerpo, crudo = false } = {}) {
   let r;
   try {
     r = await fetch(getBase() + ruta, {
       method: metodo,
-      headers: {
-        ...(cuerpo ? { "content-type": "application/json" } : {}),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+      headers: cabeceras(cuerpo),
       body: cuerpo ? JSON.stringify(cuerpo) : undefined,
     });
   } catch (e) {
@@ -93,6 +111,57 @@ export async function api(ruta, { metodo = "GET", cuerpo, crudo = false } = {}) 
   const datos = await r.json().catch(() => ({}));
   if (!r.ok) throw new ErrorApi(datos.detail || `Error ${r.status}`, r.status);
   return datos;
+}
+
+/**
+ * POST que va DEVOLVIENDO resultados: el servidor manda una línea JSON por
+ * fase (NDJSON) y `onLinea` se llama con cada una — la pantalla pinta
+ * empresa, competidores y prospectos a medida que existen, en vez de esperar
+ * la corrida entera. Devuelve la última línea (la corrida terminada).
+ */
+export async function apiStream(ruta, cuerpo, onLinea) {
+  let r;
+  try {
+    r = await fetch(getBase() + ruta, {
+      method: "POST",
+      headers: cabeceras(cuerpo),
+      body: JSON.stringify(cuerpo),
+    });
+  } catch (e) {
+    throw new ErrorApi(e.message || "sin conexión", 0);
+  }
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}));
+    throw new ErrorApi(d.detail || `Error ${r.status}`, r.status);
+  }
+  if (!r.body || !r.body.getReader) {
+    // Navegador sin streams: cae al comportamiento viejo, todo junto.
+    const d = await r.json();
+    onLinea(d);
+    return d;
+  }
+  const lector = r.body.getReader();
+  const decodificador = new TextDecoder();
+  let resto = "";
+  let ultima = null;
+  for (;;) {
+    const { done, value } = await lector.read();
+    if (done) break;
+    resto += decodificador.decode(value, { stream: true });
+    let corte;
+    while ((corte = resto.indexOf("\n")) >= 0) {
+      const linea = resto.slice(0, corte).trim();
+      resto = resto.slice(corte + 1);
+      if (!linea) continue;
+      try {
+        ultima = JSON.parse(linea);
+        onLinea(ultima);
+      } catch {
+        // línea partida o basura: se ignora, la siguiente completa trae todo
+      }
+    }
+  }
+  return ultima;
 }
 
 export async function descargar(ruta, nombre, cuerpo) {

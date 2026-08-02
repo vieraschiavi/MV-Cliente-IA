@@ -56,7 +56,10 @@
     "mercado_todos": "All (Uruguay first)",
     "mercado_local": "Uruguay only",
     "mercado_latam": "LATAM only",
-    "mercado_mundo": "Rest of the world only"
+    "mercado_mundo": "Rest of the world only",
+    "cupo_restante": "Free web tier: {{quedan}} of {{total}} real searches left (the demo doesn't count).",
+    "cupo_agotado": "The {{total}} free real web searches are used up. The demo stays free.",
+    "cupo_comprar": "Buy the full program →"
   },
   "fase": {
     "investigar": {
@@ -177,7 +180,9 @@
     "clave_guardada": "Key saved in this browser",
     "clave_borrada": "Key removed",
     "clave_ver": "Show",
-    "clave_ocultar": "Hide"
+    "clave_ocultar": "Hide",
+    "owner": "Owner code",
+    "owner_ayuda": "Deployment owner only: if it matches the server's MVCLIENTE_OWNER variable, this browser is exempt from the free web quota."
   },
   "aviso": {
     "sintetico": "Demo data: the companies and people in this list are synthetic, generated to exercise the flow. Switch the data source to “Read my real website” or “AI research” to work with real information.",
