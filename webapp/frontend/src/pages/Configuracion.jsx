@@ -1,10 +1,75 @@
 import React, { useState } from "react";
 import {
   api, esNativo, getBase, getClaveIA, getEndpointIA, getOwner, getProveedorIA,
-  setBase, setClaveIA, setEndpointIA, setOwner, setProveedorIA, setToken,
+  getSmtp, setBase, setClaveIA, setEndpointIA, setOwner, setProveedorIA,
+  setSmtp, setToken,
 } from "../api.js";
 import { SelectorIdioma } from "../App.jsx";
 import { t } from "../i18n/index.js";
+
+function FormSmtp() {
+  const guardado = getSmtp() || {};
+  const [smtp, setSmtpLocal] = useState({
+    host: guardado.host || "", puerto: guardado.puerto || 587,
+    usuario: guardado.usuario || "", clave: guardado.clave || "",
+    ssl: Boolean(guardado.ssl), remitente: guardado.remitente || "",
+  });
+  const [aviso, setAviso] = useState("");
+
+  const campo = (clave, valor) => setSmtpLocal({ ...smtp, [clave]: valor });
+  const guardarSmtp = (e) => {
+    e.preventDefault();
+    setSmtp(smtp.host && smtp.usuario ? smtp : null);
+    setAviso(smtp.host ? t("config.smtp_guardado") : t("config.clave_borrada"));
+    setTimeout(() => setAviso(""), 2500);
+  };
+
+  return (
+    <form className="card" style={{ maxWidth: 620, marginBottom: 14 }} onSubmit={guardarSmtp}>
+      <h3>{t("config.smtp")}</h3>
+      <p className="nota" style={{ marginTop: 0 }}>{t("config.smtp_ayuda")}</p>
+      <div style={{ display: "grid", gap: 10, gridTemplateColumns: "2fr 1fr" }}>
+        <div className="campo">
+          <label htmlFor="smtp-host">{t("config.smtp_host")}</label>
+          <input id="smtp-host" type="text" value={smtp.host} placeholder="smtp.gmail.com"
+                 autoCapitalize="none" autoCorrect="off"
+                 onChange={(e) => campo("host", e.target.value.trim())} />
+        </div>
+        <div className="campo">
+          <label htmlFor="smtp-puerto">{t("config.smtp_puerto")}</label>
+          <input id="smtp-puerto" type="number" value={smtp.puerto} min="1" max="65535"
+                 onChange={(e) => campo("puerto", Number(e.target.value) || 587)} />
+        </div>
+      </div>
+      <div className="campo crece" style={{ margin: "10px 0" }}>
+        <label htmlFor="smtp-usuario">{t("config.smtp_usuario")}</label>
+        <input id="smtp-usuario" type="email" value={smtp.usuario}
+               placeholder="vos@tuempresa.com" autoCapitalize="none"
+               onChange={(e) => campo("usuario", e.target.value.trim())} />
+      </div>
+      <div className="campo crece" style={{ marginBottom: 10 }}>
+        <label htmlFor="smtp-clave">{t("config.smtp_clave")}</label>
+        <input id="smtp-clave" type="password" value={smtp.clave}
+               autoComplete="off"
+               onChange={(e) => campo("clave", e.target.value)} />
+      </div>
+      <div className="campo crece" style={{ marginBottom: 10 }}>
+        <label htmlFor="smtp-remitente">{t("config.smtp_remitente")}</label>
+        <input id="smtp-remitente" type="text" value={smtp.remitente}
+               onChange={(e) => campo("remitente", e.target.value)} />
+      </div>
+      <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13.5 }}>
+        <input type="checkbox" checked={smtp.ssl}
+               onChange={(e) => campo("ssl", e.target.checked)} />
+        {t("config.smtp_ssl")}
+      </label>
+      <div style={{ marginTop: 12 }}>
+        <button className="btn" type="submit">{t("config.guardar")}</button>
+      </div>
+      {aviso ? <p className="nota" style={{ color: "var(--green-deep)" }}>{aviso}</p> : null}
+    </form>
+  );
+}
 
 export default function Configuracion({ onSalir }) {
   const [base, setBaseLocal] = useState(getBase());
@@ -125,6 +190,8 @@ export default function Configuracion({ onSalir }) {
           <p className="nota" style={{ color: "var(--green-deep)" }}>{avisoClave}</p>
         ) : null}
       </form>
+
+      <FormSmtp />
 
       <form className="card" style={{ maxWidth: 620 }} onSubmit={guardar}>
         <h3>{t("config.servidor")}</h3>

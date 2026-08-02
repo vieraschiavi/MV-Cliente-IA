@@ -78,7 +78,8 @@ class ProveedorLLM(Proveedor):
     nombre = "llm"
 
     def __init__(self, idioma_base: str = "es", modelo: str = "", clave: str = "",
-                 proveedor: str = "claude", endpoint: str = ""):
+                 proveedor: str = "claude", endpoint: str = "",
+                 mercado: str = "todos"):
         self.proveedor = (proveedor or "claude").lower()
         if self.proveedor not in PROVEEDORES_IA:
             raise ErrorLLM(f"Proveedor de IA desconocido: {proveedor}")
@@ -93,6 +94,8 @@ class ProveedorLLM(Proveedor):
                                "del endpoint de chat completions")
         self.modelo = modelo or MODELOS_IA[self.proveedor]()
         self.idioma_base = idioma_base
+        self.mercado = mercado if mercado in ("todos", "local", "latam", "mundo") \
+            else "todos"
         self._demo = ProveedorDemo(idioma_base)
         # El proveedor viaja en `fuente` y en los avisos: si algo falla, el
         # usuario tiene que ver "openai · competencia: …", no un "llm" mudo.
@@ -224,6 +227,24 @@ class ProveedorLLM(Proveedor):
 
     # Fase 2 · competencia
     def competencia(self, empresa: Empresa) -> list[Competidor]:
+        # El recorte geográfico manda también acá: un competidor que no opera
+        # donde vende el cliente no le saca clientes. Sin filtro, el país de
+        # origen va primero igual — es donde la competencia duele.
+        pais = empresa.pais or "UY"
+        recorte = {
+            "todos": (f"Priorizá así: primero competidores de {pais} o que "
+                      f"operen en {pais}, después los regionales de "
+                      "Latinoamérica, y recién al final los globales — y sólo "
+                      f"si de verdad venden en el mercado de {pais}."),
+            "local": (f"SOLO competidores que operen en {pais}: locales o "
+                      f"internacionales con presencia real en {pais}. Ninguno "
+                      "que no le pueda sacar un cliente ahí."),
+            "latam": ("SOLO competidores que operen en Latinoamérica: locales "
+                      "de la región o internacionales con presencia real en "
+                      "ella."),
+            "mundo": ("Competidores del mercado global, fuera de "
+                      "Latinoamérica incluida."),
+        }[self.mercado]
         prompt = (
             "Sos analista de mercado y tenés que identificar COMPETIDORES "
             "DIRECTOS.\n\n"
@@ -232,8 +253,10 @@ class ProveedorLLM(Proveedor):
             "concreto vende esta empresa y a qué tipo de cliente. Después listá "
             "hasta 12 competidores DIRECTOS, reales y verificables: empresas que "
             "venden ESE MISMO tipo de producto o servicio a un cliente "
-            "comparable. NO incluyas empresas de rubros vecinos, proveedores, "
-            "clientes del rubro ni marketplaces genéricos. "
+            "comparable. La prueba: un cliente podría contratar a esta empresa "
+            "O al competidor para resolver el mismo problema. NO incluyas "
+            "empresas de rubros vecinos, proveedores, clientes del rubro ni "
+            f"marketplaces genéricos.\n{recorte}\n"
             "Devolvé SOLO un array JSON, sin texto alrededor, con objetos: "
             '{"dominio": "ejemplo.com", "nombre": "Ejemplo", "posicionamiento": '
             '"una frase", "pais": "US", "solapamiento": 0.0-1.0} — el '
@@ -256,30 +279,70 @@ class ProveedorLLM(Proveedor):
             ))
         return sorted(salida, key=lambda c: -c.solapamiento)
 
-    # Fase 3 · campañas — se apoya en la estructura de olas del demo y sólo
-    # le pide al modelo el ángulo del mensaje, que es lo que aporta valor.
+    # Fase 3 · campañas — antes sólo se le pedía el ángulo al modelo y los
+    # sectores/dolores salían del catálogo demo (que es de cobranzas): a una
+    # inmobiliaria le aparecían campañas de "cuotas vencidas". Ahora el modelo
+    # define sector, dolor y ángulo desde el producto REAL; la estructura de
+    # olas (niveles, países, prioridad) sigue siendo la de siempre.
     def campanas(self, empresa: Empresa, competidores: list[Competidor]) -> list[Campana]:
-        base = self._demo.campanas(empresa, competidores)
-        resumen = [{"id": c.id, "sector": c.sector, "nivel": c.nivel,
-                    "idioma": c.idioma, "dolor": c.dolor} for c in base]
+        from .demo import SECTORES_POR_NIVEL, _slug
+
+        olas = list(geo.orden_de_olas())
+        pedido = [{"nivel": nivel, "campanas": SECTORES_POR_NIVEL[nivel],
+                   "idioma": {"local": "es", "latam": "es", "mundo": "en"}[nivel]}
+                  for nivel, _prioridad, _codigos in olas]
+        rivales = "; ".join(f"{c.nombre} ({c.posicionamiento})"
+                            for c in competidores[:6] if c.nombre)
         prompt = (
-            f"Producto: {empresa.nombre} — {empresa.propuesta}\n"
-            f"Diferenciales: {'; '.join(empresa.diferenciales)}\n\n"
-            f"Para cada campaña de esta lista escribí un ángulo comercial de UNA frase, "
-            f"en el idioma indicado en el campo `idioma`, concreto y sin superlativos:\n"
-            f"{json.dumps(resumen, ensure_ascii=False)}\n\n"
-            'Devolvé SOLO un array JSON: [{"id": "...", "angulo": "..."}]'
+            f"{self._contexto_producto(empresa)}\n\n"
+            + (f"Competidores directos ya identificados: {rivales}\n\n" if rivales else "")
+            + "Definí campañas de salida al mercado para ESTE producto. Para "
+            "cada recorte de esta lista, la cantidad indicada de campañas:\n"
+            f"{json.dumps(pedido, ensure_ascii=False)}\n"
+            "(local = el país de la empresa, latam = Latinoamérica, mundo = "
+            "resto del mundo)\n\n"
+            "Cada campaña: `sector` = tipo concreto de organización que COMPRA "
+            "este producto (no rubros vecinos), `dolor` = el problema de ese "
+            "sector que este producto resuelve, `angulo` = UNA frase comercial "
+            "concreta y sin superlativos. Todo en el `idioma` del recorte. "
+            "Devolvé SOLO un array JSON: "
+            '[{"nivel": "local", "sector": "...", "dolor": "...", "angulo": "..."}]'
         )
-        try:
-            datos = _json_del_texto(self._pedir(prompt, 8000))
-        except ErrorLLM:
-            return base                                  # el ángulo del demo alcanza
-        angulos = {str(d.get("id")): str(d.get("angulo", "")).strip()
-                   for d in datos if isinstance(d, dict)}
-        for c in base:
-            if angulos.get(c.id):
-                c.angulo = angulos[c.id]
-        return base
+        datos = _json_del_texto(self._pedir(prompt, 8000))
+        por_ola = {nivel: (prioridad, codigos) for nivel, prioridad, codigos in olas}
+        prueba = (empresa.diferenciales or [""])[0]
+        salida: list[Campana] = []
+        vistos: set[str] = set()
+        for c in datos if isinstance(datos, list) else []:
+            if not isinstance(c, dict):
+                continue
+            nivel = str(c.get("nivel", "")).strip().lower()
+            sector = str(c.get("sector", "")).strip()
+            if nivel not in por_ola or not sector:
+                continue
+            cid = f"{nivel}-{_slug(sector)[:24]}"
+            if cid in vistos:
+                continue
+            vistos.add(cid)
+            prioridad, codigos = por_ola[nivel]
+            idioma = {"local": "es", "latam": "es", "mundo": "en"}[nivel]
+            salida.append(Campana(
+                id=cid,
+                nombre=f"{sector} · {nivel.upper()}",
+                sector=sector,
+                nivel=nivel,
+                prioridad=prioridad,
+                paises=codigos,
+                angulo=str(c.get("angulo", "")).strip(),
+                dolor=str(c.get("dolor", "")).strip(),
+                prueba=prueba,
+                idioma=idioma,
+            ))
+        # Sin campañas útiles se deja subir el error: la cadena cae al demo
+        # (que al menos es coherente consigo mismo) y el aviso explica por qué.
+        if not salida:
+            raise ErrorLLM("El modelo no devolvió campañas utilizables")
+        return salida
 
     # Fase 4 · empresas objetivo reales
     def prospectos(self, empresa: Empresa, campanas: list[Campana],

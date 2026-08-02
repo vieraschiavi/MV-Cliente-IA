@@ -238,6 +238,84 @@ def test_una_corrida_con_clave_openai_falsa_termina_con_aviso(monkeypatch):
     assert not any("sk-falsa" in a for a in c.avisos)
 
 
+def test_empresa_real_no_lleva_persona_ni_correo_inventado():
+    """Cuando la IA trae una empresa REAL, la fase 5 no le fabrica un nombre
+    ni una casilla (un correo inventado sobre un dominio real puede caer en
+    una persona real). Entrega el cargo y la búsqueda de LinkedIn armada."""
+    from cliente_ia.modelos import Prospecto
+    from cliente_ia.proveedores.demo import ProveedorDemo
+
+    demo = ProveedorDemo("es")
+    real = Prospecto(id="p0001", nombre="Empresa Real SA", dominio="empresareal.com.uy",
+                     sector="Software B2B y servicios profesionales", pais="UY",
+                     ciudad="Montevideo", empleados=50, descripcion="", senales=[],
+                     dolor="x", campana_id="local-saas_b2b", nivel="local",
+                     prioridad=1, idioma="es", sintetico=False, fuente="llm")
+    decisores = demo.decisores([real], 3)
+    assert decisores, "tiene que proponer cargos igual"
+    for d in decisores:
+        assert d.nombre == ""
+        assert d.email == ""
+        assert "linkedin.com/search" in d.linkedin
+        assert not d.sintetico
+        assert d.cargo
+
+
+def test_decisores_sinteticos_no_repiten_nombre():
+    """Dos empresas distintas sacaban el mismo «Federico Quintana» por choque
+    de semillas y la lista entera parecía inventada a mano."""
+    c = pipeline.ejecutar("mvkobranzaia.com", modo="demo", limite_prospectos=40)
+    nombres = [d.nombre for d in c.decisores if d.nombre]
+    assert len(nombres) == len(set(nombres)), "hay nombres repetidos"
+
+
+def test_correo_de_empresa_real_saluda_con_hueco_no_vacio():
+    from cliente_ia import redaccion
+    from cliente_ia.modelos import Decisor, Prospecto
+    from cliente_ia.proveedores.demo import ProveedorDemo
+
+    empresa = ProveedorDemo("es").investigar("mvkobranzaia.com")
+    p = Prospecto(id="p0001", nombre="Empresa Real SA", dominio="empresareal.com.uy",
+                  sector="Software B2B", pais="UY", ciudad="Montevideo",
+                  empleados=50, descripcion="", senales=["crece"], dolor="x",
+                  campana_id="local-saas_b2b", nivel="local", prioridad=1,
+                  idioma="es", sintetico=False, fuente="llm")
+    d = Decisor(id="d00001", prospecto_id="p0001", nombre="", cargo="Head of Growth",
+                empresa=p.nombre, pais="UY", email="", linkedin="https://x",
+                seniority="director", idioma="es", sintetico=False, fuente="llm")
+    correo = redaccion.redactar(d, p, empresa, None, firma="MV")
+    assert "[nombre]" in correo.cuerpo
+    assert "Hola :" not in correo.cuerpo
+    assert correo.para == ""
+
+
+def test_proyeccion_financiera_es_matematica_declarada():
+    """La proyección sale SOLO de los números del usuario: escenarios con
+    multiplicadores fijos y a la vista, meses 3-24, y con ads entran
+    gasto_ads/CAC clientes más por mes."""
+    from cliente_ia import analisis
+
+    r = analisis.proyectar(precio=100, nuevos_por_mes=2, churn_pct=5,
+                           gasto_fijo=500, costo_por_cliente=10,
+                           gasto_ads=300, cac=150)
+    assert r["supuestos"] == analisis.SUPUESTOS
+    for escenario in ("pesimista", "base", "optimista"):
+        for modo in ("sin_ads", "con_ads"):
+            filas = r["escenarios"][escenario][modo]["filas"]
+            assert [f["mes"] for f in filas] == [3, 6, 9, 12, 18, 24]
+    # Con ads siempre hay al menos los mismos clientes que sin ads.
+    base = r["escenarios"]["base"]
+    for sin_f, con_f in zip(base["sin_ads"]["filas"], base["con_ads"]["filas"],
+                            strict=True):
+        assert con_f["clientes"] >= sin_f["clientes"]
+    # El optimista termina con más clientes que el pesimista.
+    assert (r["escenarios"]["optimista"]["sin_ads"]["filas"][-1]["clientes"]
+            > r["escenarios"]["pesimista"]["sin_ads"]["filas"][-1]["clientes"])
+    # Aritmética de una fila: neto = ingresos - gastos.
+    f = base["con_ads"]["filas"][0]
+    assert f["neto_mes"] == f["ingresos"] - f["gastos"]
+
+
 def test_el_error_http_del_proveedor_no_repite_la_clave(monkeypatch):
     """OpenAI repite la clave entera en su mensaje de 401. Ese texto termina
     en los avisos de la corrida (que se guardan) y en el log del servidor,

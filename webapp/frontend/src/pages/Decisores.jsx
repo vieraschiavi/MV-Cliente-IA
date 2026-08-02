@@ -17,11 +17,19 @@ export default function Decisores() {
       render: (d) => <b className="tnum" style={{ color: "var(--green-deep)" }}>{fmtScore(d.score)}</b> },
     { id: "ola", titulo: t("tabla.ola"),
       render: (d) => (d.prospecto ? <Ola nivel={d.prospecto.nivel} /> : "—") },
-    { id: "decisor", titulo: t("tabla.decisor"), render: (d) => d.nombre },
+    { id: "decisor", titulo: t("tabla.decisor"),
+      // Empresa real → no se inventa la persona: se muestra la búsqueda de
+      // LinkedIn armada con el cargo. Sintético → el nombre con su marca.
+      render: (d) => (d.nombre
+        ? <>{d.nombre} {d.sintetico ? <span className="pill mundo">{t("decisores.sintetico")}</span> : null}</>
+        : (d.linkedin
+            ? <a href={d.linkedin} target="_blank" rel="noreferrer">{t("decisores.buscar_linkedin")}</a>
+            : "—")) },
     { id: "cargo", titulo: t("tabla.cargo"), render: (d) => d.cargo },
     { id: "empresa", titulo: t("tabla.empresa"), render: (d) => d.empresa },
     { id: "pais", titulo: t("tabla.pais"), render: (d) => d.pais },
-    { id: "email", titulo: t("tabla.email"), render: (d) => d.email },
+    { id: "email", titulo: t("tabla.email"),
+      render: (d) => d.email || <span className="nota" style={{ margin: 0 }}>{t("decisores.sin_correo")}</span> },
     { id: "idioma", titulo: t("tabla.idioma"), render: (d) => <Idioma codigo={d.idioma} /> },
   ];
 

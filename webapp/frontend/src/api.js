@@ -72,6 +72,23 @@ export function setEndpointIA(url) {
   else localStorage.removeItem(KEY_ENDPOINT_IA);
 }
 
+// Configuración SMTP para el envío real de correos. Vive en el navegador del
+// usuario; las credenciales viajan sólo dentro de cada envío y el servidor
+// las usa y las descarta (misma política que la clave de IA).
+const KEY_SMTP = "mvcliente_smtp";
+
+export function getSmtp() {
+  try {
+    return JSON.parse(localStorage.getItem(KEY_SMTP)) || null;
+  } catch {
+    return null;
+  }
+}
+export function setSmtp(cfg) {
+  if (cfg && cfg.host && cfg.usuario) localStorage.setItem(KEY_SMTP, JSON.stringify(cfg));
+  else localStorage.removeItem(KEY_SMTP);
+}
+
 export function getOwner() {
   return localStorage.getItem(KEY_OWNER) || "";
 }

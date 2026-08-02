@@ -104,7 +104,7 @@ def ejecutar(dominio: str,
     # La clave de la interfaz vive lo que dura esta llamada: no entra en la
     # corrida, ni en el disco, ni en ningún log.
     proveedor = proveedores.construir(modo, corrida.idioma_ui, clave_ia,
-                                      proveedor_ia, endpoint_ia)
+                                      proveedor_ia, endpoint_ia, mercado)
 
     try:
         # --- Fase 1 · investigar la empresa -----------------------------

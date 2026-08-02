@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-
 import { api, getToken, setToken } from "./api.js";
 import { IDIOMAS, cambiarIdioma, getIdioma, t } from "./i18n/index.js";
 
+import Analisis from "./pages/Analisis.jsx";
 import Correos from "./pages/Correos.jsx";
 import Configuracion from "./pages/Configuracion.jsx";
 import Decisores from "./pages/Decisores.jsx";
@@ -16,6 +17,7 @@ const NAV = [
   { ruta: "/prospectos", ico: "🎯", clave: "nav.prospectos" },
   { ruta: "/decisores", ico: "📇", clave: "nav.decisores" },
   { ruta: "/correos", ico: "✉️", clave: "nav.correos" },
+  { ruta: "/analisis", ico: "📊", clave: "nav.analisis" },
   { ruta: "/historial", ico: "🕘", clave: "nav.historial" },
   { ruta: "/configuracion", ico: "⚙️", clave: "nav.configuracion" },
 ];
@@ -129,6 +131,7 @@ export default function App() {
           <Route path="/prospectos" element={<Prospectos />} />
           <Route path="/decisores" element={<Decisores />} />
           <Route path="/correos" element={<Correos />} />
+          <Route path="/analisis" element={<Analisis />} />
           <Route path="/historial" element={<Historial />} />
           <Route path="/configuracion" element={<Configuracion onSalir={() => setToken(null)} />} />
           <Route path="*" element={<Navigate to="/" replace />} />

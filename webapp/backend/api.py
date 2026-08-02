@@ -35,6 +35,7 @@ Dos modos de ejecución
 """
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
 import json
@@ -290,6 +291,159 @@ def checkout(datos: CheckoutIn, request: Request):
     if not url:
         raise HTTPException(502, "MercadoPago no devolvió la URL de pago")
     return {"url": url}
+
+
+class AnalisisIn(BaseModel):
+    """Entrada de la pestaña Análisis. La empresa y los competidores vienen
+    de la corrida que el navegador ya tiene; los números financieros los
+    escribe el usuario y son la única fuente de la proyección."""
+    empresa: dict = Field(default_factory=dict)
+    competidores: list[dict] = Field(default_factory=list)
+    mercado: str = "todos"
+    idioma: str = "es"
+    # Todo en la misma moneda (la que el usuario use en su negocio).
+    precio: float = Field(ge=0)                    # por cliente, por mes
+    clientes_iniciales: float = Field(default=0, ge=0)
+    nuevos_por_mes: float = Field(default=0, ge=0)  # sin publicidad
+    churn_pct: float = Field(default=0, ge=0, le=100)
+    gasto_fijo: float = Field(default=0, ge=0)     # mensual
+    costo_por_cliente: float = Field(default=0, ge=0)
+    gasto_ads: float = Field(default=0, ge=0)      # mensual
+    cac: float = Field(default=0, ge=0)            # costo por cliente vía ads
+    clave_ia: str = Field(default="", max_length=300)
+    proveedor_ia: str = "claude"
+    endpoint_ia: str = Field(default="", max_length=500)
+
+
+@app.post("/api/analisis", dependencies=[Depends(requiere_auth)])
+def analizar(entrada: AnalisisIn, request: Request):
+    """Proyección financiera (matemática pura sobre los números del usuario)
+    + análisis cualitativo con IA (probabilidad de éxito, mercado potencial,
+    FODA de la competencia). La parte con IA usa la clave del usuario — sin
+    clave no se inventa: vuelve vacía con su aviso."""
+    from cliente_ia import analisis as motor_analisis
+
+    financiero = motor_analisis.proyectar(
+        precio=entrada.precio, nuevos_por_mes=entrada.nuevos_por_mes,
+        churn_pct=entrada.churn_pct, gasto_fijo=entrada.gasto_fijo,
+        costo_por_cliente=entrada.costo_por_cliente,
+        gasto_ads=entrada.gasto_ads, cac=entrada.cac,
+        clientes_iniciales=entrada.clientes_iniciales)
+
+    cualitativo, avisos = None, []
+    from cliente_ia.proveedores.llm import ErrorLLM, ProveedorLLM, hay_clave
+    # La clave del usuario manda; la del servidor sólo la usa el dueño (si
+    # no, cualquiera quemaría el crédito del servidor desde esta ruta).
+    con_clave = bool(entrada.clave_ia) or (_es_owner(request) and hay_clave())
+    if not con_clave:
+        avisos.append("analisis_sin_clave")
+    else:
+        try:
+            llm = ProveedorLLM(entrada.idioma, clave=entrada.clave_ia,
+                               proveedor=entrada.proveedor_ia if entrada.clave_ia
+                               else "claude",
+                               endpoint=entrada.endpoint_ia,
+                               mercado=entrada.mercado)
+            cualitativo = motor_analisis.cualitativo(
+                llm, entrada.empresa, entrada.competidores,
+                entrada.mercado, entrada.idioma)
+        except ErrorLLM as e:
+            avisos.append(str(e))
+    return {"financiero": financiero, "cualitativo": cualitativo,
+            "avisos": avisos}
+
+
+class SmtpIn(BaseModel):
+    """Credenciales SMTP del usuario. Misma política que la clave de IA:
+    viajan en esta petición, se usan y se descartan — nunca se guardan ni
+    se escriben en un log del servidor."""
+    host: str = Field(min_length=3, max_length=200)
+    puerto: int = Field(default=587, ge=1, le=65535)
+    usuario: str = Field(min_length=3, max_length=200)
+    clave: str = Field(min_length=1, max_length=200)
+    ssl: bool = False                              # True = SSL directo (465)
+
+
+class CorreoEnvioIn(BaseModel):
+    para: str = Field(min_length=5, max_length=200)
+    asunto: str = Field(min_length=1, max_length=300)
+    cuerpo: str = Field(min_length=1, max_length=20000)
+    cuerpo_html: str = Field(default="", max_length=120000)
+
+
+class AdjuntoIn(BaseModel):
+    nombre: str = Field(min_length=1, max_length=120)
+    tipo: str = Field(default="application/octet-stream", max_length=100)
+    # ~5 MB reales; alcanza para un banner o un PDF. Un video no va adjunto
+    # (los filtros de spam lo matan): va como enlace dentro del correo.
+    contenido_b64: str = Field(max_length=7_000_000)
+
+
+class EnvioIn(BaseModel):
+    smtp: SmtpIn
+    remitente: str = Field(default="", max_length=120)   # nombre visible
+    correos: list[CorreoEnvioIn] = Field(min_length=1, max_length=50)
+    adjuntos: list[AdjuntoIn] = Field(default_factory=list, max_length=3)
+
+
+@app.post("/api/enviar", dependencies=[Depends(requiere_auth)])
+def enviar_correos(entrada: EnvioIn):
+    """Envía los correos generados por el SMTP del usuario (su casilla
+    corporativa o personal). Devuelve el resultado por destinatario: un
+    rebote no frena a los demás."""
+    import smtplib
+    import ssl as modulo_ssl
+    from email.message import EmailMessage
+    from email.utils import formataddr
+
+    try:
+        if entrada.smtp.ssl:
+            servidor = smtplib.SMTP_SSL(entrada.smtp.host, entrada.smtp.puerto,
+                                        timeout=30)
+        else:
+            servidor = smtplib.SMTP(entrada.smtp.host, entrada.smtp.puerto,
+                                    timeout=30)
+            servidor.starttls(context=modulo_ssl.create_default_context())
+        servidor.login(entrada.smtp.usuario, entrada.smtp.clave)
+    except Exception as e:                              # noqa: BLE001
+        # Tipo y mensaje del servidor SMTP: nunca la clave.
+        raise HTTPException(
+            502, f"No se pudo conectar al SMTP: {type(e).__name__}: "
+                 f"{str(e)[:200]}") from e
+
+    resultados = []
+    try:
+        for c in entrada.correos:
+            m = EmailMessage()
+            m["From"] = formataddr((entrada.remitente or entrada.smtp.usuario,
+                                    entrada.smtp.usuario))
+            m["To"] = c.para
+            m["Subject"] = c.asunto
+            m.set_content(c.cuerpo)
+            if c.cuerpo_html:
+                m.add_alternative(c.cuerpo_html, subtype="html")
+            for a in entrada.adjuntos:
+                try:
+                    datos = base64.b64decode(a.contenido_b64)
+                except Exception:                        # noqa: BLE001
+                    continue
+                tipo, _, subtipo = (a.tipo or "application/octet-stream").partition("/")
+                m.add_attachment(datos, maintype=tipo or "application",
+                                 subtype=subtipo or "octet-stream",
+                                 filename=a.nombre)
+            try:
+                servidor.send_message(m)
+                resultados.append({"para": c.para, "ok": True, "detalle": ""})
+            except Exception as e:                       # noqa: BLE001
+                resultados.append({"para": c.para, "ok": False,
+                                   "detalle": f"{type(e).__name__}: {str(e)[:200]}"})
+    finally:
+        try:
+            servidor.quit()
+        except Exception:                                # noqa: BLE001
+            pass
+    return {"resultados": resultados,
+            "enviados": sum(1 for r in resultados if r["ok"])}
 
 
 @app.get("/api/geo")

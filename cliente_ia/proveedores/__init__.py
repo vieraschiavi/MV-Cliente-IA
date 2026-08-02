@@ -24,11 +24,12 @@ MODOS = ("demo", "web", "llm")
 
 def construir(modo: str = "demo", idioma_base: str = "es",
               clave_ia: str = "", proveedor_ia: str = "claude",
-              endpoint_ia: str = "") -> Proveedor:
+              endpoint_ia: str = "", mercado: str = "todos") -> Proveedor:
     """`clave_ia` es la clave que el usuario pegó en la interfaz: vale para
     esta corrida y nada más. Nunca se guarda ni se escribe en un log.
     `proveedor_ia` elige el modelo detrás: claude, openai, gemini o copilot
-    (Azure OpenAI, que además necesita `endpoint_ia`)."""
+    (Azure OpenAI, que además necesita `endpoint_ia`). `mercado` viaja al LLM
+    para que la competencia se busque donde de verdad se compite."""
     modo = (modo or "demo").lower()
     if modo not in MODOS:
         raise ValueError(f"Modo desconocido: {modo} (esperaba uno de {MODOS})")
@@ -46,7 +47,7 @@ def construir(modo: str = "demo", idioma_base: str = "es",
         return ProveedorEncadenado(web, demo)
     llm = ProveedorLLM(idioma_base, clave=clave_ia,
                        proveedor=proveedor_ia if clave_ia else "claude",
-                       endpoint=endpoint_ia)
+                       endpoint=endpoint_ia, mercado=mercado)
     return ProveedorEncadenado(web, llm, demo)
 
 

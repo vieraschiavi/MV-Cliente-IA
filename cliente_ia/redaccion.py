@@ -375,8 +375,12 @@ def redactar(decisor: Decisor, prospecto: Prospecto, empresa: Empresa,
     landing_li = enlaces.landing(idioma, prospecto.campana_id, prospecto.id, "linkedin")
     video_li = enlaces.video(idioma, prospecto.campana_id, prospecto.id, "linkedin")
 
+    # Los decisores de empresas reales viajan sin nombre (no se inventan
+    # personas): el saludo lleva un hueco explícito para completar cuando se
+    # encuentre a la persona en LinkedIn, no un "Hola :" mudo.
+    hueco_nombre = {"es": "[nombre]", "pt": "[nome]", "en": "[name]"}[idioma]
     contexto = {
-        "nombre_pila": decisor.nombre.split()[0],
+        "nombre_pila": decisor.nombre.split()[0] if decisor.nombre else hueco_nombre,
         "empresa_prospecto": prospecto.nombre,
         "sector_min": _minuscula_inicial(prospecto.sector),
         "senal": senal,

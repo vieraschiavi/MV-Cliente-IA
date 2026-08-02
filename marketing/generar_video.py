@@ -13,7 +13,7 @@ No se versiona un video "a mano": igual que la landing y los banners, si hay
 que cambiar algo se cambia acá y se regenera, porque tres videos editados por
 separado se desincronizan a la primera corrección.
 
-Además de requirements-dev necesita: `gTTS` (locución; usa la red),
+Además de requirements-dev necesita: `edge-tts` (locución neural; usa la red),
 `playwright` (capturas; usa el Chromium del sistema, no descarga nada) e
 `imageio-ffmpeg` (un ffmpeg completo con H.264/AAC — el de Playwright sólo
 sabe VP8). Ninguna se importa arriba del todo: son opcionales y el resto de
@@ -52,17 +52,20 @@ ESCENAS = ("portada", "explorar", "prospectos", "decisores",
 GUION: dict[str, dict] = {
     "es": {
         "marca": ("MV CLIENTE", "IA"),
-        "tts": {"lang": "es"},
+        # Voz neural de Microsoft (edge-tts): es-UY = rioplatense, la misma
+        # familia de voz que usa MV Kobra AI. gTTS quedó atrás: sonaba a
+        # traductor, no a persona.
+        "voz_neural": "es-UY-MateoNeural",
         "portada_sub": "Pegá el enlace de tu producto.\nEl agente sale a buscar tus clientes.",
-        "cierre_sub": "Uruguay primero · LATAM · resto del mundo",
+        "cierre_sub": "Buscá · Contactá · Cerrá",
         "voz": {
             "portada": "MV Cliente IA. Pegá el enlace de tu producto, "
                        "y el agente sale a buscar tus clientes.",
             "explorar": "Seis fases automáticas: investiga tu producto, mapea la "
                         "competencia, arma las campañas, encuentra empresas, ubica "
                         "a los decisores y escribe los correos.",
-            "prospectos": "La lista llega priorizada: Uruguay primero, después "
-                          "América Latina, después el resto del mundo.",
+            "prospectos": "La lista llega ordenada por probabilidad de cierre, "
+                          "con las señales de por qué contactar a cada empresa.",
             "decisores": "De cada empresa, los cargos que deciden, cada uno con su idioma.",
             "correo_texto": "Los correos salen personalizados y en el idioma del país "
                             "de quien los recibe: español, portugués o inglés.",
@@ -74,17 +77,17 @@ GUION: dict[str, dict] = {
     },
     "pt": {
         "marca": ("MV CLIENTE", "IA"),
-        "tts": {"lang": "pt", "tld": "com.br"},
+        "voz_neural": "pt-BR-AntonioNeural",
         "portada_sub": "Cole o link do seu produto.\nO agente sai para buscar seus clientes.",
-        "cierre_sub": "Uruguai primeiro · LATAM · resto do mundo",
+        "cierre_sub": "Busque · Contate · Feche",
         "voz": {
             "portada": "MV Cliente IA. Cole o link do seu produto, "
                        "e o agente sai para buscar os seus clientes.",
             "explorar": "Seis fases automáticas: pesquisa o seu produto, mapeia a "
                         "concorrência, monta as campanhas, encontra empresas, localiza "
                         "os decisores e escreve os e-mails.",
-            "prospectos": "A lista chega priorizada: Uruguai primeiro, depois a "
-                          "América Latina, depois o resto do mundo.",
+            "prospectos": "A lista chega ordenada por probabilidade de fechamento, "
+                          "com os sinais de por que contatar cada empresa.",
             "decisores": "De cada empresa, os cargos que decidem, cada um com o seu idioma.",
             "correo_texto": "Os e-mails saem personalizados e no idioma do país de "
                             "quem recebe: espanhol, português ou inglês.",
@@ -97,17 +100,17 @@ GUION: dict[str, dict] = {
     },
     "en": {
         "marca": ("MV SearchCostumer", "AI"),
-        "tts": {"lang": "en"},
+        "voz_neural": "en-US-GuyNeural",
         "portada_sub": "Paste your product's link.\nThe agent goes out to find your customers.",
-        "cierre_sub": "Uruguay first · LATAM · rest of the world",
+        "cierre_sub": "Find · Reach · Close",
         "voz": {
             "portada": "MV SearchCostumer AI. Paste your product's link, "
                        "and the agent goes out to find your customers.",
             "explorar": "Six automatic phases: it researches your product, maps the "
                         "competition, builds the campaigns, finds companies, locates "
                         "the decision makers and writes the emails.",
-            "prospectos": "The list arrives prioritized: Uruguay first, then Latin "
-                          "America, then the rest of the world.",
+            "prospectos": "The list arrives ranked by likelihood to close, with "
+                          "the signals for why to contact each company.",
             "decisores": "For each company, the roles that decide, each with their language.",
             "correo_texto": "Emails go out personalized, in the language of the "
                             "recipient's country: Spanish, Portuguese or English.",
@@ -263,9 +266,21 @@ def _ffmpeg() -> str:
     return imageio_ffmpeg.get_ffmpeg_exe()
 
 def _locucion(idioma: str, escena: str, destino: Path) -> Path:
-    from gtts import gTTS
+    """Voz neural por edge-tts (es-UY para el rioplatense, pt-BR y en-US
+    nativas). El mp3 sale con la duración exacta de la locución: la escena
+    dura eso más el respiro, así el audio nunca corre detrás de la imagen."""
+    import asyncio
+
+    import edge_tts
+
     t = GUION[idioma]
-    gTTS(t["voz"][escena], **t["tts"]).save(str(destino))
+
+    async def _generar():
+        await edge_tts.Communicate(t["voz"][escena], t["voz_neural"]).save(str(destino))
+
+    asyncio.run(_generar())
+    if not destino.exists() or destino.stat().st_size < 1000:
+        raise RuntimeError(f"La locución de {idioma}/{escena} salió vacía")
     return destino
 
 

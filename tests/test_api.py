@@ -76,6 +76,67 @@ def test_corrida_inexistente_da_404(cliente):
     assert cliente.get("/api/corridas/noexiste").status_code == 404
 
 
+def test_analisis_sin_clave_da_numeros_pero_no_inventa_lo_cualitativo(cliente):
+    r = cliente.post("/api/analisis", json={
+        "empresa": {"nombre": "X", "dominio": "x.com", "pais": "UY"},
+        "precio": 100, "nuevos_por_mes": 2, "churn_pct": 5, "gasto_fijo": 500,
+    })
+    assert r.status_code == 200
+    d = r.json()
+    assert d["financiero"]["escenarios"]["base"]["sin_ads"]["filas"]
+    assert d["cualitativo"] is None
+    assert "analisis_sin_clave" in d["avisos"]
+
+
+def test_enviar_correos_usa_el_smtp_del_usuario(cliente, monkeypatch):
+    """El envío real sale por la casilla del usuario; un destinatario que
+    rebota no frena a los demás y las credenciales no quedan en el resultado."""
+    import smtplib
+
+    mandados = []
+
+    class SmtpFalso:
+        def __init__(self, host, puerto, timeout=30):
+            assert (host, puerto) == ("smtp.prueba.com", 587)
+
+        def starttls(self, context=None):
+            pass
+
+        def login(self, usuario, clave):
+            assert usuario == "yo@prueba.com"
+
+        def send_message(self, m):
+            if m["To"] == "rebota@x.com":
+                raise smtplib.SMTPRecipientsRefused({m["To"]: (550, b"no")})
+            mandados.append(m)
+
+        def quit(self):
+            pass
+
+    monkeypatch.setattr(smtplib, "SMTP", SmtpFalso)
+    r = cliente.post("/api/enviar", json={
+        "smtp": {"host": "smtp.prueba.com", "puerto": 587,
+                 "usuario": "yo@prueba.com", "clave": "secreta"},
+        "remitente": "MV",
+        "correos": [
+            {"para": "destino@x.com", "asunto": "Hola", "cuerpo": "Cuerpo",
+             "cuerpo_html": "<table><tr><td>hola</td></tr></table>"},
+            {"para": "rebota@x.com", "asunto": "Hola", "cuerpo": "Cuerpo"},
+        ],
+        "adjuntos": [{"nombre": "banner.png", "tipo": "image/png",
+                      "contenido_b64": "aG9sYQ=="}],
+    })
+    assert r.status_code == 200
+    d = r.json()
+    assert d["enviados"] == 1
+    ok = {x["para"]: x["ok"] for x in d["resultados"]}
+    assert ok == {"destino@x.com": True, "rebota@x.com": False}
+    assert "secreta" not in r.text
+    assert len(mandados) == 1
+    adjuntos = [p.get_filename() for p in mandados[0].iter_attachments()]
+    assert adjuntos == ["banner.png"]
+
+
 def test_modo_invalido_se_rechaza(cliente):
     r = cliente.post("/api/corridas", json={"dominio": "x.com", "modo": "magia"})
     assert r.status_code == 422

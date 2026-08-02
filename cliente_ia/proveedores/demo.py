@@ -18,6 +18,7 @@ import json
 import random
 import re
 import unicodedata
+import urllib.parse
 from functools import lru_cache
 from pathlib import Path
 
@@ -340,16 +341,47 @@ class ProveedorDemo(Proveedor):
 
         nombres = self.datos["nombres_persona"]
         salida: list[Decisor] = []
+        # Nombres únicos en toda la corrida: la semilla por dominio hacía que
+        # dos empresas distintas sacaran el mismo "Federico Quintana" y la
+        # lista entera pareciera inventada (lo es, pero no tiene que gritarlo).
+        usados_nombres: set[str] = set()
         for prospecto in prospectos:
             rnd = random.Random(_semilla_de(prospecto.dominio))
             clave = por_nombre.get(prospecto.sector, "saas_b2b")
             cargos = sectores[clave]["cargos"]
             idioma = prospecto.idioma if prospecto.idioma in geo.IDIOMAS else "es"
-            pila = nombres[f"pila_{idioma}"]
-            apellidos = nombres[f"apellido_{idioma}"]
             elegidos = rnd.sample(cargos, min(por_empresa, len(cargos)))
             for cargo in elegidos:
-                nombre = f"{rnd.choice(pila)} {rnd.choice(apellidos)}"
+                if not prospecto.sintetico:
+                    # Empresa REAL (la trajo la IA): acá no se inventa ni un
+                    # nombre ni una casilla — un correo fabricado sobre un
+                    # dominio real puede caer en una persona real, que es
+                    # exactamente lo que este producto no hace. Se entrega el
+                    # cargo a buscar y la búsqueda de LinkedIn armada.
+                    consulta = urllib.parse.quote(f"{cargo} {prospecto.nombre}")
+                    salida.append(Decisor(
+                        id=f"d{len(salida) + 1:05d}",
+                        prospecto_id=prospecto.id,
+                        nombre="",
+                        cargo=cargo,
+                        empresa=prospecto.nombre,
+                        pais=prospecto.pais,
+                        email="",
+                        linkedin="https://www.linkedin.com/search/results/people/"
+                                 f"?keywords={consulta}",
+                        seniority=self._seniority(cargo),
+                        idioma=idioma,
+                        sintetico=False,
+                        fuente=prospecto.fuente,
+                    ))
+                    continue
+                pila = nombres[f"pila_{idioma}"]
+                apellidos = nombres[f"apellido_{idioma}"]
+                for _intento in range(20):
+                    nombre = f"{rnd.choice(pila)} {rnd.choice(apellidos)}"
+                    if nombre not in usados_nombres:
+                        break
+                usados_nombres.add(nombre)
                 usuario = _slug(nombre.split()[0])[:1] + _slug(nombre.split()[-1])
                 salida.append(Decisor(
                     id=f"d{len(salida) + 1:05d}",
