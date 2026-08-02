@@ -158,6 +158,15 @@ def ejecutar(dominio: str,
 
         # --- Fase 5 · encontrar decisores -------------------------------
         with _fase(corrida, "decisores", avisar) as paso:
+            # Antes de los cargos, los contactos PÚBLICOS de cada empresa
+            # real: su sitio dice cómo quiere que la contacten (info@,
+            # teléfono, LinkedIn, Instagram). Nada se inventa.
+            from .proveedores import contactos as mod_contactos
+            con_datos, visitados = mod_contactos.enriquecer(corrida.prospectos)
+            if visitados:
+                corrida.avisos.append(
+                    f"Contactos públicos: {con_datos} de {visitados} empresas "
+                    "reales publican correo, teléfono o redes en su sitio.")
             decisores = proveedor.decisores(corrida.prospectos, decisores_por_empresa)
             por_id = {p.id: p for p in corrida.prospectos}
             for d in decisores:

@@ -21,6 +21,21 @@ export default function Prospectos() {
     { id: "empleados", titulo: t("tabla.empleados"),
       render: (p) => <span className="tnum">{p.empleados || "—"}</span> },
     { id: "dominio", titulo: t("tabla.dominio"), render: (p) => p.dominio },
+    { id: "contacto", titulo: t("tabla.contacto"),
+      // Contactos PÚBLICOS leídos del sitio de la empresa real; los
+      // sintéticos no tienen (sus dominios no existen).
+      render: (p) => {
+        const c = p.contactos || {};
+        const enlaces = [
+          c.email ? <a key="m" href={`mailto:${c.email}`} title={c.email}>✉ {c.email}</a> : null,
+          c.telefono ? <a key="t" href={`tel:${c.telefono}`}>☎ {c.telefono}</a> : null,
+          c.linkedin ? <a key="l" href={c.linkedin} target="_blank" rel="noreferrer">LinkedIn</a> : null,
+          c.instagram ? <a key="i" href={c.instagram} target="_blank" rel="noreferrer">Instagram</a> : null,
+        ].filter(Boolean);
+        return enlaces.length
+          ? <span style={{ display: "inline-flex", gap: 10, flexWrap: "wrap", whiteSpace: "normal" }}>{enlaces}</span>
+          : "—";
+      } },
     { id: "senales", titulo: t("tabla.senales"),
       render: (p) => <span style={{ whiteSpace: "normal" }}>{(p.senales || []).join(" · ")}</span> },
   ];

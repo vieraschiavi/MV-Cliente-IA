@@ -121,6 +121,10 @@ class Prospecto:
     idioma: str = "es"
     sintetico: bool = True
     fuente: str = "demo"
+    # Contactos PÚBLICOS leídos del propio sitio de la empresa (sólo reales):
+    # {email, emails, telefono, linkedin, instagram, web}. Lo que la empresa
+    # no publica, no está — acá no se adivina nada.
+    contactos: dict = field(default_factory=dict)
 
     def a_dict(self) -> dict:
         return asdict(self)

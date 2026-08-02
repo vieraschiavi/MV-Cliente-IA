@@ -138,12 +138,14 @@
     "creada": "Data",
     "modo": "Origem",
     "estado": "Status",
-    "acciones": "Ações"
+    "acciones": "Ações",
+    "contacto": "Contato público"
   },
   "decisores": {
     "sintetico": "sintético",
     "buscar_linkedin": "Buscar decisor no LinkedIn →",
-    "sin_correo": "Sem e-mail: é uma empresa real e não inventamos caixas de correio. Encontre a pessoa no LinkedIn e complete."
+    "sin_correo": "Sem e-mail: é uma empresa real e não inventamos caixas de correio. Encontre a pessoa no LinkedIn e complete.",
+    "correo_empresa": "e-mail da empresa"
   },
   "correos": {
     "titulo": "E-mails",

@@ -289,6 +289,65 @@ def test_correo_de_empresa_real_saluda_con_hueco_no_vacio():
     assert correo.para == ""
 
 
+def test_contactos_publicos_salen_del_sitio_de_la_empresa(monkeypatch):
+    """El rastreador lee el sitio REAL del prospecto y saca sólo lo publicado:
+    correo comercial del propio dominio primero, teléfono, LinkedIn de
+    empresa e Instagram de perfil (no posts). Basura tipo foo@2x.png, no."""
+    from cliente_ia.proveedores import contactos
+
+    PORTADA = """
+    <html><body>
+      <a href="/contacto">Contacto</a>
+      <img src="logo@2x.png">
+      <a href="https://www.instagram.com/p/abc123/">post</a>
+      <a href="https://www.instagram.com/empresareal.uy">IG</a>
+      <a href="https://www.linkedin.com/company/empresa-real">in</a>
+    </body></html>
+    """
+    CONTACTO = """
+    <html><body>
+      <a href="mailto:info@empresareal.com.uy">Escribinos</a>
+      <p>gerente.personal@gmail.com</p>
+      <a href="tel:+598 99 123 456">Llamanos</a>
+    </body></html>
+    """
+
+    def bajar_falso(url, timeout=5):
+        return CONTACTO if "contacto" in url else PORTADA
+
+    monkeypatch.setattr(contactos, "bajar", bajar_falso)
+    c = contactos.contactos_de("empresareal.com.uy")
+    assert c["email"] == "info@empresareal.com.uy"      # el del dominio, primero
+    assert "gerente.personal@gmail.com" in c["emails"]  # publicado, se lista
+    assert all(not e.endswith(".png") for e in c["emails"])
+    assert c["telefono"] == "+598 99 123 456"
+    assert c["linkedin"] == "https://www.linkedin.com/company/empresa-real"
+    assert c["instagram"] == "https://www.instagram.com/empresareal.uy"
+
+
+def test_el_correo_va_a_la_casilla_publica_de_la_empresa_real():
+    """Sin persona identificada, el destinatario es la casilla comercial que
+    la empresa publica — no una inventada. Sin casilla publicada, vacío."""
+    from cliente_ia import redaccion
+    from cliente_ia.modelos import Decisor, Prospecto
+    from cliente_ia.proveedores.demo import ProveedorDemo
+
+    empresa = ProveedorDemo("es").investigar("mvkobranzaia.com")
+    p = Prospecto(id="p0001", nombre="Empresa Real SA", dominio="empresareal.com.uy",
+                  sector="Software B2B", pais="UY", ciudad="Montevideo",
+                  empleados=50, descripcion="", senales=["crece"], dolor="x",
+                  campana_id="local-saas_b2b", nivel="local", prioridad=1,
+                  idioma="es", sintetico=False, fuente="llm",
+                  contactos={"email": "info@empresareal.com.uy"})
+    d = Decisor(id="d00001", prospecto_id="p0001", nombre="", cargo="CEO",
+                empresa=p.nombre, pais="UY", email="", linkedin="https://x",
+                seniority="c-level", idioma="es", sintetico=False, fuente="llm")
+    correo = redaccion.redactar(d, p, empresa, None, firma="MV")
+    assert correo.para == "info@empresareal.com.uy"
+    p.contactos = {}
+    assert redaccion.redactar(d, p, empresa, None, firma="MV").para == ""
+
+
 def test_proyeccion_financiera_es_matematica_declarada():
     """La proyección sale SOLO de los números del usuario: escenarios con
     multiplicadores fijos y a la vista, meses 3-24, y con ads entran

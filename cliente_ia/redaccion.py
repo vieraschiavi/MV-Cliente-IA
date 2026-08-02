@@ -427,7 +427,11 @@ def redactar(decisor: Decisor, prospecto: Prospecto, empresa: Empresa,
         id=f"e{decisor.id[1:]}",
         decisor_id=decisor.id,
         prospecto_id=prospecto.id,
-        para=decisor.email,
+        # Empresa real sin persona identificada: el destinatario es la casilla
+        # COMERCIAL que la propia empresa publica en su sitio (info@/ventas@)
+        # — escribirle ahí es outreach normal, no una casilla adivinada.
+        para=decisor.email or (prospecto.contactos.get("email", "")
+                               if not prospecto.sintetico else ""),
         idioma=idioma,
         asunto=plantilla["asunto"].format(**contexto),
         cuerpo=cuerpo,

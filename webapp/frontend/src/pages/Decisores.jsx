@@ -29,7 +29,19 @@ export default function Decisores() {
     { id: "empresa", titulo: t("tabla.empresa"), render: (d) => d.empresa },
     { id: "pais", titulo: t("tabla.pais"), render: (d) => d.pais },
     { id: "email", titulo: t("tabla.email"),
-      render: (d) => d.email || <span className="nota" style={{ margin: 0 }}>{t("decisores.sin_correo")}</span> },
+      // Sin persona identificada se muestra la casilla comercial que la
+      // empresa publica en su sitio; si tampoco hay, se explica por qué.
+      render: (d) => {
+        if (d.email) return d.email;
+        const publico = d.prospecto?.contactos?.email;
+        if (publico) {
+          return <>
+            <a href={`mailto:${publico}`}>{publico}</a>{" "}
+            <span className="pill mundo">{t("decisores.correo_empresa")}</span>
+          </>;
+        }
+        return <span className="nota" style={{ margin: 0 }}>{t("decisores.sin_correo")}</span>;
+      } },
     { id: "idioma", titulo: t("tabla.idioma"), render: (d) => <Idioma codigo={d.idioma} /> },
   ];
 

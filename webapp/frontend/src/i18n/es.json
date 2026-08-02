@@ -138,12 +138,14 @@
     "creada": "Fecha",
     "modo": "Origen",
     "estado": "Estado",
-    "acciones": "Acciones"
+    "acciones": "Acciones",
+    "contacto": "Contacto público"
   },
   "decisores": {
     "sintetico": "sintético",
     "buscar_linkedin": "Buscar decisor en LinkedIn →",
-    "sin_correo": "Sin correo: es una empresa real y no inventamos casillas. Encontrá a la persona en LinkedIn y completalo."
+    "sin_correo": "Sin correo: es una empresa real y no inventamos casillas. Encontrá a la persona en LinkedIn y completalo.",
+    "correo_empresa": "correo de la empresa"
   },
   "correos": {
     "titulo": "Correos",
