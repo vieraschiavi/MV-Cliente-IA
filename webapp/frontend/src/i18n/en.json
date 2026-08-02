@@ -146,7 +146,8 @@
     "buscar_linkedin": "Find the decision-maker on LinkedIn →",
     "sin_correo": "No email: this is a real company and we don't make up mailboxes. Find the person on LinkedIn and fill it in.",
     "correo_empresa": "company email",
-    "canales_empresa": "company channels"
+    "canales_empresa": "company channels",
+    "gente_linkedin": "Current people at the company on LinkedIn →"
   },
   "correos": {
     "titulo": "Emails",

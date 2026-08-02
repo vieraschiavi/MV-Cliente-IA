@@ -4,6 +4,8 @@ Es la prueba que responde "¿funciona de punta a punta?".
 """
 from __future__ import annotations
 
+import urllib.parse
+
 from cliente_ia import almacen, exportar, geo, pipeline
 from cliente_ia.modelos import FASES
 
@@ -256,9 +258,20 @@ def test_empresa_real_no_lleva_persona_ni_correo_inventado():
     for d in decisores:
         assert d.nombre == ""
         assert d.email == ""
+        # Sin página de LinkedIn conocida: búsqueda de personas afinada con
+        # cargo + empresa + PAÍS (gente que trabaja ahí, no homónimos).
         assert "linkedin.com/search" in d.linkedin
+        assert "Uruguay" in urllib.parse.unquote(d.linkedin)
         assert not d.sintetico
         assert d.cargo
+
+    # Con la página de LinkedIn de la empresa rastreada, el enlace va
+    # directo a sus empleados ACTUALES filtrados por el cargo.
+    real.contactos = {"linkedin": "https://uy.linkedin.com/company/empresa-real"}
+    con_pagina = demo.decisores([real], 2)
+    for d in con_pagina:
+        assert d.linkedin.startswith(
+            "https://uy.linkedin.com/company/empresa-real/people/?keywords=")
 
 
 def test_decisores_sinteticos_no_repiten_nombre():

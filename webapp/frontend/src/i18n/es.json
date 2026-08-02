@@ -146,7 +146,8 @@
     "buscar_linkedin": "Buscar decisor en LinkedIn →",
     "sin_correo": "Sin correo: es una empresa real y no inventamos casillas. Encontrá a la persona en LinkedIn y completalo.",
     "correo_empresa": "correo de la empresa",
-    "canales_empresa": "canales de la empresa"
+    "canales_empresa": "canales de la empresa",
+    "gente_linkedin": "Gente actual de la empresa en LinkedIn →"
   },
   "correos": {
     "titulo": "Correos",

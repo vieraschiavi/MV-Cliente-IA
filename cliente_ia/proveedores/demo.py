@@ -356,9 +356,22 @@ class ProveedorDemo(Proveedor):
                     # Empresa REAL (la trajo la IA): acá no se inventa ni un
                     # nombre ni una casilla — un correo fabricado sobre un
                     # dominio real puede caer en una persona real, que es
-                    # exactamente lo que este producto no hace. Se entrega el
-                    # cargo a buscar y la búsqueda de LinkedIn armada.
-                    consulta = urllib.parse.quote(f"{cargo} {prospecto.nombre}")
+                    # exactamente lo que este producto no hace. El enlace va
+                    # a la GENTE ACTUAL de la empresa: si el rastreador ya
+                    # encontró su página de LinkedIn, directo a la pestaña de
+                    # empleados filtrada por el cargo (lo más cerca de
+                    # "escribile por acá" que LinkedIn permite); si no, la
+                    # búsqueda de personas con cargo + empresa + país.
+                    lk_empresa = (prospecto.contactos or {}).get("linkedin", "")
+                    if lk_empresa and "/company/" in lk_empresa:
+                        enlace = (lk_empresa.rstrip("/") + "/people/?keywords="
+                                  + urllib.parse.quote(cargo))
+                    else:
+                        pais_nombre = geo.obtener(prospecto.pais).nombre
+                        consulta = urllib.parse.quote(
+                            f"{cargo} {prospecto.nombre} {pais_nombre}")
+                        enlace = ("https://www.linkedin.com/search/results/"
+                                  f"people/?keywords={consulta}")
                     salida.append(Decisor(
                         id=f"d{len(salida) + 1:05d}",
                         prospecto_id=prospecto.id,
@@ -367,8 +380,7 @@ class ProveedorDemo(Proveedor):
                         empresa=prospecto.nombre,
                         pais=prospecto.pais,
                         email="",
-                        linkedin="https://www.linkedin.com/search/results/people/"
-                                 f"?keywords={consulta}",
+                        linkedin=enlace,
                         seniority=self._seniority(cargo),
                         idioma=idioma,
                         sintetico=False,

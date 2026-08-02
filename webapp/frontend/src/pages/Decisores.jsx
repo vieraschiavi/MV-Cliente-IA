@@ -23,7 +23,12 @@ export default function Decisores() {
       render: (d) => (d.nombre
         ? <>{d.nombre} {d.sintetico ? <span className="pill mundo">{t("decisores.sintetico")}</span> : null}</>
         : (d.linkedin
-            ? <a href={d.linkedin} target="_blank" rel="noreferrer">{t("decisores.buscar_linkedin")}</a>
+            ? <a href={d.linkedin} target="_blank" rel="noreferrer">
+                {/* Con la página de la empresa conocida, el enlace lleva a
+                    sus empleados ACTUALES filtrados por el cargo. */}
+                {d.linkedin.includes("/company/")
+                  ? t("decisores.gente_linkedin") : t("decisores.buscar_linkedin")}
+              </a>
             : "—")) },
     { id: "cargo", titulo: t("tabla.cargo"), render: (d) => d.cargo },
     { id: "empresa", titulo: t("tabla.empresa"), render: (d) => d.empresa },
