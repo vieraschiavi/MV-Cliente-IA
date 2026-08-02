@@ -393,6 +393,79 @@ def test_proyeccion_financiera_es_matematica_declarada():
     assert base["sin_ads"]["filas"][0]["gasto_ads"] == 0
 
 
+def test_el_nicho_sale_del_sitio_real_no_del_catalogo(monkeypatch):
+    """El bug: a un producto de text-to-SQL le aparecían los sectores del
+    catálogo demo (cobranzas) — «retail con crédito propio», «mutualistas»—
+    siempre iguales sin importar el producto. Con IA, el perfil se deduce
+    del texto real, y los textos vuelven en los TRES idiomas porque entran
+    a los correos."""
+    import json as jsonmod
+
+    from cliente_ia.proveedores.demo import ProveedorDemo
+    from cliente_ia.proveedores.llm import ProveedorLLM
+
+    empresa = ProveedorDemo("es").investigar("mvsqlnlp.com")
+    empresa.resumen_sitio = "Preguntale a tu base de datos en lenguaje natural."
+    catalogo = list(empresa.sectores_objetivo)
+
+    respuesta = jsonmod.dumps({
+        "categoria": "Text-to-SQL para equipos de datos",
+        "tamano_objetivo": "50-5000 empleados",
+        "sectores_objetivo": ["Fintech y banca digital", "E-commerce",
+                              "Consultoras de datos", "SaaS B2B"],
+        "textos": {
+            "es": {"propuesta": "traduce preguntas en español a SQL validado",
+                   "dolores": ["el equipo espera días por un reporte"],
+                   "diferenciales": ["valida contra el esquema real"]},
+            "pt": {"propuesta": "traduz perguntas em português para SQL validado",
+                   "dolores": ["a equipe espera dias por um relatório"],
+                   "diferenciales": ["valida contra o esquema real"]},
+            "en": {"propuesta": "turns plain questions into validated SQL",
+                   "dolores": ["the team waits days for a report"],
+                   "diferenciales": ["validates against the real schema"]},
+        },
+    })
+    monkeypatch.setattr(ProveedorLLM, "_pedir", lambda self, p, t=8000: respuesta)
+
+    llm = ProveedorLLM(clave="sk-x", proveedor="openai")
+    perfilada = llm.perfilar(empresa)
+
+    assert perfilada.categoria == "Text-to-SQL para equipos de datos"
+    assert perfilada.sectores_objetivo != catalogo
+    assert "Fintech y banca digital" in perfilada.sectores_objetivo
+    # Nada del catálogo de cobranzas sobrevive en el nicho.
+    assert not any("crédito propio" in s or "mutualistas" in s.lower()
+                   for s in perfilada.sectores_objetivo)
+    # Los tres idiomas, completos: es lo que exige la fase 6.
+    for idioma in ("es", "pt", "en"):
+        assert perfilada.textos[idioma]["propuesta"]
+        assert perfilada.textos[idioma]["dolores"]
+        assert perfilada.textos[idioma]["diferenciales"]
+    assert "SQL" in perfilada.textos["pt"]["propuesta"]
+    assert "relatório" in perfilada.textos["pt"]["dolores"][0]
+    # El nombre no se escribe dos veces seguidas en la propuesta.
+    assert perfilada.propuesta.count(perfilada.nombre) == 1
+
+
+def test_sin_sectores_el_perfil_del_catalogo_queda_intacto(monkeypatch):
+    """Medio perfil es peor que el del catálogo: si el modelo no devuelve
+    sectores, se levanta el error (la cadena lo convierte en aviso) y la
+    fase 1 sigue con lo que ya tenía."""
+    from cliente_ia.proveedores.demo import ProveedorDemo
+    from cliente_ia.proveedores.llm import ErrorLLM, ProveedorLLM
+
+    empresa = ProveedorDemo("es").investigar("mvsqlnlp.com")
+    monkeypatch.setattr(ProveedorLLM, "_pedir",
+                        lambda self, p, t=8000: '{"categoria": "Algo"}')
+    llm = ProveedorLLM(clave="sk-x", proveedor="openai")
+    try:
+        llm.perfilar(empresa)
+    except ErrorLLM as e:
+        assert "sectores" in str(e)
+    else:
+        raise AssertionError("sin sectores tenía que fallar")
+
+
 def test_claude_funciona_sin_el_sdk_instalado(monkeypatch):
     """La app de PC no empaqueta `anthropic` (son decenas de MB): sin el SDK,
     Claude tiene que salir igual por la API de mensajes vía REST, o una clave

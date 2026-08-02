@@ -95,6 +95,13 @@ class ProveedorEncadenado(Proveedor):
     def investigar(self, dominio):
         return self._intentar("investigar", dominio)
 
+    def perfilar(self, empresa):
+        """Afina el perfil de la fase 1 (nicho, sectores, dolores) con el
+        texto real del sitio. Sólo el proveedor LLM la implementa; sin IA
+        la cadena levanta NotImplementedError y el pipeline sigue con el
+        perfil del catálogo."""
+        return self._intentar("perfilar", empresa)
+
     def competencia(self, empresa):
         return self._intentar("competencia", empresa)
 

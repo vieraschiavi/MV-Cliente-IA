@@ -229,9 +229,95 @@ class ProveedorLLM(Proveedor):
         return "".join(b.text for b in r.content if getattr(b, "type", "") == "text")
 
     # ------------------------------------------------------------------
-    # Fase 1 — la deja a `ProveedorWeb`/demo: leer el sitio es más fiable
-    # que pedirle al modelo que recuerde una empresa chica.
+    # Fase 1 — la LECTURA del sitio la hace `ProveedorWeb` (es más fiable
+    # que pedirle al modelo que recuerde una empresa chica), pero el PERFIL
+    # lo afina el modelo con ese texto: ver `perfilar`.
     # ------------------------------------------------------------------
+    def perfilar(self, empresa: Empresa) -> Empresa:
+        """Deduce el NICHO REAL del texto del sitio.
+
+        La fase 1 leía bien la propuesta de valor, pero categoría, sectores
+        objetivo, dolores, diferenciales y tamaño de cliente salían del
+        catálogo demo (que es de cobranzas): a un producto de text-to-SQL le
+        aparecían «retail con crédito propio» y «mutualistas», siempre los
+        mismos sin importar el producto.
+
+        Los textos vuelven en los TRES idiomas porque entran a los correos:
+        un correo en portugués con un párrafo en español ya fue una
+        regresión una vez.
+        """
+        prompt = (
+            f"{self._contexto_producto(empresa)}\n\n"
+            "Deducí del texto real del sitio QUÉ vende esta empresa y a "
+            "quién. No uses categorías genéricas tipo «Software B2B»: "
+            "nombrá el nicho concreto. Los sectores objetivo tienen que ser "
+            "los que COMPRAN este producto en particular.\n\n"
+            "Devolvé SOLO un objeto JSON con esta forma exacta:\n"
+            "{\n"
+            '  "categoria": "el nicho concreto, 2-6 palabras",\n'
+            '  "tamano_objetivo": "rango de empleados del cliente típico",\n'
+            '  "sectores_objetivo": ["4 a 6 sectores concretos que compran esto"],\n'
+            '  "textos": {\n'
+            '    "es": {"propuesta": "qué hace, una frase, SIN el nombre de la '
+            'empresa adelante", "dolores": ["3-4 dolores reales del comprador"], '
+            '"diferenciales": ["2-4 diferenciales que el sitio sostenga"]},\n'
+            '    "pt": {"propuesta": "...", "dolores": ["..."], "diferenciales": ["..."]},\n'
+            '    "en": {"propuesta": "...", "dolores": ["..."], "diferenciales": ["..."]}\n'
+            "  }\n"
+            "}\n"
+            "Los tres idiomas dicen LO MISMO, cada uno bien escrito en su "
+            "idioma (no traducción literal). Nada de superlativos ni de "
+            "inventar funciones que el sitio no menciona."
+        )
+        datos = _json_del_texto(self._pedir(prompt, 8000))
+        if not isinstance(datos, dict):
+            raise ErrorLLM("El perfil no volvió con la forma esperada")
+
+        def _lista(x, tope):
+            return [str(i).strip() for i in x if str(i).strip()][:tope] \
+                if isinstance(x, list) else []
+
+        sectores = _lista(datos.get("sectores_objetivo"), 6)
+        if not sectores:
+            # Sin sectores no hay perfil que valga: se deja el del catálogo
+            # y el aviso explica por qué (mejor eso que medio perfil).
+            raise ErrorLLM("El modelo no devolvió sectores objetivo del producto")
+
+        crudos = datos.get("textos") or {}
+        textos = {i: dict(empresa.textos.get(i, {})) for i in geo.IDIOMAS}
+        for idioma in geo.IDIOMAS:
+            de_idioma = crudos.get(idioma)
+            if not isinstance(de_idioma, dict):
+                continue
+            propuesta = str(de_idioma.get("propuesta", "")).strip()
+            if propuesta:
+                # El nombre lo antepone la plantilla del correo; si el modelo
+                # lo puso igual, quedaba escrito dos veces seguidas.
+                if empresa.nombre and propuesta.lower().startswith(empresa.nombre.lower()):
+                    propuesta = propuesta[len(empresa.nombre):].lstrip(" ,:—-")
+                textos[idioma]["propuesta"] = propuesta[0].lower() + propuesta[1:] \
+                    if propuesta else propuesta
+            dolores = _lista(de_idioma.get("dolores"), 4)
+            if dolores:
+                textos[idioma]["dolores"] = dolores
+            difs = _lista(de_idioma.get("diferenciales"), 4)
+            if difs:
+                textos[idioma]["diferenciales"] = difs
+
+        idioma_base = self.idioma_base if self.idioma_base in geo.IDIOMAS else "es"
+        empresa.categoria = str(datos.get("categoria", "")).strip() or empresa.categoria
+        empresa.tamano_objetivo = (str(datos.get("tamano_objetivo", "")).strip()
+                                   or empresa.tamano_objetivo)
+        empresa.sectores_objetivo = sectores
+        empresa.textos = textos
+        base = textos.get(idioma_base, {})
+        empresa.dolores = list(base.get("dolores") or empresa.dolores)
+        empresa.diferenciales = list(base.get("diferenciales") or empresa.diferenciales)
+        if base.get("propuesta"):
+            empresa.propuesta = f"{empresa.nombre} {base['propuesta']}".strip().rstrip(".") + "."
+        empresa.fuente = self.nombre
+        return empresa
+
 
     def _contexto_producto(self, empresa: Empresa) -> str:
         """El producto REAL, con el texto del propio sitio adelante: es la
