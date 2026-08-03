@@ -84,7 +84,12 @@ class ProveedorWeb(Proveedor):
         cuerpo = _sin_html(html)[:6000]
         # La categoría sale del texto real del sitio, no sólo del dominio: es
         # la única diferencia de fondo con el proveedor demo en esta fase.
-        categoria_clave = self._demo.detectar_categoria(f"{dominio} {titulo} {descripcion} {cuerpo}")
+        # Se mira la IDENTIDAD de la página (dominio, título, descripción, h1)
+        # y sólo el arranque del cuerpo: en 6000 caracteres de una app cargada
+        # por JavaScript entra el manifiesto de rutas entero, y ahí cualquier
+        # palabra suelta clasifica mal al producto.
+        prosa = f"{titulo} {descripcion} {_sin_html(h1)} {cuerpo[:600]}"
+        categoria_clave = self._demo.detectar_categoria(prosa, marca=dominio)
         icp = semilla()["icp_por_categoria"][categoria_clave]
         sectores = semilla()["sectores"]
 
@@ -116,8 +121,18 @@ class ProveedorWeb(Proveedor):
         # El texto crudo del sitio viaja en la empresa: es lo que el proveedor
         # LLM usa para razonar sobre el producto REAL (competidores directos,
         # compradores del rubro correcto) en vez de la categoría del catálogo.
-        resumen_sitio = "\n".join(p for p in (
-            titulo, descripcion, _sin_html(h1 or ""), cuerpo[:1500]) if p).strip()[:2000]
+        #
+        # Sin título, sin descripción y sin h1 la página NO describe ningún
+        # producto: es un panel de administración o una app que se dibuja
+        # entera por JavaScript (pasó con una URL de vercel.com/…, que dejó
+        # 1500 caracteres de menú y el modelo perfiló sobre eso). En ese caso
+        # se devuelve vacío a propósito: es la señal de "acá no hay producto
+        # que leer", y vale más que un resumen de navegación.
+        if not (titulo or descripcion or h1):
+            resumen_sitio = ""
+        else:
+            resumen_sitio = "\n".join(p for p in (
+                titulo, descripcion, _sin_html(h1 or ""), cuerpo[:1500]) if p).strip()[:2000]
 
         return Empresa(
             dominio=dominio,

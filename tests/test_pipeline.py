@@ -393,6 +393,45 @@ def test_proyeccion_financiera_es_matematica_declarada():
     assert base["sin_ads"]["filas"][0]["gasto_ads"] == 0
 
 
+def test_una_palabra_suelta_del_html_no_clasifica_el_producto():
+    """El bug: «recovery» matcheaba DENTRO de «accountRecovery» (una ruta del
+    panel de Vercel) y clasificaba el producto como cobranzas. Las pistas se
+    buscan como principio de palabra, no como subcadena."""
+    from cliente_ia.proveedores.demo import CATEGORIA_DEFAULT, ProveedorDemo
+
+    demo = ProveedorDemo("es")
+    ruido = "wellknown accountRecovery api apps atom breadcrumbs claim deployment"
+    assert demo.detectar_categoria(ruido) == CATEGORIA_DEFAULT
+    # Y lo que sí es del rubro se sigue detectando, con y sin acentos.
+    assert demo.detectar_categoria("plataforma de cobranzas") == "cobranzas"
+    assert demo.detectar_categoria("gestão de cobrança") == "cobranzas"
+    assert demo.detectar_categoria("debt recovery software") == "cobranzas"
+
+
+def test_un_panel_sin_descripcion_no_se_perfila_y_lo_dice(monkeypatch):
+    """Una página sin título, descripción ni h1 (un panel, o una app que se
+    dibuja por JavaScript) no describe ningún producto: no se perfila con IA
+    —sería inventar— y la corrida explica qué pasó y qué hacer."""
+    from cliente_ia.proveedores import web as mod_web
+
+    PANEL = "<html><body><div>Skip to content Projects Deployments Logs</div></body></html>"
+    monkeypatch.setattr(mod_web, "bajar", lambda url, timeout=12: PANEL)
+
+    empresa = mod_web.ProveedorWeb("es").investigar("vercel.com/mv13/mv-agendate-ia")
+    assert empresa.resumen_sitio == "", "sin producto que leer, no se finge texto real"
+
+    perfilado = []
+    from cliente_ia.proveedores.base import ProveedorEncadenado
+    monkeypatch.setattr(ProveedorEncadenado, "perfilar",
+                        lambda self, e: perfilado.append(e) or e)
+
+    c = pipeline.ejecutar("vercel.com/mv13/mv-agendate-ia", modo="web",
+                          limite_prospectos=5)
+    assert not perfilado, "no se perfila sobre una página sin producto"
+    assert any("no hay una descripción de tu producto" in a for a in c.avisos)
+    assert any("URL pública" in a for a in c.avisos)
+
+
 def test_el_nicho_sale_del_sitio_real_no_del_catalogo(monkeypatch):
     """El bug: a un producto de text-to-SQL le aparecían los sectores del
     catálogo demo (cobranzas) — «retail con crédito propio», «mutualistas»—

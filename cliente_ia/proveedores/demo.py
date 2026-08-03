@@ -94,10 +94,22 @@ class ProveedorDemo(Proveedor):
     # ------------------------------------------------------------------
     # Fase 1 · investigar la empresa
     # ------------------------------------------------------------------
-    def detectar_categoria(self, texto: str) -> str:
-        t = _slug(texto)
+    def detectar_categoria(self, texto: str, marca: str = "") -> str:
+        """`marca` es el dominio o nombre comercial y se busca como
+        subcadena: las pistas vienen pegadas adentro ("mv**kobra**nzaia").
+        `texto` es prosa del sitio y se busca como PRINCIPIO DE PALABRA: ahí
+        una subcadena suelta clasifica cualquier cosa — "recovery" matcheaba
+        dentro de "accountRecovery" (una ruta del panel de Vercel) y un
+        producto de agenda terminaba clasificado como cobranzas, con
+        competidores de cobranzas y todo."""
+        m = _slug(marca)
+        t = unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode()
+        palabras = re.findall(r"[a-z]+", t.lower())
         for categoria, pistas in PISTAS_CATEGORIA.items():
-            if any(_slug(p) in t for p in pistas):
+            limpias = [_slug(p) for p in pistas]
+            if any(p in m for p in limpias):
+                return categoria
+            if any(w.startswith(p) for w in palabras for p in limpias):
                 return categoria
         return CATEGORIA_DEFAULT
 
@@ -137,7 +149,7 @@ class ProveedorDemo(Proveedor):
 
     def investigar(self, dominio: str) -> Empresa:
         idioma = self.idioma_base
-        categoria = self.detectar_categoria(dominio)
+        categoria = self.detectar_categoria("", dominio)
         icp = self.datos["icp_por_categoria"][categoria]
         sectores = self.datos["sectores"]
 
@@ -165,7 +177,7 @@ class ProveedorDemo(Proveedor):
     # Fase 2 · explorar la competencia
     # ------------------------------------------------------------------
     def competencia(self, empresa: Empresa) -> list[Competidor]:
-        categoria = self.detectar_categoria(empresa.dominio + " " + empresa.categoria)
+        categoria = self.detectar_categoria(empresa.categoria, empresa.dominio)
         icp = self.datos["icp_por_categoria"][categoria]
         salida = [
             Competidor(
@@ -184,7 +196,7 @@ class ProveedorDemo(Proveedor):
     # Fase 3 · definir campañas
     # ------------------------------------------------------------------
     def _claves_sector(self, empresa: Empresa) -> list[str]:
-        categoria = self.detectar_categoria(empresa.dominio + " " + empresa.categoria)
+        categoria = self.detectar_categoria(empresa.categoria, empresa.dominio)
         return list(self.datos["icp_por_categoria"][categoria]["sectores"])
 
     def campanas(self, empresa: Empresa, competidores: list[Competidor]) -> list[Campana]:

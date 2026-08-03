@@ -119,22 +119,34 @@ def ejecutar(dominio: str,
             # Con IA, el NICHO se deduce del sitio real. Sin esto, categoría,
             # sectores, dolores y diferenciales salían del catálogo demo (de
             # cobranzas) y eran los mismos para cualquier producto.
-            try:
-                corrida.empresa = proveedor.perfilar(corrida.empresa)
-            except NotImplementedError:
-                # Sin IA no hay quién deduzca el nicho: se usa el del
-                # catálogo, pero se dice — si no, los mismos cinco sectores
-                # aparecen para cualquier producto y parecen investigados.
-                if modo != "demo":
-                    corrida.avisos.append(
-                        "El nicho y los sectores objetivo son los del catálogo "
-                        "genérico: para deducirlos de tu web hace falta el modo "
-                        "«Investigación con IA» con tu clave.")
-            except Exception:                            # noqa: BLE001
-                # Con IA, el motivo del fallo ya quedó en los errores de la
-                # cadena, que el final de la corrida copia a los avisos. Se
-                # sigue con el perfil del catálogo: es peor no tener fase 1.
-                pass
+            if modo != "demo" and not corrida.empresa.resumen_sitio:
+                # No hay producto que leer en esa dirección: perfilar acá
+                # sería inventar. Un usuario pegó la URL de su panel de
+                # Vercel y le salió un perfil de cobranzas completo, con
+                # competidores de cobranzas y todo.
+                corrida.avisos.append(
+                    "En esa dirección no hay una descripción de tu producto: "
+                    "parece un panel de administración o una página que se "
+                    "dibuja por JavaScript. Pegá la URL pública que ven tus "
+                    "clientes. Mientras tanto el perfil es el del catálogo "
+                    "genérico y no describe tu producto.")
+            else:
+                try:
+                    corrida.empresa = proveedor.perfilar(corrida.empresa)
+                except NotImplementedError:
+                    # Sin IA no hay quién deduzca el nicho: se usa el del
+                    # catálogo, pero se dice — si no, los mismos cinco sectores
+                    # aparecen para cualquier producto y parecen investigados.
+                    if modo != "demo":
+                        corrida.avisos.append(
+                            "El nicho y los sectores objetivo son los del catálogo "
+                            "genérico: para deducirlos de tu web hace falta el modo "
+                            "«Investigación con IA» con tu clave.")
+                except Exception:                        # noqa: BLE001
+                    # Con IA, el motivo del fallo ya quedó en los errores de la
+                    # cadena, que el final de la corrida copia a los avisos. Se
+                    # sigue con el perfil del catálogo: es peor no tener fase 1.
+                    pass
             paso.items = 1
             paso.detalle = corrida.empresa.categoria
 
