@@ -41,11 +41,7 @@
       "installerLanguages": ["es_ES", "pt_BR", "en_US"],
       "multiLanguageInstaller": true,
       "displayLanguageSelector": true,
-      "runAfterFinish": true,
-      "installerSidebar": "build/installerSidebar.bmp",
-      "uninstallerSidebar": "build/uninstallerSidebar.bmp",
-      "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico"
+      "runAfterFinish": true
     },
     "linux": { "target": ["AppImage"], "category": "Office", "icon": "build/icon.png" },
     "copyright": "© MV Cliente IA"
