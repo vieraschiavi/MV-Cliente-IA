@@ -279,7 +279,15 @@ class ProveedorDemo(Proveedor):
                 if cantidad <= 0:
                     continue
                 clave_sector = campana.id.split("-", 1)[1]
-                sec = sectores[clave_sector]
+                # Las campañas con IA traen sectores REALES que no están en
+                # este catálogo ("electricistas y sanitarios"): si la fase 4
+                # cae acá de respaldo, se usa el sector genérico como base y
+                # el nombre/dolor de la campaña — reventar con KeyError
+                # tumbaba la corrida entera (pasó en producción).
+                sec = sectores.get(clave_sector)
+                del_catalogo = sec is not None
+                if sec is None:
+                    sec = sectores["saas_b2b"]
                 pais = geo.obtener(cod)
                 ciudades = cat_paises.get(cod, {}).get("ciudades", [pais.nombre])
                 sufijos = cat_paises.get(cod, {}).get("sufijos", ["S.A."])
@@ -310,20 +318,28 @@ class ProveedorDemo(Proveedor):
                             "pt": "avalia ferramentas de cobrança automatizada",
                             "en": "is evaluating automated collections tools",
                         }[pais.idioma])
+                    # Con un sector de campaña ajeno al catálogo (lo definió
+                    # la IA), el nombre y el dolor que se muestran son los de
+                    # la campaña: decir "SaaS B2B" donde la campaña dice
+                    # "electricistas y sanitarios" confunde más que ayuda.
+                    nombre_sector = (_texto(sec["nombre"], pais.idioma)
+                                     if del_catalogo else campana.sector)
+                    dolor_sector = (_texto(sec["dolores"], pais.idioma)[0]
+                                    if del_catalogo else (campana.dolor or ""))
                     salida.append(Prospecto(
                         id=f"p{len(salida) + 1:04d}",
                         nombre=nombre,
                         dominio=f"{_slug(base)}{tld}",
-                        sector=_texto(sec["nombre"], pais.idioma),
+                        sector=nombre_sector,
                         pais=cod,
                         ciudad=rnd.choice(ciudades),
                         empleados=rnd.randint(lo, hi),
-                        descripcion=_texto(sec["nombre"], pais.idioma) + f" · {rnd.choice(ciudades)}",
+                        descripcion=nombre_sector + f" · {rnd.choice(ciudades)}",
                         senales=senales,
                         # El dolor va en el idioma del prospecto, no en el de
                         # la ola: Brasil se trabaja dentro de LATAM (español)
                         # pero se le escribe en portugués.
-                        dolor=_texto(sec["dolores"], pais.idioma)[0],
+                        dolor=dolor_sector,
                         campana_id=campana.id,
                         nivel=nivel,
                         prioridad=campana.prioridad,

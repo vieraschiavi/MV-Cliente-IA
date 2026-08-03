@@ -372,6 +372,10 @@ export default function Explorar() {
                     <div className="comp" key={c.dominio}>
                       <span className="fav">{(c.nombre || c.dominio)[0].toUpperCase()}</span>
                       <span className="dom" title={c.posicionamiento}>{c.dominio}</span>
+                      {/* El país a la vista: es lo que permite VER que el
+                          filtro de mercado se aplicó (o leer el aviso si
+                          ningún competidor tiene base local). */}
+                      {c.pais ? <span className="pill mundo">{c.pais}</span> : null}
                       <span className="sol tnum">{Math.round((c.solapamiento || 0) * 100)}%</span>
                     </div>
                   ))}

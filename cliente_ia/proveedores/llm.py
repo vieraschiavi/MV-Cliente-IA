@@ -71,6 +71,17 @@ def _json_del_texto(texto: str):
     try:
         return json.loads(t)
     except json.JSONDecodeError as e:
+        # Un array cortado a mitad de un objeto (el modelo se quedó sin
+        # aire) todavía sirve: se recorta al último objeto COMPLETO y se
+        # cierra. Perder 30 prospectos porque el número 31 vino por la
+        # mitad tumbaba la ola entera.
+        if t.startswith("["):
+            corte = t.rfind("},")
+            if corte > 0:
+                try:
+                    return json.loads(t[:corte + 1] + "]")
+                except json.JSONDecodeError:
+                    pass
         raise ErrorLLM(f"El modelo no devolvió JSON válido: {e}") from e
 
 
@@ -96,6 +107,9 @@ class ProveedorLLM(Proveedor):
         self.idioma_base = idioma_base
         self.mercado = mercado if mercado in ("todos", "local", "latam", "mundo") \
             else "todos"
+        # Notas informativas (no errores) que el pipeline copia a los avisos
+        # de la corrida — p. ej. "ningún competidor tiene base en Uruguay".
+        self.notas: list[str] = []
         self._demo = ProveedorDemo(idioma_base)
         # El proveedor viaja en `fuente` y en los avisos: si algo falla, el
         # usuario tiene que ver "openai · competencia: …", no un "llm" mudo.
@@ -364,25 +378,58 @@ class ProveedorLLM(Proveedor):
             f"marketplaces genéricos.\n{recorte}\n"
             "Devolvé SOLO un array JSON, sin texto alrededor, con objetos: "
             '{"dominio": "ejemplo.com", "nombre": "Ejemplo", "posicionamiento": '
-            '"una frase", "pais": "US", "solapamiento": 0.0-1.0} — el '
-            "solapamiento mide qué tan directo es el competidor. Si no estás "
-            "seguro de que una empresa existe o de que compite de verdad, no "
-            "la incluyas."
+            '"una frase", "pais": "US", "vende_en_objetivo": true, '
+            '"solapamiento": 0.0-1.0} — `pais` es dónde tiene su base la '
+            f"empresa, `vende_en_objetivo` es si de verdad le vende a clientes "
+            f"del recorte pedido, y el solapamiento mide qué tan directo es el "
+            "competidor. Si no estás seguro de que una empresa existe o de que "
+            "compite de verdad, no la incluyas."
         )
         datos = _json_del_texto(self._pedir(prompt, 8000))
         salida: list[Competidor] = []
+        vende_ahi: dict[str, bool] = {}
         for c in datos if isinstance(datos, list) else []:
             if not isinstance(c, dict) or not c.get("dominio"):
                 continue
+            dominio = str(c["dominio"]).strip().lower()
+            vende_ahi[dominio] = bool(c.get("vende_en_objetivo", True))
             salida.append(Competidor(
-                dominio=str(c["dominio"]).strip().lower(),
+                dominio=dominio,
                 nombre=str(c.get("nombre", "")).strip(),
                 posicionamiento=str(c.get("posicionamiento", "")).strip(),
                 pais=str(c.get("pais", "")).strip().upper()[:2],
                 solapamiento=max(0.0, min(1.0, float(c.get("solapamiento", 0.5) or 0))),
                 fuente=self.nombre,
             ))
-        return sorted(salida, key=lambda c: -c.solapamiento)
+        return self._recortar_competencia(salida, vende_ahi, pais)
+
+    def _recortar_competencia(self, competidores: list[Competidor],
+                              vende_ahi: dict[str, bool], pais: str) -> list[Competidor]:
+        """El filtro de mercado se hace CUMPLIR acá, no sólo se pide en el
+        prompt: con «sólo Uruguay» aparecían doce competidores globales sin
+        una línea que dijera dónde operaban. Los de casa van primero; los que
+        ni venden en el recorte se caen."""
+        if self.mercado in ("todos", "mundo"):
+            return sorted(competidores, key=lambda c: -c.solapamiento)
+
+        if self.mercado == "local":
+            objetivo = {pais}
+        else:
+            objetivo = {c for n, _p, cods in geo.orden_de_olas() if n == "latam"
+                        for c in cods} | {pais}
+
+        de_casa = [c for c in competidores if c.pais in objetivo]
+        venden = [c for c in competidores
+                  if c.pais not in objetivo and vende_ahi.get(c.dominio, True)]
+        if not de_casa and venden:
+            # Mercado chico: puede no haber ni un competidor con base local.
+            # Decirlo vale más que devolver una lista global sin contexto.
+            donde = pais if self.mercado == "local" else "Latinoamérica"
+            self.notas.append(
+                f"Competencia: ninguno de los competidores directos tiene base "
+                f"en {donde}; los que se listan son de afuera pero venden ahí.")
+        return (sorted(de_casa, key=lambda c: -c.solapamiento)
+                + sorted(venden, key=lambda c: -c.solapamiento))
 
     # Fase 3 · campañas — antes sólo se le pedía el ángulo al modelo y los
     # sectores/dolores salían del catálogo demo (que es de cobranzas): a una

@@ -393,6 +393,73 @@ def test_proyeccion_financiera_es_matematica_declarada():
     assert base["sin_ads"]["filas"][0]["gasto_ads"] == 0
 
 
+def test_el_filtro_de_mercado_se_hace_cumplir_en_la_competencia():
+    """Con «sólo Uruguay» los competidores con base local van primero, los
+    de afuera sólo quedan si venden ahí, y si no hay ni uno local la corrida
+    lo dice — antes el filtro era una frase del prompt y la lista salía
+    global sin contexto."""
+    from cliente_ia.modelos import Competidor
+    from cliente_ia.proveedores.llm import ProveedorLLM
+
+    def _comp(dominio, pais, sol):
+        return Competidor(dominio=dominio, nombre=dominio, posicionamiento="x",
+                          pais=pais, solapamiento=sol, fuente="llm")
+
+    p = ProveedorLLM(clave="sk-x", proveedor="openai", mercado="local")
+    lista = [_comp("global.com", "US", 0.9), _comp("local.uy", "UY", 0.6),
+             _comp("brasil.br", "BR", 0.8)]
+    vende = {"global.com": True, "local.uy": True, "brasil.br": False}
+    r = p._recortar_competencia(lista, vende, "UY")
+    assert [c.dominio for c in r] == ["local.uy", "global.com"]  # UY primero; BR afuera
+    assert not p.notas                                  # hay local: sin nota
+
+    # Sin ninguno de base local, la lista queda pero la nota lo explica.
+    p2 = ProveedorLLM(clave="sk-x", proveedor="openai", mercado="local")
+    r2 = p2._recortar_competencia([_comp("global.com", "US", 0.9)],
+                                  {"global.com": True}, "UY")
+    assert r2 and p2.notas and "Uruguay" in p2.notas[0] or "UY" in p2.notas[0]
+
+
+def test_un_sector_de_la_ia_no_revienta_al_demo_de_respaldo():
+    """KeyError 'electricistasysanitarios' en producción: la campaña con IA
+    trae sectores reales que no están en el catálogo demo, y cuando la fase 4
+    caía al demo, éste indexaba el catálogo con esa clave y tumbaba la
+    corrida. Ahora usa el sector genérico como base y muestra el nombre y el
+    dolor de la campaña."""
+    from cliente_ia.modelos import Campana
+    from cliente_ia.proveedores.demo import ProveedorDemo
+
+    demo = ProveedorDemo("es")
+    empresa = demo.investigar("mvagendate.com")
+    campana = Campana(id="local-electricistasysanitarios",
+                      nombre="Electricistas y sanitarios · LOCAL",
+                      sector="Electricistas y sanitarios", nivel="local",
+                      prioridad=1, paises=["UY"],
+                      angulo="x", dolor="pierden trabajos por no atender",
+                      prueba="", idioma="es")
+    prospectos = demo.prospectos(empresa, [campana], 6)
+    assert prospectos, "el respaldo tiene que producir prospectos igual"
+    assert all(p.sector == "Electricistas y sanitarios" for p in prospectos)
+    assert all(p.dolor == "pierden trabajos por no atender" for p in prospectos)
+
+
+def test_json_truncado_se_rescata_hasta_el_ultimo_objeto_completo():
+    """«Expecting value: line 32 column 71» tiraba la ola entera: si el
+    modelo se corta a mitad del objeto 31, los 30 completos sirven."""
+    from cliente_ia.proveedores.llm import ErrorLLM, _json_del_texto
+
+    truncado = '[{"nombre": "A", "dominio": "a.com"}, {"nombre": "B", "dominio": "b.com"}, {"nombre": "C", "domi'
+    r = _json_del_texto(truncado)
+    assert [x["nombre"] for x in r] == ["A", "B"]
+    # Basura sin ningún objeto completo sigue fallando con el error claro.
+    try:
+        _json_del_texto('[{"nombre": sin comillas')
+    except ErrorLLM:
+        pass
+    else:
+        raise AssertionError("basura irrecuperable tenía que fallar")
+
+
 def test_una_palabra_suelta_del_html_no_clasifica_el_producto():
     """El bug: «recovery» matcheaba DENTRO de «accountRecovery» (una ruta del
     panel de Vercel) y clasificaba el producto como cobranzas. Las pistas se

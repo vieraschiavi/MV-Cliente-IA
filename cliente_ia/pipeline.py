@@ -228,6 +228,8 @@ def ejecutar(dominio: str,
     # los avisos que el propio pipeline haya dejado (p. ej. el del filtro de
     # mercado) en vez de pisarlos.
     corrida.avisos.extend(getattr(proveedor, "errores", []))
+    for p in getattr(proveedor, "proveedores", []):
+        corrida.avisos.extend(getattr(p, "notas", []))
     avisar()
     return corrida
 
