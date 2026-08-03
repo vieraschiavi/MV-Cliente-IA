@@ -45,9 +45,10 @@ RESPIRO = 0.8          # aire después de que termina la voz de cada escena
 DOMINIO_DEMO = "mvkobranzaia.com"
 
 # El orden de las escenas es el del pipeline; "portada" y "cierre" son placas
-# generadas con PIL, el resto capturas de la aplicación.
-ESCENAS = ("portada", "explorar", "prospectos", "decisores",
-           "correo_texto", "correo_html", "linkedin", "cierre")
+# generadas con PIL, el resto capturas de la aplicación. Va TODO el producto:
+# faltaban competencia y análisis y el video vendía la mitad de la app.
+ESCENAS = ("portada", "explorar", "competencia", "prospectos", "decisores",
+           "correo_texto", "correo_html", "linkedin", "analisis", "cierre")
 
 GUION: dict[str, dict] = {
     "es": {
@@ -64,6 +65,11 @@ GUION: dict[str, dict] = {
             "explorar": "Seis fases automáticas: investiga tu producto, mapea la "
                         "competencia, arma las campañas, encuentra empresas, ubica "
                         "a los decisores y escribe los correos.",
+            "competencia": "Tu competencia directa, con el país y el solapamiento "
+                           "de cada competidor a la vista.",
+            "analisis": "Y la pestaña de análisis proyecta tu negocio con tus "
+                        "números: clientes, ventas, gastos y resultado neto hasta "
+                        "veinticuatro meses, en tres escenarios.",
             "prospectos": "La lista llega ordenada por probabilidad de cierre, "
                           "con las señales de por qué contactar a cada empresa.",
             "decisores": "De cada empresa, los cargos que deciden, cada uno con su idioma.",
@@ -86,6 +92,11 @@ GUION: dict[str, dict] = {
             "explorar": "Seis fases automáticas: pesquisa o seu produto, mapeia a "
                         "concorrência, monta as campanhas, encontra empresas, localiza "
                         "os decisores e escreve os e-mails.",
+            "competencia": "A sua concorrência direta, com o país e a sobreposição "
+                           "de cada concorrente à vista.",
+            "analisis": "E a aba de análise projeta o seu negócio com os seus "
+                        "números: clientes, vendas, custos e resultado líquido até "
+                        "vinte e quatro meses, em três cenários.",
             "prospectos": "A lista chega ordenada por probabilidade de fechamento, "
                           "com os sinais de por que contatar cada empresa.",
             "decisores": "De cada empresa, os cargos que decidem, cada um com o seu idioma.",
@@ -109,6 +120,11 @@ GUION: dict[str, dict] = {
             "explorar": "Six automatic phases: it researches your product, maps the "
                         "competition, builds the campaigns, finds companies, locates "
                         "the decision makers and writes the emails.",
+            "competencia": "Your direct competitors, with each one's country and "
+                           "overlap in plain sight.",
+            "analisis": "And the analysis tab projects your business with your "
+                        "numbers: customers, sales, costs and net result up to "
+                        "twenty-four months, across three scenarios.",
             "prospectos": "The list arrives ranked by likelihood to close, with "
                           "the signals for why to contact each company.",
             "decisores": "For each company, the roles that decide, each with their language.",
@@ -232,6 +248,13 @@ def _capturas(idioma: str, base: str, corrida_id: str, carpeta: Path) -> dict[st
         pagina.wait_for_selector(".fase.listo >> nth=5", timeout=20000)
         foto("explorar")
 
+        # Fase 2 abierta: la grilla de competidores con país y solapamiento.
+        pagina.locator(".fase").nth(1).locator("button").first.click()
+        pagina.wait_for_selector(".comp", timeout=20000)
+        pagina.locator(".comp").first.scroll_into_view_if_needed()
+        pagina.wait_for_timeout(400)
+        foto("competencia")
+
         pagina.goto(f"{base}/#/prospectos")
         pagina.wait_for_selector("table, .pers, .fila", timeout=20000)
         foto("prospectos")
@@ -253,6 +276,21 @@ def _capturas(idioma: str, base: str, corrida_id: str, carpeta: Path) -> dict[st
         primer_mail.locator(".pest").nth(2).click()      # pestaña LinkedIn
         primer_mail.locator("pre").first.wait_for(timeout=10000)
         foto("linkedin")
+
+        # Análisis: se cargan números de ejemplo y se muestra la proyección
+        # (la parte financiera es matemática pura, corre sin clave de IA).
+        pagina.goto(f"{base}/#/analisis")
+        pagina.wait_for_selector("#an-precio", timeout=20000)
+        for campo, valor in (("precio", "99"), ("nuevos_por_mes", "3"),
+                             ("churn_pct", "5"), ("gasto_fijo", "500"),
+                             ("costo_por_cliente", "10"), ("gasto_ads", "300"),
+                             ("cac", "150")):
+            pagina.fill(f"#an-{campo}", valor)
+        pagina.click('button[type="submit"]')
+        pagina.wait_for_selector(".tablewrap table", timeout=30000)
+        pagina.locator(".tablewrap table").scroll_into_view_if_needed()
+        pagina.wait_for_timeout(400)
+        foto("analisis")
 
         navegador.close()
     return salida
@@ -278,10 +316,19 @@ def _locucion(idioma: str, escena: str, destino: Path) -> Path:
     async def _generar():
         await edge_tts.Communicate(t["voz"][escena], t["voz_neural"]).save(str(destino))
 
-    asyncio.run(_generar())
-    if not destino.exists() or destino.stat().st_size < 1000:
-        raise RuntimeError(f"La locución de {idioma}/{escena} salió vacía")
-    return destino
+    # El servicio a veces corta una síntesis sin motivo (NoAudioReceived):
+    # perder los 30 screenshots por una locución caída no tiene sentido.
+    for intento in range(3):
+        try:
+            asyncio.run(_generar())
+            if destino.exists() and destino.stat().st_size >= 1000:
+                return destino
+        except Exception:                                # noqa: BLE001
+            if intento == 2:
+                raise
+        import time as _t
+        _t.sleep(2 * (intento + 1))
+    raise RuntimeError(f"La locución de {idioma}/{escena} salió vacía")
 
 
 def _duracion(ff: str, medio: Path) -> float:
