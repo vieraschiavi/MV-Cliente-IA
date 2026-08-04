@@ -1,0 +1,80 @@
+# MV Cliente IA · Acta de estado del proyecto
+
+> Última verificación completa: 2026-08-03 · commit `ac6868b` · 107 tests ·
+> batería de producción 16/16. Este documento es la constancia de qué se pidió,
+> qué se entregó y qué depende del dueño para operar al 100%.
+
+## Qué es y dónde vive
+
+Réplica del flujo auto-GTM de explee.com sobre el stack y diseño de MV Kobra
+AI: se pega la URL de un producto y el agente investiga la empresa, mapea la
+competencia directa, arma campañas, encuentra compradores, ubica decisores y
+escribe los correos — Uruguay → LATAM → mundo, en es/pt/en.
+
+| Canal | Dónde |
+|-------|-------|
+| Web | https://mv-cliente-ia.vercel.app (landing + app, es/pt/en) |
+| PC Windows | Release v1.0.0: `MVClienteIA_Setup.exe` (instalador con panel de marca, icono en Escritorio, Menú Inicio, desinstalador) y `MVClienteIA_Portable.zip` (100 % en el disco elegido) |
+| Android | Release v1.0.0: `MVClienteIA.apk` (WebView contra el servidor configurado en Ajustes) |
+| Código | github.com/vieraschiavi/MV-Cliente-IA · rama `claude/replicate-explee-kobra-s9sx0s` |
+
+## Todo lo pedido, con su estado
+
+| # | Pedido | Estado | Evidencia |
+|---|--------|--------|-----------|
+| 1 | Pipeline de 6 fases estilo explee (investigar → correos) | ✅ | 107 tests; corrida real en producción |
+| 2 | Uruguay primero, luego LATAM, luego mundo | ✅ | test de olas; corrida `mercado=local` → 10/10 UY |
+| 3 | Tres idiomas (es/pt/en); el idioma del receptor manda | ✅ | tests de no-mezcla de idiomas |
+| 4 | Video demo propio, voz humana rioplatense (es-UY), pt/en nativas, sin lag, mostrando TODOS los dashboards (incl. competencia y análisis) | ✅ | videos 71/79/72 s servidos en producción |
+| 5 | Campo de clave de IA en la app | ✅ | Configuración → Investigación con IA |
+| 6 | Multi-proveedor: Claude / ChatGPT / Gemini / Copilot (Azure) | ✅ | verificado vivo con claves falsas (401/400 firmados por proveedor); Claude por REST en la app de PC |
+| 7 | Descargables PC + Android estilo Kobra (seguridad, SHA-256) | ✅ | Release v1.0.0 al día; landing enlaza `releases/latest` |
+| 8 | Instalador con elección de disco/carpeta, iconos, desinstalador, panel de marca; edición portable 100 % en el disco elegido | ✅ | build 23 success; NSIS es/pt/en |
+| 9 | Puertos sin choques (PC) | ✅ | puerto libre + reintentos en Electron/lanzador |
+| 10 | Búsqueda con IA relevante al rubro real (no catálogo) | ✅ | perfil, competencia, campañas y prospectos desde el texto real del sitio |
+| 11 | Filtro de mercado (todos/UY/LATAM/mundo) aplicado de verdad, también en competencia | ✅ | recorte en código + país visible en cada competidor + nota honesta si no hay locales |
+| 12 | Nicho real según web y producto (no "Software B2B" genérico) | ✅ | paso `perfilar` con IA; aviso cuando se corre sin clave |
+| 13 | URL de panel/JS no produce perfil de otro producto | ✅ | detección por palabra + resumen vacío + aviso "pegá la URL pública" |
+| 14 | Contactos: no inventar personas; conseguir mails y datos reales | ✅ | rastreador de contactos PÚBLICOS del sitio de cada empresa (correo comercial, teléfono, LinkedIn, Instagram); decisor = cargo + gente actual de la empresa en LinkedIn filtrada por cargo |
+| 15 | Envío automático de correos + adjuntos; LinkedIn/X directo | ✅ | SMTP del usuario (credenciales que se usan y descartan), lote sin casillas sintéticas, adjunto ≤5 MB; composer LinkedIn/X (no hay API abierta de mensajes) |
+| 16 | Pestaña Análisis: prob. de éxito, mercado potencial, FODA de competidores, rentabilidad con/sin ads, 3 escenarios a 3-24 meses, sin inventar | ✅ | matemática pura con supuestos declarados + cualitativo sólo con clave; desglose ventas/gastos/neto; móvil con títulos |
+| 17 | Web: cada uno con su clave; 3 búsquedas gratis avisadas, por correo válido; dueño sin límite; precios + MercadoPago como Kobra | ✅ | cupo cookie+IP+correo; `vieraschiavi@gmail.com` exento; licencia US$ 149 / ≈$U 6.000; checkout integrado (falta el token, ver abajo) |
+| 18 | Resultados en streaming (no esperar todo junto) | ✅ | NDJSON por fase, verificado vivo |
+| 19 | Datos sintéticos siempre marcados; jamás personas reales con contacto | ✅ | regla de diseño, cubierta por tests |
+
+## ⚠️ Lo que depende del dueño (no es código)
+
+1. **`MERCADOPAGO_ACCESS_TOKEN` en Vercel** — ÚNICO bloqueante para vender:
+   sin él, el botón Comprar responde 503 con aviso honesto. El token de la
+   cuenta EGGON ya fue validado (producción, crea checkouts OK).
+   → https://vercel.com/mv13/mv-cliente-ia/settings/environment-variables
+   → Key `MERCADOPAGO_ACCESS_TOKEN`, todos los environments, **Save** y luego
+   **Redeploy** (sin redeploy la variable no aplica).
+   Recomendado después: renovar el token en el panel de MercadoPago (quedó
+   pegado en un chat) y actualizar el valor en Vercel.
+2. **`MVCLIENTE_OWNER` en Vercel** (recomendado) — código secreto que exime
+   del cupo con candado fuerte; el correo del dueño ya exime pero es público.
+   El código se pega también en la app (Configuración → Código de dueño).
+3. **Clave de IA propia** para búsquedas reales y análisis cualitativo
+   (Claude / ChatGPT / Gemini / Copilot) — se pega en Configuración; el
+   servidor la usa y la descarta. Opcional: `ANTHROPIC_API_KEY` en Vercel si
+   se quiere ofrecer IA sin clave del visitante (corre por cuenta del dueño).
+4. **SMTP del remitente** para el envío real de correos (en la app:
+   Configuración → Envío de correos; Gmail requiere contraseña de aplicación).
+5. **Prueba de humo en Windows físico** — el Setup compila y publica bien
+   desde CI, pero el doble-click final en una máquina real lo confirma el
+   dueño (2 min): instalar, abrir, correr una demo, desinstalar.
+6. **`MERCADOPAGO`/dominio propio (opcional)** — hoy el sitio vive en
+   `*.vercel.app`; un dominio propio se conecta desde el panel de Vercel.
+
+## Cómo re-verificar todo (5 min)
+
+```bash
+pip install -r requirements-dev.txt
+ruff check . && python3 -m pytest -q tests/     # motor + API
+npm run build:web                                # frontend
+python3 -m uvicorn webapp.backend.api:app --port 8810   # y probar en el navegador
+```
+En producción: `GET /api/salud` → ok; una corrida en modo «Leer mi sitio» con
+un correo válido; la pestaña Análisis con números de ejemplo; las descargas
+desde la portada.
