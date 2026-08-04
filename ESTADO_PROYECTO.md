@@ -44,17 +44,13 @@ escribe los correos — Uruguay → LATAM → mundo, en es/pt/en.
 
 ## ⚠️ Lo que depende del dueño (no es código)
 
-1. **`MERCADOPAGO_ACCESS_TOKEN` en Vercel** — ÚNICO bloqueante para vender:
-   sin él, el botón Comprar responde 503 con aviso honesto. El token de la
-   cuenta EGGON ya fue validado (producción, crea checkouts OK).
-   → https://vercel.com/mv13/mv-cliente-ia/settings/environment-variables
-   → Key `MERCADOPAGO_ACCESS_TOKEN`, todos los environments, **Save** y luego
-   **Redeploy** (sin redeploy la variable no aplica).
-   Recomendado después: renovar el token en el panel de MercadoPago (quedó
-   pegado en un chat) y actualizar el valor en Vercel.
-2. **`MVCLIENTE_OWNER` en Vercel** (recomendado) — código secreto que exime
-   del cupo con candado fuerte; el correo del dueño ya exime pero es público.
-   El código se pega también en la app (Configuración → Código de dueño).
+1. **`MERCADOPAGO_ACCESS_TOKEN` en Vercel** — ✅ configurado por el dueño
+   (2026-08-03). El token de la cuenta EGGON fue validado antes (producción,
+   crea checkouts OK). Recomendado: renovar el token en el panel de
+   MercadoPago (quedó pegado en un chat) y actualizar el valor en Vercel.
+2. **`MVCLIENTE_OWNER` en Vercel** — ✅ configurado por el dueño (2026-08-03).
+   El mismo código se pega en la app (Configuración → Código de dueño) para
+   quedar exento del cupo con candado fuerte.
 3. **Clave de IA propia** para búsquedas reales y análisis cualitativo
    (Claude / ChatGPT / Gemini / Copilot) — se pega en Configuración; el
    servidor la usa y la descarta. Opcional: `ANTHROPIC_API_KEY` en Vercel si
