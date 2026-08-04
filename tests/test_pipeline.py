@@ -420,6 +420,64 @@ def test_el_filtro_de_mercado_se_hace_cumplir_en_la_competencia():
     assert r2 and p2.notas and "Uruguay" in p2.notas[0] or "UY" in p2.notas[0]
 
 
+def test_sin_locales_hay_segunda_pasada_dedicada(monkeypatch):
+    """Reportado con captura: «sólo Uruguay» devolvía diez competidores
+    AR/CO/BR/US y ninguno UY. Si la primera pasada no trae NINGUNO con base
+    en el recorte, se pregunta de nuevo con foco exclusivo en ese país; los
+    locales encontrados van primero. Y si tampoco aparecen, queda la nota."""
+    import json as jsonmod
+
+    from cliente_ia.proveedores.demo import ProveedorDemo
+    from cliente_ia.proveedores.llm import ProveedorLLM
+
+    empresa = ProveedorDemo("es").investigar("inmobiliariamv.com.uy")
+    extranjeros = jsonmod.dumps([
+        {"dominio": "tokkobroker.com", "nombre": "Tokko", "posicionamiento": "x",
+         "pais": "AR", "vende_en_objetivo": True, "solapamiento": 0.6},
+        {"dominio": "wasi.co", "nombre": "Wasi", "posicionamiento": "x",
+         "pais": "CO", "vende_en_objetivo": True, "solapamiento": 0.45},
+    ])
+    local = jsonmod.dumps([
+        {"dominio": "tasador.uy", "nombre": "Tasador UY", "posicionamiento": "x",
+         "pais": "UY", "solapamiento": 0.7},
+    ])
+
+    llamadas = []
+
+    def pedir_falso(self, prompt, max_tokens=8000):
+        llamadas.append(prompt)
+        return local if "Segunda pasada" in prompt else extranjeros
+
+    monkeypatch.setattr(ProveedorLLM, "_pedir", pedir_falso)
+    p = ProveedorLLM(clave="sk-x", proveedor="openai", mercado="local")
+    r = p.competencia(empresa)
+    assert len(llamadas) == 2, "sin locales en la primera, tiene que insistir"
+    assert r[0].dominio == "tasador.uy" and r[0].pais == "UY"
+    assert [c.dominio for c in r[1:]] == ["tokkobroker.com", "wasi.co"]
+    assert not p.notas                                  # apareció un local: sin nota
+
+    # Si la segunda pasada tampoco encuentra, los regionales quedan con nota.
+    monkeypatch.setattr(ProveedorLLM, "_pedir",
+                        lambda self, pr, t=8000: "[]" if "Segunda pasada" in pr
+                        else extranjeros)
+    p2 = ProveedorLLM(clave="sk-x", proveedor="openai", mercado="local")
+    r2 = p2.competencia(empresa)
+    assert [c.pais for c in r2] == ["AR", "CO"]
+    assert p2.notas and "base" in p2.notas[0]
+
+    # Con un local en la PRIMERA pasada no se gasta una llamada extra.
+    con_local = jsonmod.dumps([
+        {"dominio": "local.uy", "nombre": "L", "posicionamiento": "x",
+         "pais": "UY", "vende_en_objetivo": True, "solapamiento": 0.5},
+    ])
+    cuenta = []
+    monkeypatch.setattr(ProveedorLLM, "_pedir",
+                        lambda self, pr, t=8000: cuenta.append(1) or con_local)
+    p3 = ProveedorLLM(clave="sk-x", proveedor="openai", mercado="local")
+    p3.competencia(empresa)
+    assert len(cuenta) == 1
+
+
 def test_un_sector_de_la_ia_no_revienta_al_demo_de_respaldo():
     """KeyError 'electricistasysanitarios' en producción: la campaña con IA
     trae sectores reales que no están en el catálogo demo, y cuando la fase 4

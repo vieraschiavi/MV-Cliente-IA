@@ -401,7 +401,65 @@ class ProveedorLLM(Proveedor):
                 solapamiento=max(0.0, min(1.0, float(c.get("solapamiento", 0.5) or 0))),
                 fuente=self.nombre,
             ))
+        # Con filtro local/LATAM, si la primera pasada no trajo NINGUNO con
+        # base en el recorte, se insiste con una pasada dedicada antes de
+        # conformarse con los regionales: los competidores de un mercado
+        # chico suelen ser empresas chicas que el modelo no nombra salvo que
+        # se le pregunte por ellas en concreto (pasó con «sólo Uruguay»: diez
+        # competidores, todos AR/CO/BR/US).
+        objetivo = self._paises_objetivo(pais)
+        if objetivo and not any(c.pais in objetivo for c in salida):
+            vistos = {c.dominio for c in salida}
+            for c in self._competencia_local(empresa, sorted(objetivo)):
+                if c.dominio not in vistos:
+                    vende_ahi[c.dominio] = True
+                    salida.append(c)
         return self._recortar_competencia(salida, vende_ahi, pais)
+
+    def _paises_objetivo(self, pais: str) -> set[str]:
+        """Países del recorte del mercado elegido; vacío = sin recorte."""
+        if self.mercado == "local":
+            return {pais}
+        if self.mercado == "latam":
+            return {c for n, _p, cods in geo.orden_de_olas() if n == "latam"
+                    for c in cods} | {pais}
+        return set()
+
+    def _competencia_local(self, empresa: Empresa, paises: list[str]) -> list[Competidor]:
+        """Segunda pasada con foco exclusivo en el recorte pedido."""
+        prompt = (
+            f"{self._contexto_producto(empresa)}\n\n"
+            f"Segunda pasada, foco exclusivo: empresas CON BASE en "
+            f"{', '.join(paises)} que vendan el MISMO tipo de producto o "
+            "servicio. En un mercado chico los competidores directos suelen "
+            "ser empresas chicas, estudios o software local poco conocido: "
+            "si existen de verdad, nombralos aunque sean pequeños. Si no "
+            "conocés NINGUNA empresa con base ahí con certeza, devolvé [] — "
+            "no rellenes con regionales ni globales.\n"
+            "Devolvé SOLO un array JSON con objetos: "
+            '{"dominio": "ejemplo.com", "nombre": "Ejemplo", "posicionamiento": '
+            '"una frase", "pais": "UY", "solapamiento": 0.0-1.0}'
+        )
+        try:
+            datos = _json_del_texto(self._pedir(prompt, 8000))
+        except ErrorLLM:
+            return []                                    # la primera pasada ya alcanza
+        salida = []
+        for c in datos if isinstance(datos, list) else []:
+            if not isinstance(c, dict) or not c.get("dominio"):
+                continue
+            cod = str(c.get("pais", "")).strip().upper()[:2]
+            if cod not in paises:
+                continue                                 # el foco era ESE recorte
+            salida.append(Competidor(
+                dominio=str(c["dominio"]).strip().lower(),
+                nombre=str(c.get("nombre", "")).strip(),
+                posicionamiento=str(c.get("posicionamiento", "")).strip(),
+                pais=cod,
+                solapamiento=max(0.0, min(1.0, float(c.get("solapamiento", 0.5) or 0))),
+                fuente=self.nombre,
+            ))
+        return salida
 
     def _recortar_competencia(self, competidores: list[Competidor],
                               vende_ahi: dict[str, bool], pais: str) -> list[Competidor]:
@@ -412,12 +470,7 @@ class ProveedorLLM(Proveedor):
         if self.mercado in ("todos", "mundo"):
             return sorted(competidores, key=lambda c: -c.solapamiento)
 
-        if self.mercado == "local":
-            objetivo = {pais}
-        else:
-            objetivo = {c for n, _p, cods in geo.orden_de_olas() if n == "latam"
-                        for c in cods} | {pais}
-
+        objetivo = self._paises_objetivo(pais)
         de_casa = [c for c in competidores if c.pais in objetivo]
         venden = [c for c in competidores
                   if c.pais not in objetivo and vende_ahi.get(c.dominio, True)]
