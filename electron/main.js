@@ -3,7 +3,8 @@
  * =============================================
  * Proceso principal: levanta el backend (FastAPI + el build de React) en un
  * puerto libre de 127.0.0.1 y abre la ventana apuntando ahí. Es la MISMA
- * interfaz que corre en la nube, como programa de PC.
+ * interfaz que corre en la nube, pero como PROGRAMA de PC: el motor corre en
+ * tu máquina, los datos no salen. No abre el navegador ni la web.
  *
  * Empaquetado, el backend viaja como ejecutable de PyInstaller en
  * resources/backend/. En desarrollo (`npm start` dentro de electron/) se
@@ -20,6 +21,7 @@ const http = require("http");
 const net = require("net");
 const path = require("path");
 const fs = require("fs");
+const os = require("os");
 
 if (process.env.MVCLIENTE_GPU !== "1") {
   app.disableHardwareAcceleration();
@@ -28,8 +30,32 @@ if (process.env.MVCLIENTE_GPU !== "1") {
 
 const ESPERA_BACKEND_MS = 90_000;   // el primer arranque instalado carga el catálogo
 let ventana = null;
+let splash = null;
 let backend = null;
 let cerrando = false;
+let flujoLog = null;
+
+// --- Log en disco --------------------------------------------------------
+// Cuando el motor no arranca en la máquina del usuario (lo típico: el
+// antivirus pone en cuarentena el .exe del motor, que va sin firma), hay que
+// poder ver POR QUÉ. Todo lo que escupe el motor y cada paso del arranque
+// quedan en un archivo que el usuario puede mandar.
+function rutaLog() {
+  const dir = app.isPackaged
+    ? (dirDatos() || path.join(os.tmpdir(), "MVClienteIA"))
+    : os.tmpdir();
+  try { fs.mkdirSync(dir, { recursive: true }); } catch { /* ya existe */ }
+  return path.join(dir, "mvclienteia.log");
+}
+
+function log(linea) {
+  const texto = `[${new Date().toISOString()}] ${linea}\n`;
+  process.stdout.write(texto);
+  try {
+    if (!flujoLog) flujoLog = fs.createWriteStream(rutaLog(), { flags: "a" });
+    flujoLog.write(texto);
+  } catch { /* si no se puede escribir el log, no es fatal */ }
+}
 
 function puertoLibre() {
   return new Promise((resolve, reject) => {
@@ -97,12 +123,58 @@ function comandoBackend(puerto) {
     cmd: python,
     args: ["-m", "uvicorn", "webapp.backend.api:app", "--host", "127.0.0.1", "--port", String(puerto)],
     cwd: raiz,
+    esFuente: true,
   };
+}
+
+/** Pantalla de carga inmediata: apenas se abre la app se ve que ES un
+ *  programa que está arrancando, no una ventana que nunca aparece. */
+function abrirSplash() {
+  splash = new BrowserWindow({
+    width: 460, height: 300, frame: false, resizable: false, center: true,
+    backgroundColor: "#0a1020", title: "MV Cliente IA", show: true,
+    icon: path.join(__dirname, "build", process.platform === "win32" ? "icon.ico" : "icon.png"),
+  });
+  const html =
+    "<!doctype html><meta charset=utf-8>" +
+    "<body style='margin:0;height:100vh;display:flex;flex-direction:column;" +
+    "align-items:center;justify-content:center;background:#0a1020;color:#e7edf5;" +
+    "font-family:Segoe UI,system-ui,sans-serif;gap:14px'>" +
+    "<div style='font-size:26px;font-weight:800;letter-spacing:.5px'>MV CLIENTE " +
+    "<span style='color:#7cc242'>IA</span></div>" +
+    "<div style='opacity:.8'>Iniciando el motor en tu equipo…</div>" +
+    "<div style='width:180px;height:4px;border-radius:4px;overflow:hidden;background:#1a2740'>" +
+    "<div style='width:40%;height:100%;background:#00c896;animation:m 1.1s ease-in-out infinite'></div></div>" +
+    "<style>@keyframes m{0%{margin-left:-40%}100%{margin-left:100%}}</style></body>";
+  splash.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(html));
+  splash.on("closed", () => { splash = null; });
+}
+
+function cerrarSplash() {
+  if (splash && !splash.isDestroyed()) splash.close();
+  splash = null;
+}
+
+/** Mensaje de falla accionable: la causa nº1 en Windows es el antivirus
+ *  poniendo en cuarentena el motor sin firma. Se dice, y se apunta al log. */
+function fallar(mensaje) {
+  cerrarSplash();
+  const detalle =
+    `${mensaje}\n\n` +
+    "MV Cliente IA ejecuta un motor propio en tu equipo (no abre la web). " +
+    "Si no arranca, casi siempre es el antivirus o Windows Defender bloqueando " +
+    "el motor, que va sin firma de código.\n\n" +
+    "Qué probar:\n" +
+    "• Permitir «MVClienteIA» en el antivirus / Windows Defender y abrir de nuevo.\n" +
+    "• Usar la edición Portable (ZIP) descomprimida en un disco tuyo (D:\\).\n\n" +
+    `Detalle técnico para soporte: ${rutaLog()}`;
+  dialog.showErrorBox("MV Cliente IA — no se pudo iniciar el motor", detalle);
 }
 
 async function arrancar(intento = 0) {
   const puerto = await puertoLibre();
-  const { cmd, args, cwd } = comandoBackend(puerto);
+  const { cmd, args, cwd, esFuente } = comandoBackend(puerto);
+  log(`intento ${intento}: ${cmd} ${args.join(" ")}`);
 
   let listo = false;
   // Si el motor muere ANTES de responder /api/salud (lo típico: otra app le
@@ -114,21 +186,41 @@ async function arrancar(intento = 0) {
     avisarMuerte = (code) => reject(new Error(`el motor terminó (código ${code}) antes de arrancar`));
   });
 
-  backend = spawn(cmd, args, {
-    cwd,
-    // El backend escucha SÓLO en 127.0.0.1, así que no hace falta contraseña
-    // para hablar con tu propia máquina (ver el docstring de webapp/backend).
-    env: {
-      ...process.env,
-      MVCLIENTE_PUERTO: String(puerto),
-      PYTHONUNBUFFERED: "1",
-      ...(dirDatos() ? { MVCLIENTE_DIR_DATOS: dirDatos() } : {}),
-    },
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  backend.stdout.on("data", (d) => process.stdout.write(`[motor] ${d}`));
-  backend.stderr.on("data", (d) => process.stderr.write(`[motor] ${d}`));
+  let errorSpawn = null;
+  try {
+    backend = spawn(cmd, args, {
+      cwd,
+      windowsHide: true,
+      // El backend escucha SÓLO en 127.0.0.1, así que no hace falta contraseña
+      // para hablar con tu propia máquina (ver el docstring de webapp/backend).
+      env: {
+        ...process.env,
+        MVCLIENTE_PUERTO: String(puerto),
+        PYTHONUNBUFFERED: "1",
+        ...(dirDatos() ? { MVCLIENTE_DIR_DATOS: dirDatos() } : {}),
+      },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  } catch (e) {
+    errorSpawn = e;
+  }
+
+  if (errorSpawn || !backend) {
+    // spawn falló de entrada: el .exe del motor no está o el SO no lo dejó
+    // ejecutar (antivirus). Con código fuente sin Python es el caso esperado.
+    log(`spawn falló: ${errorSpawn ? errorSpawn.message : "sin proceso"}`);
+    fallar(esFuente
+      ? "No se encontró Python para el modo desarrollo."
+      : "El sistema no permitió ejecutar el motor (MVClienteIA.exe).");
+    app.quit();
+    return;
+  }
+
+  backend.on("error", (e) => { log(`error del proceso motor: ${e.message}`); avisarMuerte(-1); });
+  backend.stdout.on("data", (d) => log(`[motor] ${String(d).trimEnd()}`));
+  backend.stderr.on("data", (d) => log(`[motor] ${String(d).trimEnd()}`));
   backend.on("exit", (code) => {
+    log(`el motor salió con código ${code}`);
     if (!listo) { avisarMuerte(code); return; }
     // Si el motor se muere solo, la ventana queda mostrando una página que ya
     // no responde: es peor que decirlo.
@@ -145,12 +237,14 @@ async function arrancar(intento = 0) {
       muerteTemprana,
     ]);
     listo = true;
+    log(`motor listo en ${url}`);
   } catch (e) {
+    log(`no arrancó: ${e.message}`);
     if (backend && !backend.killed) backend.kill();
     if (intento < 2) {
       return arrancar(intento + 1);        // puerto nuevo, motor nuevo
     }
-    dialog.showErrorBox("MV Cliente IA", `No se pudo iniciar el motor: ${e.message}`);
+    fallar(`No se pudo iniciar el motor: ${e.message}`);
     app.quit();
     return;
   }
@@ -159,6 +253,7 @@ async function arrancar(intento = 0) {
     width: 1400, height: 940, minWidth: 900, minHeight: 620,
     backgroundColor: "#0a1020",
     title: "MV Cliente IA",
+    show: false,
     icon: path.join(__dirname, "build", process.platform === "win32" ? "icon.ico" : "icon.png"),
     webPreferences: { contextIsolation: true, nodeIntegration: false,
                       preload: path.join(__dirname, "preload.js") },
@@ -170,15 +265,23 @@ async function arrancar(intento = 0) {
     shell.openExternal(destino);
     return { action: "deny" };
   });
+  // La ventana real recién se muestra cuando la app ya está pintada: se pasa
+  // del splash directo al tablero, sin un parpadeo en blanco.
+  ventana.once("ready-to-show", () => { cerrarSplash(); ventana.show(); });
   ventana.on("closed", () => { ventana = null; });
   await ventana.loadURL(url);
 }
 
-app.whenReady().then(arrancar);
+app.whenReady().then(() => {
+  log(`arranque · empaquetado=${app.isPackaged} · plataforma=${process.platform}`);
+  abrirSplash();
+  arrancar().catch((e) => { log(`fallo inesperado: ${e.stack || e}`); fallar(String(e)); app.quit(); });
+});
 
 app.on("window-all-closed", () => { app.quit(); });
 
 app.on("before-quit", () => {
   cerrando = true;
   if (backend && !backend.killed) backend.kill();
+  if (flujoLog) { try { flujoLog.end(); } catch { /* nada */ } }
 });
