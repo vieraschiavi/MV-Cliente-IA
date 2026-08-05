@@ -29,27 +29,47 @@ def test_devuelve_la_cantidad_pedida(corrida_kobra):
     assert len(corrida_kobra.prospectos) == 60
 
 
-def test_uruguay_encabeza_la_lista(corrida_kobra):
+def test_el_pais_del_cliente_encabeza_la_lista(corrida_kobra):
     niveles = [p.nivel for p in corrida_kobra.prospectos]
-    # Los locales van todos antes que los latam, y esos antes que los del mundo.
-    assert niveles == sorted(niveles, key=lambda n: ["local", "latam", "mundo"].index(n))
-    assert niveles[0] == "local"
-    assert corrida_kobra.prospectos[0].pais == "UY"
+    # Los locales van todos antes que los regionales, y esos antes que el mundo.
+    assert niveles == sorted(niveles, key=geo.NIVELES.index)
+    assert niveles[0] == geo.NIVEL_LOCAL
+    # El dominio no tiene TLD nacional y la interfaz está en español, así que
+    # el país base cae en Uruguay. Lo que se verifica no es "Uruguay": es que
+    # el país base, sea cual sea, encabece.
+    assert corrida_kobra.prospectos[0].pais == corrida_kobra.pais_base
+
+
+def test_otro_pais_base_manda_su_propia_ola_local():
+    """La regla es relativa: con Alemania elegida, la ola local es alemana y
+    la regional es europea — nada de Uruguay ni de LATAM."""
+    c = pipeline.ejecutar("mvkobranzaia.com", modo="demo",
+                          limite_prospectos=40, pais_base="DE")
+    assert c.estado == "listo", c.error
+    assert c.pais_base == "DE"
+    locales = [p for p in c.prospectos if p.nivel == geo.NIVEL_LOCAL]
+    assert locales and all(p.pais == "DE" for p in locales)
+    regionales = [p for p in c.prospectos if p.nivel == geo.NIVEL_REGIONAL]
+    assert regionales
+    assert all(geo.region_de(p.pais) == "EUROPA" for p in regionales)
+    assert all(p.pais != "DE" for p in regionales)
+    # Y Uruguay, que antes era intocable, ahora es un mercado del montón.
+    assert geo.nivel_de("UY", "DE") == geo.NIVEL_MUNDO
 
 
 def test_las_tres_olas_estan_representadas(corrida_kobra):
     por_nivel = corrida_kobra.resumen()["prospectos_por_nivel"]
-    assert por_nivel["local"] > 0
-    assert por_nivel["latam"] > 0
-    assert por_nivel["mundo"] > 0
-    # Uruguay se lleva la tajada más grande — es la regla de reparto.
-    assert por_nivel["local"] > por_nivel["latam"] > por_nivel["mundo"]
+    assert all(por_nivel[n] > 0 for n in geo.NIVELES)
+    # El país del cliente se lleva la tajada más grande — es la regla de reparto.
+    assert (por_nivel[geo.NIVEL_LOCAL] > por_nivel[geo.NIVEL_REGIONAL]
+            > por_nivel[geo.NIVEL_MUNDO])
 
 
 def test_hay_correos_en_los_tres_idiomas(corrida_kobra):
     por_idioma = corrida_kobra.resumen()["emails_por_idioma"]
     assert set(por_idioma) == set(geo.IDIOMAS), f"faltan idiomas: {por_idioma}"
-    assert por_idioma["es"] > por_idioma["en"], "el grueso de la tanda es Uruguay/LATAM"
+    assert por_idioma["es"] > por_idioma["en"], \
+        "con el país base en Uruguay el grueso de la tanda habla español"
 
 
 def test_cada_correo_esta_en_el_idioma_del_pais_del_decisor(corrida_kobra):
@@ -688,8 +708,8 @@ def test_el_error_http_del_proveedor_no_repite_la_clave(monkeypatch):
         raise AssertionError("el 401 tenía que propagarse como ErrorLLM")
 
 
-def test_mercado_solo_uruguay_llena_el_cupo_con_locales():
-    """El filtro «sólo Uruguay» renormaliza el reparto: la ola local se lleva
+def test_mercado_solo_mi_pais_llena_el_cupo_con_locales():
+    """El filtro «sólo mi país» renormaliza el reparto: la ola local se lleva
     el límite entero, no el 45% que le tocaba cuando estaban las tres olas."""
     c = pipeline.ejecutar("mvkobranzaia.com", modo="demo",
                           limite_prospectos=20, mercado="local")
@@ -700,11 +720,21 @@ def test_mercado_solo_uruguay_llena_el_cupo_con_locales():
     assert all(p.pais == "UY" for p in c.prospectos)
 
 
-def test_mercado_solo_latam():
+def test_mercado_solo_mi_region():
+    c = pipeline.ejecutar("mvkobranzaia.com", modo="demo",
+                          limite_prospectos=20, mercado="regional")
+    assert c.estado == "listo"
+    assert all(p.nivel == geo.NIVEL_REGIONAL for p in c.prospectos)
+
+
+def test_el_nombre_viejo_del_filtro_sigue_andando():
+    """Un navegador con «latam» guardado del filtro anterior no puede recibir
+    un 422: se traduce a la ola regional."""
     c = pipeline.ejecutar("mvkobranzaia.com", modo="demo",
                           limite_prospectos=20, mercado="latam")
     assert c.estado == "listo"
-    assert all(p.nivel == "latam" for p in c.prospectos)
+    assert c.mercado == geo.NIVEL_REGIONAL
+    assert all(p.nivel == geo.NIVEL_REGIONAL for p in c.prospectos)
 
 
 def test_mercado_invalido_falla_claro():

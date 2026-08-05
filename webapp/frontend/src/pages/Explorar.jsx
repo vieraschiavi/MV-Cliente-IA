@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, apiStream, descargar, ErrorApi, esNativo, fmtScore, getBase, getClaveIA, getEmail, getEndpointIA, getProveedorIA, setEmail } from "../api.js";
-import { Aviso, Idioma, Kpis, Ola, Vacio } from "../componentes/Comunes.jsx";
+import { Aviso, etiquetasOla, Idioma, Kpis, Ola, Vacio } from "../componentes/Comunes.jsx";
 import { getCorridaId, setCorridaId, setCorridaLocal, useCorrida } from "../estado.js";
-import { t } from "../i18n/index.js";
+import { getIdioma, t } from "../i18n/index.js";
 
 // El orden es el del pipeline (cliente_ia/modelos.py:FASES) y es el que se
 // numera 1..6 en pantalla.
@@ -49,9 +49,12 @@ export default function Explorar() {
   const { corrida, error } = useCorrida(id);
   const [form, setForm] = useState({
     dominio: "mvkobranzaia.com", nombre: "MV Kobra AI", modo: "demo", prospectos: 60,
-    // Recorte geográfico: "todos" mantiene Uruguay primero en proporción;
-    // "local" es para productos que exigen presencia física.
+    // Recorte geográfico: "todos" mantiene el país propio primero en
+    // proporción; "local" es para productos que exigen presencia física.
     mercado: "todos",
+    // País propio del cliente: el que va primero en las tres olas. Vacío = que
+    // lo deduzca el backend del TLD del dominio.
+    pais: "",
     // Enlaces del mensaje: el banner, el video y la web que llevan el correo y
     // el mensaje de LinkedIn, cada uno en el idioma del receptor.
     sitio: "", video_en_landing: true, videos: { es: "", pt: "", en: "" },
@@ -62,6 +65,23 @@ export default function Explorar() {
   // usuario creería que la IA no busca nada — pasó en el despliegue público).
   const [salud, setSalud] = useState(null);
   useEffect(() => { api("/api/salud").then(setSalud).catch(() => {}); }, []);
+  // Catálogo mundial de países y las olas vistas desde el elegido. Se vuelve a
+  // pedir al cambiar el país porque las etiquetas del filtro de mercado dicen
+  // el nombre del país y el de SU región, no "LATAM" para todo el mundo.
+  const [geo, setGeo] = useState(null);
+  useEffect(() => {
+    api(`/api/geo?idioma=${getIdioma()}`
+        + (form.pais ? `&pais=${form.pais}` : ""))
+      .then(setGeo).catch(() => {});
+  }, [form.pais]);
+  const nombrePais = geo?.pais_base_nombre || "";
+  const nombreRegion = geo?.region_base || "";
+  // Los países del selector llegan ya ordenados por región; se agrupan acá
+  // para poder pintarlos en <optgroup> sin recorrer la lista tres veces.
+  const porRegion = (geo?.paises || []).reduce((acc, p) => {
+    (acc[p.region_nombre] ||= []).push(p);
+    return acc;
+  }, {});
   // Cupo gratis de la web pública: cuántas búsquedas reales quedan. Se pide
   // con el correo guardado para que el del dueño se vea sin límite.
   const [cupo, setCupo] = useState(null);
@@ -111,6 +131,7 @@ export default function Explorar() {
         nombre: form.nombre.trim(),
         modo: form.modo,
         mercado: form.mercado,
+        pais: form.pais,
         idioma: "es",
         prospectos: Number(form.prospectos) || 60,
         sitio: form.sitio.trim() || form.dominio.trim(),
@@ -207,12 +228,28 @@ export default function Explorar() {
           </select>
         </div>
         <div className="campo">
+          <label htmlFor="pais">{t("explorar.pais")}</label>
+          <select id="pais" value={form.pais}
+                  onChange={(e) => setForm({ ...form, pais: e.target.value })}>
+            <option value="">{t("explorar.pais_auto")}</option>
+            {Object.entries(porRegion).map(([region, paises]) => (
+              <optgroup key={region} label={region}>
+                {paises.map((p) => (
+                  <option key={p.codigo} value={p.codigo}>{p.nombre}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </div>
+        <div className="campo">
           <label htmlFor="mercado">{t("explorar.mercado")}</label>
+          {/* Las etiquetas nombran el país y la región del cliente: decir
+              "sólo LATAM" a alguien que vende en Alemania no significaba nada. */}
           <select id="mercado" value={form.mercado}
                   onChange={(e) => setForm({ ...form, mercado: e.target.value })}>
-            <option value="todos">{t("explorar.mercado_todos")}</option>
-            <option value="local">{t("explorar.mercado_local")}</option>
-            <option value="latam">{t("explorar.mercado_latam")}</option>
+            <option value="todos">{t("explorar.mercado_todos", { pais: nombrePais })}</option>
+            <option value="local">{t("explorar.mercado_local", { pais: nombrePais })}</option>
+            <option value="regional">{t("explorar.mercado_regional", { region: nombreRegion })}</option>
             <option value="mundo">{t("explorar.mercado_mundo")}</option>
           </select>
         </div>
@@ -355,7 +392,8 @@ export default function Explorar() {
                 <>
                   <DatoEmpresa etiqueta={t("empresa.categoria")} valor={corrida.empresa.categoria} />
                   <DatoEmpresa etiqueta={t("empresa.propuesta")} valor={corrida.empresa.propuesta} />
-                  <DatoEmpresa etiqueta={t("empresa.mercado")} valor={corrida.empresa.pais} />
+                  <DatoEmpresa etiqueta={t("empresa.mercado")}
+                               valor={corrida.pais_base_nombre || corrida.empresa.pais} />
                   <DatoEmpresa etiqueta={t("empresa.tamano")} valor={corrida.empresa.tamano_objetivo} />
                   <DatoEmpresa etiqueta={t("empresa.sectores")} valor={corrida.empresa.sectores_objetivo} />
                   <DatoEmpresa etiqueta={t("empresa.diferenciales")} valor={corrida.empresa.diferenciales} />
@@ -393,7 +431,7 @@ export default function Explorar() {
                 <div className="camp-grid">
                   {corrida.campanas.map((c) => (
                     <div className="camp" key={c.id}>
-                      <b>{c.sector} <Ola nivel={c.nivel} /></b>
+                      <b>{c.sector} <Ola nivel={c.nivel} etiquetas={etiquetasOla(corrida)} /></b>
                       <p>{c.angulo}</p>
                     </div>
                   ))}
@@ -414,7 +452,7 @@ export default function Explorar() {
                           <b>{p.nombre}</b>
                           <small>{p.sector} · {p.ciudad} · {p.empleados} emp.</small>
                         </span>
-                        <Ola nivel={p.nivel} />
+                        <Ola nivel={p.nivel} etiquetas={etiquetasOla(corrida)} />
                         <span className="sc tnum">{fmtScore(p.score)}</span>
                       </div>
                     ))}

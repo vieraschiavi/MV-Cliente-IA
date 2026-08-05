@@ -55,13 +55,15 @@
     "llm_esperando": "AI research queries Claude several times and takes 1–3 minutes. Keep the tab open: the result shows up on its own when it finishes.",
     "mercado": "Market",
     "email": "Your email (required for free searches)",
-    "mercado_todos": "All (Uruguay first)",
-    "mercado_local": "Uruguay only",
-    "mercado_latam": "LATAM only",
+    "mercado_todos": "All ({{pais}} first)",
+    "mercado_local": "{{pais}} only",
     "mercado_mundo": "Rest of the world only",
     "cupo_restante": "Free web tier: {{quedan}} of {{total}} real searches left (the demo doesn't count).",
     "cupo_agotado": "The {{total}} free real web searches are used up. The demo stays free.",
-    "cupo_comprar": "Buy the full program →"
+    "cupo_comprar": "Buy the full program →",
+    "pais": "Your country",
+    "pais_auto": "Detect it from my site",
+    "mercado_regional": "{{region}} only"
   },
   "fase": {
     "investigar": {
@@ -100,15 +102,15 @@
     "propuesta": "Value proposition",
     "sectores": "Target sectors",
     "tamano": "Customer size",
-    "mercado": "Home market",
+    "mercado": "Your market",
     "diferenciales": "Differentiators"
   },
   "ola": {
     "titulo": "Go-to-market order",
-    "local": "Uruguay",
-    "latam": "LATAM",
+    "local": "Your country",
     "mundo": "Rest of the world",
-    "explicacion": "Companies that match your ideal customer profile, ranked by likelihood to close."
+    "explicacion": "Companies that match your ideal customer profile, ranked by likelihood to close.",
+    "regional": "Your region"
   },
   "kpi": {
     "prospectos": "Companies",

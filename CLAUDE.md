@@ -6,7 +6,7 @@
 **MV Cliente IA** replica el flujo *auto-GTM* de explee.com sobre el stack y el
 diseño de **MV Kobra AI**: se le pasa la URL de un producto y recorre seis fases
 —investigar, competencia, campañas, prospectos, decisores, correos— priorizando
-**Uruguay → LATAM → resto del mundo** y escribiendo en **es/pt/en**.
+**el país del cliente → su región → resto del mundo** y escribiendo en **es/pt/en**.
 
 ## Stack
 - **Motor:** Python 3.11, sólo biblioteca estándar (`cliente_ia/`)
@@ -29,10 +29,18 @@ diseño de **MV Kobra AI**: se le pasa la URL de un producto y recorre seis fase
 | Banners | `python3 -m marketing.generar_banners` |
 
 ## Reglas que no se rompen
-1. **Uruguay primero.** El orden vive en `geo.py` (pesos 1.00 / 0.72 / 0.45) y en
-   `scoring.ordenar_prospectos`, que ordena **por ola antes que por puntaje**. Si
-   tocás pesos, corré `tests/test_scoring.py` — hay un test que existe sólo para
-   impedir que un prospecto del exterior se cuele delante de uno uruguayo.
+1. **El país del cliente primero, y es RELATIVO.** El cliente elige su país
+   (cualquiera del mundo: `geo.CATALOGO` tiene ~100) y de ahí salen las tres
+   olas: su país, el resto de su región, el resto del mundo. Los pesos
+   (1.00 / 0.72 / 0.45) viven en `geo.py` y el orden lo impone
+   `scoring.ordenar_prospectos`, que ordena **por ola antes que por puntaje**.
+   **Nunca vuelvas a cablear un país** — Uruguay lo estuvo y el producto no
+   servía para nadie más. Si tocás pesos u olas, corré `tests/test_geo.py` y
+   `tests/test_scoring.py`: hay tests que existen sólo para impedir que un
+   prospecto de afuera se cuele delante de uno del mercado propio, y otros que
+   verifican que la regla se dé vuelta al cambiar el país base.
+   El nombre viejo de la ola regional era `latam`; `geo.normalizar_nivel` lo
+   sigue aceptando para las corridas guardadas.
 2. **El nombre del producto cambia con el idioma**: MV Cliente IA en es/pt,
    **MV SearchCostumer AI** en inglés. Vive en `common.marca` / `marca_texto` /
    `titulo_pagina` de cada JSON de i18n, en `TEXTOS` del generador de landing y

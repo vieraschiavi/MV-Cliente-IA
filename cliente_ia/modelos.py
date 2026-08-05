@@ -204,9 +204,12 @@ class Corrida:
     creada: str = ""
     estado: str = "pendiente"
     modo: str = "demo"                        # "demo" | "web" | "llm"
-    # Recorte geográfico elegido: "todos" (Uruguay primero, en proporción),
-    # "local" (sólo Uruguay), "latam" o "mundo".
+    # Recorte geográfico elegido: "todos" (el país base primero, en
+    # proporción), "local" (sólo ese país), "regional" (su región) o "mundo".
     mercado: str = "todos"
+    # País propio del cliente: el que ocupa la ola local. Es lo que hace que
+    # las olas sean relativas y no "Uruguay y después los demás".
+    pais_base: str = "UY"
     idioma_ui: str = "es"
     # Configuración de enlaces (sitio, video y banner por idioma) tal como se
     # usó en esta corrida — se guarda para que reabrir una corrida vieja
@@ -242,6 +245,10 @@ class Corrida:
             "estado": self.estado,
             "modo": self.modo,
             "mercado": self.mercado,
+            "pais_base": self.pais_base,
+            "pais_base_nombre": geo.nombre_pais(self.pais_base, self.idioma_ui),
+            "region_base": geo.nombre_region(geo.region_de(self.pais_base),
+                                             self.idioma_ui),
             "idioma_ui": self.idioma_ui,
             "enlaces": dict(self.enlaces),
             "error": self.error,
@@ -258,9 +265,9 @@ class Corrida:
 
     def resumen(self) -> dict:
         """Los números de cabecera: cuántos prospectos por ola geográfica."""
-        por_nivel = {"local": 0, "latam": 0, "mundo": 0}
+        por_nivel = dict.fromkeys(geo.NIVELES, 0)
         for p in self.prospectos:
-            por_nivel[p.nivel] = por_nivel.get(p.nivel, 0) + 1
+            por_nivel[geo.normalizar_nivel(p.nivel)] += 1
         por_idioma: dict[str, int] = {}
         for e in self.emails:
             por_idioma[e.idioma] = por_idioma.get(e.idioma, 0) + 1
@@ -282,7 +289,9 @@ def desde_dict(d: dict) -> Corrida:
     c = Corrida(
         id=d["id"], dominio=d["dominio"], creada=d.get("creada", ""),
         estado=d.get("estado", "pendiente"), modo=d.get("modo", "demo"),
-        mercado=d.get("mercado", "todos"),
+        mercado=geo.normalizar_nivel(d["mercado"]) if d.get("mercado") not in
+        (None, "", "todos") else "todos",
+        pais_base=d.get("pais_base") or (d.get("empresa") or {}).get("pais") or "UY",
         idioma_ui=d.get("idioma_ui", "es"), error=d.get("error", ""),
         enlaces=d.get("enlaces") or {},
     )
@@ -293,6 +302,11 @@ def desde_dict(d: dict) -> Corrida:
     c.competidores = [Competidor(**x) for x in d.get("competidores", [])]
     c.campanas = [Campana(**x) for x in d.get("campanas", [])]
     c.prospectos = [Prospecto(**x) for x in d.get("prospectos", [])]
+    # Las corridas guardadas antes de que el país base fuera elegible traen la
+    # ola regional escrita "latam". Se traduce al abrirlas para que el filtro
+    # de la tabla y el resumen sigan encontrándolas.
+    for fila in (*c.campanas, *c.prospectos):
+        fila.nivel = geo.normalizar_nivel(fila.nivel)
     c.decisores = [Decisor(**x) for x in d.get("decisores", [])]
     c.emails = [Email(**x) for x in d.get("emails", [])]
     return c

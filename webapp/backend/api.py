@@ -467,18 +467,37 @@ def enviar_correos(entrada: EnvioIn):
 
 
 @app.get("/api/geo")
-def catalogo_geo():
-    """Las tres olas y sus países — es lo que pinta el selector de mercado."""
+def catalogo_geo(pais: str = "", idioma: str = "es"):
+    """Las tres olas vistas desde el país del cliente, más el catálogo mundial
+    que llena el selector de país. `pais` vacío = el que sale del idioma."""
+    base = geo.resolver_base(pais, "", idioma)
     olas = []
-    for nivel, prioridad, codigos in geo.orden_de_olas():
+    for nivel, prioridad, codigos in geo.orden_de_olas(base.codigo):
         olas.append({
             "nivel": nivel,
             "prioridad": prioridad,
             "peso": geo.PESO_PRIORIDAD[prioridad],
-            "paises": [{"codigo": c, "nombre": geo.obtener(c).nombre,
+            "paises": [{"codigo": c, "nombre": geo.nombre_pais(c, idioma),
                         "idioma": geo.obtener(c).idioma} for c in codigos],
         })
-    return {"olas": olas, "idiomas": list(geo.IDIOMAS)}
+    return {
+        "olas": olas,
+        "idiomas": list(geo.IDIOMAS),
+        "pais_base": base.codigo,
+        "pais_base_nombre": geo.nombre_pais(base.codigo, idioma),
+        "region_base": geo.nombre_region(base.region, idioma),
+        # Todos los países elegibles, agrupados por región y ordenados por
+        # nombre: es lo que llena el desplegable «Tu país».
+        "paises": [
+            {"codigo": p.codigo, "nombre": geo.nombre_pais(p.codigo, idioma),
+             "region": p.region,
+             "region_nombre": geo.nombre_region(p.region, idioma),
+             "idioma": p.idioma}
+            for p in sorted(geo.paises_por_region(),
+                            key=lambda x: (geo.REGIONES.index(x.region),
+                                           geo.nombre_pais(x.codigo, idioma)))
+        ],
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -487,10 +506,14 @@ def catalogo_geo():
 class CorridaIn(BaseModel):
     dominio: str = Field(min_length=3, max_length=253)
     modo: str = "demo"
-    # Recorte geográfico: "todos" (Uruguay primero, en proporción), "local"
-    # (sólo Uruguay), "latam" o "mundo". Para productos que exigen presencia
-    # física, «sólo Uruguay» evita gastar el cupo en empresas inalcanzables.
+    # Recorte geográfico: "todos" (el país base primero, en proporción),
+    # "local" (sólo ese país), "regional" (su región) o "mundo". Para productos
+    # que exigen presencia física, «sólo mi país» evita gastar el cupo en
+    # empresas inalcanzables.
     mercado: str = "todos"
+    # País propio del cliente: el que ocupa la ola local. Vacío = deducilo del
+    # TLD del dominio y, si es genérico, del idioma de la interfaz.
+    pais: str = Field(default="", max_length=2)
     nombre: str = ""
     firma: str = ""
     idioma: str = "es"
@@ -532,6 +555,7 @@ def _lanzar(entrada: CorridaIn, corrida_id: str) -> None:
             proveedor_ia=entrada.proveedor_ia,
             endpoint_ia=entrada.endpoint_ia,
             mercado=entrada.mercado,
+            pais_base=entrada.pais,
         )
     finally:
         with _lock:
@@ -557,6 +581,7 @@ def _ejecutar_sin_estado(entrada: CorridaIn, al_avanzar=None):
         proveedor_ia=entrada.proveedor_ia,
         endpoint_ia=entrada.endpoint_ia,
         mercado=entrada.mercado,
+        pais_base=entrada.pais,
         al_avanzar=al_avanzar,
     )
     # Una línea por corrida en el log del servidor (sin secretos): fue lo
@@ -573,7 +598,8 @@ def _ejecutar_sin_estado(entrada: CorridaIn, al_avanzar=None):
 def crear_corrida(entrada: CorridaIn, request: Request, stream: int = 0):
     if entrada.modo not in proveedores.MODOS:
         raise HTTPException(422, f"Modo inválido: {entrada.modo}")
-    if entrada.mercado not in ("todos", "local", "latam", "mundo"):
+    if geo.normalizar_nivel(entrada.mercado) != entrada.mercado \
+            and entrada.mercado not in ("todos", "latam"):
         raise HTTPException(422, f"Mercado inválido: {entrada.mercado}")
     if entrada.proveedor_ia not in ("claude", "openai", "gemini", "copilot"):
         raise HTTPException(422, f"Proveedor de IA inválido: {entrada.proveedor_ia}")

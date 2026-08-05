@@ -16,10 +16,12 @@ ventas: cada punto sale de algo que el usuario puede ver en la ficha.
 | señales de compra  | 0.25 | hechos con fecha: contrataron, expandieron, etc. |
 | solapamiento comp. | 0.10 | usa/evalúa un competidor conocido                |
 
-`peso_geográfico` es 1.00 en Uruguay, 0.72 en LATAM y 0.45 en el resto del
-mundo (ver `cliente_ia.geo`). Es lo que hace que un prospecto uruguayo bueno
-quede siempre por delante de uno mexicano igual de bueno, sin tener que
-filtrar por país a mano.
+`peso_geográfico` es 1.00 en el país que eligió el cliente (`empresa.pais`),
+0.72 en el resto de su región y 0.45 en el resto del mundo (ver
+`cliente_ia.geo`). Es lo que hace que un prospecto del propio mercado quede
+siempre por delante de uno de afuera igual de bueno, sin tener que filtrar
+por país a mano. El país base no está cableado: si el cliente es alemán, el
+peso 1.00 lo tiene Alemania y el 0.72 el resto de Europa.
 """
 from __future__ import annotations
 
@@ -106,11 +108,29 @@ def ajuste_competencia(senales: list[str], competidores: list[str]) -> float:
     return 0.0
 
 
+def sectores_objetivo_multi(empresa: Empresa) -> list[str]:
+    """El ICP de sectores en todos los idiomas que tenga la empresa.
+
+    El rubro del prospecto viene en el idioma de SU país, así que compararlo
+    contra una lista en un solo idioma castigaba a medio mundo por hablar
+    distinto: un banco brasileño puntuaba 0.5 donde uno argentino puntuaba 1.0,
+    y con eso no llegaba nunca a la tanda de correos.
+    """
+    salida = list(empresa.sectores_objetivo)
+    vistos = {s.lower() for s in salida}
+    for textos in empresa.textos.values():
+        for s in (textos or {}).get("sectores_objetivo") or []:
+            if s.lower() not in vistos:
+                vistos.add(s.lower())
+                salida.append(s)
+    return salida
+
+
 def ajuste_icp(prospecto: Prospecto, empresa: Empresa,
                competidores: list[str] | None = None) -> float:
     """Las cuatro señales combinadas, antes del peso geográfico (0..1)."""
     return (
-        PESO_SECTOR * ajuste_sector(prospecto.sector, empresa.sectores_objetivo)
+        PESO_SECTOR * ajuste_sector(prospecto.sector, sectores_objetivo_multi(empresa))
         + PESO_TAMANO * ajuste_tamano(prospecto.empleados, empresa.tamano_objetivo)
         + PESO_SENALES * ajuste_senales(prospecto.senales)
         + PESO_COMPETENCIA * ajuste_competencia(prospecto.senales, competidores or [])
@@ -119,12 +139,17 @@ def ajuste_icp(prospecto: Prospecto, empresa: Empresa,
 
 def puntuar_prospecto(prospecto: Prospecto, empresa: Empresa,
                       competidores: list[str] | None = None) -> Prospecto:
-    """Completa score, ajuste_icp, prioridad, nivel e idioma. Muta y devuelve."""
-    pais = geo.obtener(prospecto.pais)
+    """Completa score, ajuste_icp, prioridad, nivel e idioma. Muta y devuelve.
+
+    La ola sale de comparar el país del prospecto con `empresa.pais`, que es
+    el mercado base que eligió el cliente — no hay un país privilegiado.
+    """
+    base = empresa.pais
     prospecto.ajuste_icp = round(ajuste_icp(prospecto, empresa, competidores), 4)
-    prospecto.score = round(100.0 * prospecto.ajuste_icp * pais.peso, 2)
-    prospecto.prioridad = pais.prioridad
-    prospecto.nivel = pais.nivel
+    prospecto.score = round(
+        100.0 * prospecto.ajuste_icp * geo.peso_de(prospecto.pais, base), 2)
+    prospecto.nivel = geo.nivel_de(prospecto.pais, base)
+    prospecto.prioridad = geo.PRIORIDAD_NIVEL[prospecto.nivel]
     prospecto.idioma = geo.idioma_de(prospecto.pais)
     return prospecto
 
@@ -139,14 +164,15 @@ def puntuar_decisor(decisor: Decisor, prospecto: Prospecto) -> Decisor:
 
 def ordenar_prospectos(prospectos: list[Prospecto]) -> list[Prospecto]:
     """
-    Uruguay primero, después LATAM, después el mundo; dentro de cada ola, por
-    score. Se ordena por prioridad Y por score: el score ya lleva el peso
-    geográfico, pero ordenar primero por prioridad garantiza que ninguna
-    combinación de pesos pueda colar un prospecto del mundo antes que uno
-    uruguayo — la regla del producto no depende de la calibración.
+    El país del cliente primero, después su región, después el mundo; dentro
+    de cada ola, por score. Se ordena por prioridad Y por score: el score ya
+    lleva el peso geográfico, pero ordenar primero por prioridad garantiza que
+    ninguna combinación de pesos pueda colar un prospecto de afuera antes que
+    uno del mercado propio — la regla no depende de la calibración.
     """
     return sorted(prospectos, key=lambda p: (p.prioridad, -p.score, p.nombre))
 
 
-def ordenar_decisores(decisores: list[Decisor]) -> list[Decisor]:
-    return sorted(decisores, key=lambda d: (geo.prioridad_de(d.pais), -d.score, d.nombre))
+def ordenar_decisores(decisores: list[Decisor], base: str | None = None) -> list[Decisor]:
+    return sorted(decisores,
+                  key=lambda d: (geo.prioridad_de(d.pais, base), -d.score, d.nombre))

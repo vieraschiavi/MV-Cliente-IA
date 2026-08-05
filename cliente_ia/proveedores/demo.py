@@ -38,7 +38,14 @@ CATEGORIA_DEFAULT = "saas_generico"
 
 # Cuántos sectores entran en cada ola. Uruguay se trabaja a fondo; afuera se
 # entra por los sectores donde el producto ya tiene caso.
-SECTORES_POR_NIVEL = {"local": 6, "latam": 4, "mundo": 3}
+SECTORES_POR_NIVEL = {geo.NIVEL_LOCAL: 6, geo.NIVEL_REGIONAL: 4, geo.NIVEL_MUNDO: 3}
+
+# Cuántos países de cada ola llegan a la lista sintética. El catálogo es
+# mundial (casi cien países): sin este tope la ola «mundo» repartía un puñado
+# de prospectos entre setenta y pico de mercados y salía una empresa por país,
+# que no se parece a ninguna lista de ventas real. Se quedan los de mayor
+# densidad, que son los que tienen ciudades y sufijos en la semilla.
+MAX_PAISES_POR_OLA = 8
 
 
 @lru_cache(maxsize=1)
@@ -136,7 +143,14 @@ class ProveedorDemo(Proveedor):
     }
 
     def _textos_multi(self, categoria: str, icp: dict, sectores: dict) -> dict[str, dict]:
-        """Propuesta, dolores y diferenciales en es/pt/en (los usa la fase 6)."""
+        """Propuesta, dolores y diferenciales en es/pt/en (los usa la fase 6).
+
+        `sectores_objetivo` también va en los tres idiomas, y no es cosmético:
+        el scoring compara el rubro del prospecto contra esta lista POR TEXTO.
+        Con la lista en un solo idioma, un prospecto brasileño con el mismo
+        rubro ("Bancos e banca de varejo" contra "Bancos y banca minorista")
+        puntuaba la mitad que uno argentino y nunca entraba en los correos.
+        """
         salida: dict[str, dict] = {}
         for idioma in geo.IDIOMAS:
             salida[idioma] = {
@@ -144,6 +158,8 @@ class ProveedorDemo(Proveedor):
                 "dolores": [_texto(sectores[c]["dolores"], idioma)[0]
                             for c in icp["sectores"][:4]],
                 "diferenciales": list(_texto(icp["diferenciales"], idioma)),
+                "sectores_objetivo": [_texto(sectores[s]["nombre"], idioma)
+                                      for s in icp["sectores"]],
             }
         return salida
 
@@ -199,25 +215,51 @@ class ProveedorDemo(Proveedor):
         categoria = self.detectar_categoria(empresa.categoria, empresa.dominio)
         return list(self.datos["icp_por_categoria"][categoria]["sectores"])
 
+    def _recortar_paises(self, codigos: list[str]) -> list[str]:
+        """Los mercados más densos de la ola, hasta MAX_PAISES_POR_OLA."""
+        cat = self.datos["paises"]
+        ordenados = sorted(codigos,
+                           key=lambda c: (-cat.get(c, {}).get("densidad", 0.05), c))
+        return ordenados[:MAX_PAISES_POR_OLA]
+
+    def _idioma_de_ola(self, codigos: list[str]) -> str:
+        """El idioma que habla la mayoría de la ola. Antes estaba cableado
+        (local y LATAM en español, el resto en inglés), lo que dejaba una
+        campaña en español para un cliente alemán."""
+        conteo: dict[str, int] = {}
+        for cod in codigos:
+            idi = geo.idioma_de(cod)
+            conteo[idi] = conteo.get(idi, 0) + 1
+        if not conteo:
+            return self.idioma_base
+        return max(sorted(conteo), key=lambda i: conteo[i])
+
     def campanas(self, empresa: Empresa, competidores: list[Competidor]) -> list[Campana]:
         sectores = self.datos["sectores"]
         claves = self._claves_sector(empresa)
         prueba_base = (empresa.diferenciales or [""])[0]
+        base = empresa.pais
 
         salida: list[Campana] = []
-        for nivel, prioridad, codigos in geo.orden_de_olas():
+        for nivel, prioridad, todos_codigos in geo.orden_de_olas(base):
+            codigos = self._recortar_paises(todos_codigos)
+            if not codigos:
+                # Un país base sin región propia en el catálogo (o el propio
+                # base repetido) deja la ola vacía: no hay campaña que armar.
+                continue
             cuantos = SECTORES_POR_NIVEL[nivel]
+            idioma = self._idioma_de_ola(codigos)
+            etiqueta = {
+                geo.NIVEL_LOCAL: geo.nombre_pais(base, idioma),
+                geo.NIVEL_REGIONAL: geo.nombre_region(geo.region_de(base), idioma),
+                geo.NIVEL_MUNDO: {"es": "Mundo", "pt": "Mundo", "en": "World"}[idioma],
+            }[nivel]
             for clave in claves[:cuantos]:
                 sec = sectores[clave]
-                # El idioma de la campaña es el del país mayoritario de la ola:
-                # local y LATAM salen en español (Brasil se atiende en portugués
-                # a nivel de correo, ya que el idioma final lo fija el país del
-                # decisor); el resto del mundo, en inglés.
-                idioma = {"local": "es", "latam": "es", "mundo": "en"}[nivel]
                 dolor = _texto(sec["dolores"], idioma)[0]
                 salida.append(Campana(
                     id=f"{nivel}-{clave}",
-                    nombre=f"{_texto(sec['nombre'], idioma)} · {nivel.upper()}",
+                    nombre=f"{_texto(sec['nombre'], idioma)} · {etiqueta.upper()}",
                     sector=_texto(sec["nombre"], idioma),
                     nivel=nivel,
                     prioridad=prioridad,
@@ -249,12 +291,13 @@ class ProveedorDemo(Proveedor):
         raices = self.datos["nombres_empresa"]["raices"]
         modificadores = self.datos["nombres_empresa"]["modificadores"]
 
-        # Cuántos prospectos le toca a cada ola. Uruguay primero y con la
-        # mayor tajada: es el mercado donde se puede tocar la puerta. El peso
-        # se renormaliza sobre las olas presentes: con el filtro de mercado en
-        # «sólo Uruguay» la ola local se lleva el límite entero, no el 45%.
-        reparto = {"local": 0.45, "latam": 0.35, "mundo": 0.20}
-        presentes = [n for n in ("local", "latam", "mundo")
+        # Cuántos prospectos le toca a cada ola. El país del cliente primero y
+        # con la mayor tajada: es el mercado donde se puede tocar la puerta. El
+        # peso se renormaliza sobre las olas presentes: con el filtro en «sólo
+        # mi país» la ola local se lleva el límite entero, no el 45%.
+        reparto = {geo.NIVEL_LOCAL: 0.45, geo.NIVEL_REGIONAL: 0.35,
+                   geo.NIVEL_MUNDO: 0.20}
+        presentes = [n for n in geo.NIVELES
                      if any(c.nivel == n for c in campanas)]
         peso_total = sum(reparto[n] for n in presentes) or 1.0
         usados: set[str] = set()
@@ -264,7 +307,7 @@ class ProveedorDemo(Proveedor):
             campanas_nivel = [c for c in campanas if c.nivel == nivel]
             cupo = max(1, round(limite * reparto[nivel] / peso_total))
             # Peso de cada país dentro de la ola: la densidad de la semilla
-            # (Uruguay 1.0, mercados chicos menos) evita listas irreales.
+            # (los mercados chicos pesan menos) evita listas irreales.
             pares: list[tuple[Campana, str, float]] = []
             for c in campanas_nivel:
                 for cod in c.paises:
@@ -289,7 +332,10 @@ class ProveedorDemo(Proveedor):
                 if sec is None:
                     sec = sectores["saas_b2b"]
                 pais = geo.obtener(cod)
-                ciudades = cat_paises.get(cod, {}).get("ciudades", [pais.nombre])
+                # Un país fuera de la semilla (el catálogo es mundial, la
+                # semilla no) usa su ciudad de referencia: "Berlín" se lee como
+                # una empresa, "Alemania" como un error.
+                ciudades = cat_paises.get(cod, {}).get("ciudades", [pais.capital])
                 sufijos = cat_paises.get(cod, {}).get("sufijos", ["S.A."])
                 tld = cat_paises.get(cod, {}).get("tld", ".com")
                 mods = modificadores.get(clave_sector, ["Group"])

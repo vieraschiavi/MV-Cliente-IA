@@ -55,13 +55,15 @@
     "llm_esperando": "A pesquisa com IA consulta o Claude várias vezes e leva de 1 a 3 minutos. Deixe a aba aberta: o resultado aparece sozinho quando termina.",
     "mercado": "Mercado",
     "email": "Seu e-mail (pedido para as buscas grátis)",
-    "mercado_todos": "Todos (Uruguai primeiro)",
-    "mercado_local": "Só Uruguai",
-    "mercado_latam": "Só LATAM",
+    "mercado_todos": "Todos ({{pais}} primeiro)",
+    "mercado_local": "Só {{pais}}",
     "mercado_mundo": "Só resto do mundo",
     "cupo_restante": "Web grátis: restam {{quedan}} de {{total}} buscas reais (a demo não desconta).",
     "cupo_agotado": "As {{total}} buscas reais grátis da web acabaram. A demo continua livre.",
-    "cupo_comprar": "Comprar o programa completo →"
+    "cupo_comprar": "Comprar o programa completo →",
+    "pais": "Seu país",
+    "pais_auto": "Detectar pelo meu site",
+    "mercado_regional": "Só {{region}}"
   },
   "fase": {
     "investigar": {
@@ -100,15 +102,15 @@
     "propuesta": "Proposta de valor",
     "sectores": "Setores-alvo",
     "tamano": "Porte do cliente",
-    "mercado": "Mercado base",
+    "mercado": "Seu mercado",
     "diferenciales": "Diferenciais"
   },
   "ola": {
     "titulo": "Ordem de entrada no mercado",
-    "local": "Uruguai",
-    "latam": "LATAM",
+    "local": "Seu país",
     "mundo": "Resto do mundo",
-    "explicacion": "Empresas que se encaixam no seu perfil de cliente, ordenadas por probabilidade de fechamento."
+    "explicacion": "Empresas que se encaixam no seu perfil de cliente, ordenadas por probabilidade de fechamento.",
+    "regional": "Sua região"
   },
   "kpi": {
     "prospectos": "Empresas",

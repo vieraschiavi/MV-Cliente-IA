@@ -3,9 +3,9 @@
 //
 // A diferencia de Kobra, acá el idioma NO viene del país del tenant: lo elige
 // el usuario y queda en localStorage. El motivo es el propio producto — quien
-// lo usa está en Uruguay y le escribe a Brasil y a Estados Unidos, así que su
-// idioma de trabajo no tiene por qué ser el del destinatario. El idioma de
-// CADA CORREO sí sale del país del decisor, y eso lo decide el backend.
+// lo usa está en su país y le escribe a otros tres, así que su idioma de
+// trabajo no tiene por qué ser el del destinatario. El idioma de CADA CORREO
+// sí sale del país del decisor, y eso lo decide el backend.
 import en from "./en.json";
 import es from "./es.json";
 import ptBR from "./pt-BR.json";

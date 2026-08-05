@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { api, fmtNum, getClaveIA, getEndpointIA, getProveedorIA } from "../api.js";
-import { Aviso, Vacio } from "../componentes/Comunes.jsx";
+import { Aviso, etiquetasOla, Vacio } from "../componentes/Comunes.jsx";
 import { getCorridaId, useCorrida } from "../estado.js";
 import { getIdioma, t } from "../i18n/index.js";
 
@@ -231,9 +231,9 @@ export default function Analisis() {
           <div className="card" style={{ marginBottom: 14 }}>
             <h3>{t("analisis.mercado")}</h3>
             <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
-              {["local", "latam", "mundo"].map((n) => (
+              {["local", "regional", "mundo"].map((n) => (
                 <div key={n}>
-                  <span className={`pill ${n}`}>{t(`ola.${n}`)}</span>
+                  <span className={`pill ${n}`}>{etiquetasOla(corrida)[n]}</span>
                   <p style={{ fontSize: 13.5, marginTop: 6 }}>{q.mercado_potencial[n]}</p>
                 </div>
               ))}

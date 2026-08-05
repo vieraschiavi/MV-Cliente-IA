@@ -90,7 +90,7 @@ class ProveedorLLM(Proveedor):
 
     def __init__(self, idioma_base: str = "es", modelo: str = "", clave: str = "",
                  proveedor: str = "claude", endpoint: str = "",
-                 mercado: str = "todos"):
+                 mercado: str = "todos", pais_base: str = ""):
         self.proveedor = (proveedor or "claude").lower()
         if self.proveedor not in PROVEEDORES_IA:
             raise ErrorLLM(f"Proveedor de IA desconocido: {proveedor}")
@@ -105,8 +105,12 @@ class ProveedorLLM(Proveedor):
                                "del endpoint de chat completions")
         self.modelo = modelo or MODELOS_IA[self.proveedor]()
         self.idioma_base = idioma_base
-        self.mercado = mercado if mercado in ("todos", "local", "latam", "mundo") \
-            else "todos"
+        self.mercado = ("todos" if mercado in (None, "", "todos")
+                        else geo.normalizar_nivel(mercado))
+        # El mercado propio del cliente. Es lo que decide qué es "local" y qué
+        # es "regional" en los prompts: sin esto la competencia se buscaba
+        # siempre en Latinoamérica, aunque el cliente vendiera en Alemania.
+        self.pais_base = (pais_base or "").strip().upper()
         # Notas informativas (no errores) que el pipeline copia a los avisos
         # de la corrida — p. ej. "ningún competidor tiene base en Uruguay".
         self.notas: list[str] = []
@@ -349,20 +353,24 @@ class ProveedorLLM(Proveedor):
         # El recorte geográfico manda también acá: un competidor que no opera
         # donde vende el cliente no le saca clientes. Sin filtro, el país de
         # origen va primero igual — es donde la competencia duele.
-        pais = empresa.pais or "UY"
+        pais = (self.pais_base or empresa.pais or "UY").upper()
+        nombre_pais = geo.nombre_pais(pais, self.idioma_base)
+        region = geo.nombre_region(geo.region_de(pais), self.idioma_base)
         recorte = {
-            "todos": (f"Priorizá así: primero competidores de {pais} o que "
-                      f"operen en {pais}, después los regionales de "
-                      "Latinoamérica, y recién al final los globales — y sólo "
-                      f"si de verdad venden en el mercado de {pais}."),
-            "local": (f"SOLO competidores que operen en {pais}: locales o "
-                      f"internacionales con presencia real en {pais}. Ninguno "
-                      "que no le pueda sacar un cliente ahí."),
-            "latam": ("SOLO competidores que operen en Latinoamérica: locales "
-                      "de la región o internacionales con presencia real en "
-                      "ella."),
-            "mundo": ("Competidores del mercado global, fuera de "
-                      "Latinoamérica incluida."),
+            "todos": (f"Priorizá así: primero competidores de {nombre_pais} o que "
+                      f"operen en {nombre_pais}, después los regionales de "
+                      f"{region}, y recién al final los globales — y sólo "
+                      f"si de verdad venden en el mercado de {nombre_pais}."),
+            geo.NIVEL_LOCAL: (
+                f"SOLO competidores que operen en {nombre_pais}: locales o "
+                f"internacionales con presencia real en {nombre_pais}. Ninguno "
+                "que no le pueda sacar un cliente ahí."),
+            geo.NIVEL_REGIONAL: (
+                f"SOLO competidores que operen en {region}: locales "
+                "de la región o internacionales con presencia real en "
+                "ella."),
+            geo.NIVEL_MUNDO: (f"Competidores del mercado global, fuera de "
+                              f"{region} incluida."),
         }[self.mercado]
         prompt = (
             "Sos analista de mercado y tenés que identificar COMPETIDORES "
@@ -416,13 +424,25 @@ class ProveedorLLM(Proveedor):
                     salida.append(c)
         return self._recortar_competencia(salida, vende_ahi, pais)
 
+    def _idioma_mayoritario(self, codigos: list[str]) -> str:
+        """El idioma que habla la mayoría de los países de una ola."""
+        conteo: dict[str, int] = {}
+        for cod in codigos:
+            idi = geo.idioma_de(cod)
+            conteo[idi] = conteo.get(idi, 0) + 1
+        if not conteo:
+            return self.idioma_base if self.idioma_base in geo.IDIOMAS else "es"
+        return max(sorted(conteo), key=lambda i: conteo[i])
+
     def _paises_objetivo(self, pais: str) -> set[str]:
-        """Países del recorte del mercado elegido; vacío = sin recorte."""
-        if self.mercado == "local":
+        """Países del recorte del mercado elegido; vacío = sin recorte.
+        La ola regional es la del país base: para un cliente alemán son los
+        países de Europa, no los de Latinoamérica."""
+        if self.mercado == geo.NIVEL_LOCAL:
             return {pais}
-        if self.mercado == "latam":
-            return {c for n, _p, cods in geo.orden_de_olas() if n == "latam"
-                    for c in cods} | {pais}
+        if self.mercado == geo.NIVEL_REGIONAL:
+            return {c for n, _p, cods in geo.orden_de_olas(pais)
+                    if n == geo.NIVEL_REGIONAL for c in cods} | {pais}
         return set()
 
     def _competencia_local(self, empresa: Empresa, paises: list[str]) -> list[Competidor]:
@@ -464,10 +484,10 @@ class ProveedorLLM(Proveedor):
     def _recortar_competencia(self, competidores: list[Competidor],
                               vende_ahi: dict[str, bool], pais: str) -> list[Competidor]:
         """El filtro de mercado se hace CUMPLIR acá, no sólo se pide en el
-        prompt: con «sólo Uruguay» aparecían doce competidores globales sin
+        prompt: con «sólo mi país» aparecían doce competidores globales sin
         una línea que dijera dónde operaban. Los de casa van primero; los que
         ni venden en el recorte se caen."""
-        if self.mercado in ("todos", "mundo"):
+        if self.mercado in ("todos", geo.NIVEL_MUNDO):
             return sorted(competidores, key=lambda c: -c.solapamiento)
 
         objetivo = self._paises_objetivo(pais)
@@ -477,7 +497,8 @@ class ProveedorLLM(Proveedor):
         if not de_casa and venden:
             # Mercado chico: puede no haber ni un competidor con base local.
             # Decirlo vale más que devolver una lista global sin contexto.
-            donde = pais if self.mercado == "local" else "Latinoamérica"
+            donde = (geo.nombre_pais(pais, self.idioma_base) if self.mercado == geo.NIVEL_LOCAL
+                     else geo.nombre_region(geo.region_de(pais), self.idioma_base))
             self.notas.append(
                 f"Competencia: ninguno de los competidores directos tiene base "
                 f"en {donde}; los que se listan son de afuera pero venden ahí.")
@@ -492,9 +513,17 @@ class ProveedorLLM(Proveedor):
     def campanas(self, empresa: Empresa, competidores: list[Competidor]) -> list[Campana]:
         from .demo import SECTORES_POR_NIVEL, _slug
 
-        olas = list(geo.orden_de_olas())
+        base = (self.pais_base or empresa.pais or "UY").upper()
+        nombre_pais = geo.nombre_pais(base, self.idioma_base)
+        region = geo.nombre_region(geo.region_de(base), self.idioma_base)
+        olas = [(n, p, c) for n, p, c in geo.orden_de_olas(base) if c]
+        # El idioma de cada ola sale de los países que la componen, no de una
+        # tabla fija: la ola regional de un cliente alemán se escribe en inglés,
+        # la de un uruguayo en español.
+        idioma_ola = {nivel: self._idioma_mayoritario(codigos)
+                      for nivel, _p, codigos in olas}
         pedido = [{"nivel": nivel, "campanas": SECTORES_POR_NIVEL[nivel],
-                   "idioma": {"local": "es", "latam": "es", "mundo": "en"}[nivel]}
+                   "idioma": idioma_ola[nivel]}
                   for nivel, _prioridad, _codigos in olas]
         rivales = "; ".join(f"{c.nombre} ({c.posicionamiento})"
                             for c in competidores[:6] if c.nombre)
@@ -504,8 +533,8 @@ class ProveedorLLM(Proveedor):
             + "Definí campañas de salida al mercado para ESTE producto. Para "
             "cada recorte de esta lista, la cantidad indicada de campañas:\n"
             f"{json.dumps(pedido, ensure_ascii=False)}\n"
-            "(local = el país de la empresa, latam = Latinoamérica, mundo = "
-            "resto del mundo)\n\n"
+            f"(local = {nombre_pais}, regional = el resto de {region}, "
+            f"mundo = el resto del mundo)\n\n"
             "Cada campaña: `sector` = tipo concreto de organización que COMPRA "
             "este producto (no rubros vecinos), `dolor` = el problema de ese "
             "sector que este producto resuelve, `angulo` = UNA frase comercial "
@@ -521,7 +550,7 @@ class ProveedorLLM(Proveedor):
         for c in datos if isinstance(datos, list) else []:
             if not isinstance(c, dict):
                 continue
-            nivel = str(c.get("nivel", "")).strip().lower()
+            nivel = geo.normalizar_nivel(c.get("nivel"))
             sector = str(c.get("sector", "")).strip()
             if nivel not in por_ola or not sector:
                 continue
@@ -530,10 +559,13 @@ class ProveedorLLM(Proveedor):
                 continue
             vistos.add(cid)
             prioridad, codigos = por_ola[nivel]
-            idioma = {"local": "es", "latam": "es", "mundo": "en"}[nivel]
+            idioma = idioma_ola[nivel]
+            etiqueta = {geo.NIVEL_LOCAL: nombre_pais,
+                        geo.NIVEL_REGIONAL: region,
+                        geo.NIVEL_MUNDO: "Mundo"}[nivel]
             salida.append(Campana(
                 id=cid,
-                nombre=f"{sector} · {nivel.upper()}",
+                nombre=f"{sector} · {etiqueta.upper()}",
                 sector=sector,
                 nivel=nivel,
                 prioridad=prioridad,
@@ -554,11 +586,12 @@ class ProveedorLLM(Proveedor):
                    limite: int) -> list[Prospecto]:
         salida: list[Prospecto] = []
         fallos: list[str] = []
-        # El cupo se reparte con Uruguay primero. Se renormaliza sobre las
-        # olas PRESENTES: con el filtro de mercado en «sólo Uruguay» la ola
-        # local se lleva el límite entero, no el 45%.
-        reparto = {"local": 0.45, "latam": 0.35, "mundo": 0.20}
-        niveles = [n for n in ("local", "latam", "mundo")
+        # El cupo se reparte con el país del cliente primero. Se renormaliza
+        # sobre las olas PRESENTES: con el filtro de mercado en «sólo mi país»
+        # la ola local se lleva el límite entero, no el 45%.
+        reparto = {geo.NIVEL_LOCAL: 0.45, geo.NIVEL_REGIONAL: 0.35,
+                   geo.NIVEL_MUNDO: 0.20}
+        niveles = [n for n in geo.NIVELES
                    if any(c.nivel == n for c in campanas)]
         peso_total = sum(reparto[n] for n in niveles) or 1.0
 

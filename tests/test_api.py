@@ -30,10 +30,37 @@ def test_salud(cliente):
 
 
 def test_catalogo_geo_devuelve_las_tres_olas_en_orden(cliente):
-    olas = cliente.get("/api/geo").json()["olas"]
-    assert [o["nivel"] for o in olas] == ["local", "latam", "mundo"]
+    d = cliente.get("/api/geo").json()
+    olas = d["olas"]
+    assert [o["nivel"] for o in olas] == ["local", "regional", "mundo"]
     assert olas[0]["paises"] == [{"codigo": "UY", "nombre": "Uruguay", "idioma": "es"}]
     assert olas[0]["peso"] > olas[1]["peso"] > olas[2]["peso"]
+    # El desplegable «tu país» se llena con esto: tiene que ser mundial.
+    assert len(d["paises"]) >= 90
+    assert {"DE", "JP", "ZA", "AU", "US", "UY"} <= {p["codigo"] for p in d["paises"]}
+
+
+def test_catalogo_geo_gira_las_olas_alrededor_del_pais_pedido(cliente):
+    d = cliente.get("/api/geo?pais=DE&idioma=en").json()
+    assert d["pais_base"] == "DE"
+    assert d["region_base"] == "Europe"
+    olas = {o["nivel"]: [p["codigo"] for p in o["paises"]] for o in d["olas"]}
+    assert olas["local"] == ["DE"]
+    assert "ES" in olas["regional"] and "UY" not in olas["regional"]
+    assert "UY" in olas["mundo"]
+
+
+def test_la_corrida_toma_el_pais_que_eligio_el_cliente(cliente):
+    r = cliente.post("/api/corridas", json={
+        "dominio": "mvkobranzaia.com", "modo": "demo", "prospectos": 20,
+        "pais": "DE"})
+    assert r.status_code == 200
+    d = _esperar(cliente, r.json()["id"])
+    assert d["estado"] == "listo"
+    assert d["pais_base"] == "DE"
+    assert d["pais_base_nombre"] == "Alemania"
+    locales = [p for p in d["prospectos"] if p["nivel"] == "local"]
+    assert locales and all(p["pais"] == "DE" for p in locales)
 
 
 def test_corrida_completa_por_http(cliente):

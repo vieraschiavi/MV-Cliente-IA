@@ -4,6 +4,8 @@ fórmula pieza por pieza y, sobre todo, que el peso geográfico mande.
 """
 from __future__ import annotations
 
+from dataclasses import replace
+
 from cliente_ia import scoring
 from cliente_ia.modelos import Decisor, Empresa, Prospecto
 
@@ -47,21 +49,33 @@ def test_mencion_a_competidor_suma():
     assert con == 1.0 and sin == 0.0
 
 
-def test_uruguayo_le_gana_a_identico_de_afuera():
-    """El corazón de la regla: mismo ICP, distinto país, distinto orden."""
+def test_el_del_pais_propio_le_gana_a_identico_de_afuera():
+    """El corazón de la regla: mismo ICP, distinto país, distinto orden.
+    EMPRESA.pais es UY, así que la ola local es Uruguay."""
     uy = scoring.puntuar_prospecto(_prospecto(id="uy", pais="UY"), EMPRESA)
     br = scoring.puntuar_prospecto(_prospecto(id="br", pais="BR"), EMPRESA)
     us = scoring.puntuar_prospecto(_prospecto(id="us", pais="US"), EMPRESA)
     assert uy.score > br.score > us.score
-    assert (uy.nivel, br.nivel, us.nivel) == ("local", "latam", "mundo")
+    assert (uy.nivel, br.nivel, us.nivel) == ("local", "regional", "mundo")
     assert (uy.idioma, br.idioma, us.idioma) == ("es", "pt", "en")
+
+
+def test_la_regla_se_da_vuelta_al_cambiar_el_pais_de_la_empresa():
+    """Nada de Uruguay cableado: con la empresa en Alemania, el peso 1.00 pasa
+    a Alemania, Europa es la ola regional y Uruguay cae al mundo."""
+    alemana = replace(EMPRESA, pais="DE")
+    de = scoring.puntuar_prospecto(_prospecto(id="de", pais="DE"), alemana)
+    es = scoring.puntuar_prospecto(_prospecto(id="es", pais="ES"), alemana)
+    uy = scoring.puntuar_prospecto(_prospecto(id="uy", pais="UY"), alemana)
+    assert de.score > es.score > uy.score
+    assert (de.nivel, es.nivel, uy.nivel) == ("local", "regional", "mundo")
 
 
 def test_orden_respeta_la_ola_aunque_el_de_afuera_sea_mejor():
     """
     Un prospecto perfecto de Estados Unidos NO puede colarse antes que uno
-    uruguayo flojo: el orden es por ola primero y por score adentro. Si esto
-    se rompe, el producto dejó de priorizar Uruguay.
+    del país propio flojo: el orden es por ola primero y por score adentro. Si
+    esto se rompe, el producto dejó de priorizar el mercado del cliente.
     """
     uy_flojo = scoring.puntuar_prospecto(
         _prospecto(id="uy", pais="UY", sector="Astilleros", empleados=3), EMPRESA)

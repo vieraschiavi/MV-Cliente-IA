@@ -61,7 +61,8 @@ def ejecutar(dominio: str,
              clave_ia: str = "",
              proveedor_ia: str = "claude",
              endpoint_ia: str = "",
-             mercado: str = "todos") -> Corrida:
+             mercado: str = "todos",
+             pais_base: str = "") -> Corrida:
     """
     Corre el AutoGTM completo sobre `dominio` y devuelve la corrida.
 
@@ -72,13 +73,24 @@ def ejecutar(dominio: str,
     `enlaces` configura el sitio, el video y el banner que llevan los mensajes
     de la fase 6, cada uno en el idioma del receptor (ver `cliente_ia.enlaces`).
     Si no se pasa nada, se derivan del dominio del producto.
+
+    `pais_base` es el mercado propio del cliente: el que va primero en las tres
+    olas. Vacío significa «deducilo» (del TLD del dominio, y si es genérico del
+    idioma de la interfaz).
     """
     dominio = (dominio or "").strip().lower().removeprefix("https://") \
                                             .removeprefix("http://").rstrip("/")
     if not dominio:
         raise ValueError("Hace falta un dominio")
-    if mercado not in ("todos", "local", "latam", "mundo"):
+    # "latam" es como se llamaba la ola regional antes de que el país base
+    # fuera elegible; un navegador con el filtro viejo guardado lo sigue
+    # mandando.
+    if mercado == "latam":
+        mercado = geo.NIVEL_REGIONAL
+    if mercado not in ("todos", *geo.NIVELES):
         raise ValueError(f"Mercado inválido: {mercado}")
+
+    base = geo.resolver_base(pais_base, dominio, idioma_ui)
 
     corrida = Corrida(
         id=corrida_id or uuid.uuid4().hex[:12],
@@ -87,6 +99,7 @@ def ejecutar(dominio: str,
         estado="corriendo",
         modo=proveedores.modo_efectivo(modo, clave_ia),
         mercado=mercado,
+        pais_base=base.codigo,
         idioma_ui=idioma_ui if idioma_ui in geo.IDIOMAS else "es",
         pasos=[],
     )
@@ -104,12 +117,17 @@ def ejecutar(dominio: str,
     # La clave de la interfaz vive lo que dura esta llamada: no entra en la
     # corrida, ni en el disco, ni en ningún log.
     proveedor = proveedores.construir(modo, corrida.idioma_ui, clave_ia,
-                                      proveedor_ia, endpoint_ia, mercado)
+                                      proveedor_ia, endpoint_ia, mercado,
+                                      base.codigo)
 
     try:
         # --- Fase 1 · investigar la empresa -----------------------------
         with _fase(corrida, "investigar", avisar) as paso:
             corrida.empresa = proveedor.investigar(dominio)
+            # El mercado base del cliente manda sobre lo que dedujo la fase 1:
+            # el TLD es una pista, la elección del usuario es un dato. Todo el
+            # resto del pipeline lee las olas desde acá.
+            corrida.empresa.pais = base.codigo
             # Un dominio pegado no siempre tiene un nombre comercial legible
             # ("mvkobranzaia.com" → "Mvkobranzaia"). Si el usuario lo escribió,
             # manda el suyo: es el nombre que van a leer los destinatarios.
@@ -159,7 +177,7 @@ def ejecutar(dominio: str,
         # --- Fase 3 · definir campañas ----------------------------------
         with _fase(corrida, "campanas", avisar) as paso:
             corrida.campanas = proveedor.campanas(corrida.empresa, corrida.competidores)
-            # Filtro de mercado: con «sólo Uruguay» (o LATAM, o mundo) las
+            # Filtro de mercado: con «sólo mi país» (o mi región, o mundo) las
             # campañas de las otras olas se descartan acá, ANTES de buscar
             # prospectos — los proveedores derivan las olas de las campañas
             # que reciben y renormalizan el reparto sobre las presentes.
@@ -180,12 +198,13 @@ def ejecutar(dominio: str,
             nombres_comp = [c.nombre for c in corrida.competidores]
             for p in crudos:
                 scoring.puntuar_prospecto(p, corrida.empresa, nombres_comp)
-            # Uruguay primero, después LATAM, después el mundo. El recorte al
-            # límite se hace DESPUÉS de ordenar: si sobran candidatos, los que
-            # se caen son siempre los del final de la cola, nunca los locales.
+            # El país del cliente primero, después su región, después el mundo.
+            # El recorte al límite se hace DESPUÉS de ordenar: si sobran
+            # candidatos, los que se caen son siempre los del final de la cola,
+            # nunca los del mercado propio.
             corrida.prospectos = scoring.ordenar_prospectos(crudos)[:limite_prospectos]
             paso.items = len(corrida.prospectos)
-            paso.detalle = _detalle_niveles(corrida.prospectos)
+            paso.detalle = _detalle_niveles(corrida.prospectos, base.codigo, corrida.idioma_ui)
 
         # --- Fase 5 · encontrar decisores -------------------------------
         with _fase(corrida, "decisores", avisar) as paso:
@@ -205,9 +224,9 @@ def ejecutar(dominio: str,
                 if prospecto:
                     scoring.puntuar_decisor(d, prospecto)
             corrida.decisores = scoring.ordenar_decisores(
-                [d for d in decisores if d.prospecto_id in por_id])
+                [d for d in decisores if d.prospecto_id in por_id], base.codigo)
             paso.items = len(corrida.decisores)
-            paso.detalle = _detalle_niveles(corrida.prospectos)
+            paso.detalle = _detalle_niveles(corrida.prospectos, base.codigo, corrida.idioma_ui)
 
         # --- Fase 6 · escribir los correos ------------------------------
         with _fase(corrida, "emails", avisar) as paso:
@@ -266,7 +285,8 @@ class _fase:
 # estrictamente por prioridad, LATAM y el resto del mundo no recibirían un
 # solo correo hasta agotar Uruguay — y con eso el producto no probaría nunca
 # los otros dos idiomas en la calle.
-REPARTO_EMAILS = {"local": 0.45, "latam": 0.35, "mundo": 0.20}
+REPARTO_EMAILS = {geo.NIVEL_LOCAL: 0.45, geo.NIVEL_REGIONAL: 0.35,
+                  geo.NIVEL_MUNDO: 0.20}
 
 
 def _redactar_todos(corrida: Corrida, limite: int, firma: str,
@@ -275,7 +295,7 @@ def _redactar_todos(corrida: Corrida, limite: int, firma: str,
     campanas = {c.id: c for c in corrida.campanas}
     emails: list[Email] = []
 
-    for nivel in ("local", "latam", "mundo"):
+    for nivel in geo.NIVELES:
         decisores = [d for d in corrida.decisores
                      if (p := por_id.get(d.prospecto_id)) and p.nivel == nivel]
         if not decisores:
@@ -312,11 +332,16 @@ def _detalle_olas(corrida: Corrida) -> str:
     return " · ".join(f"{k}: {v}" for k, v in conteo.items())
 
 
-def _detalle_niveles(prospectos: list[Prospecto]) -> str:
-    conteo = {"local": 0, "latam": 0, "mundo": 0}
+def _detalle_niveles(prospectos: list[Prospecto], base: str = "",
+                     idioma: str = "es") -> str:
+    conteo = dict.fromkeys(geo.NIVELES, 0)
     for p in prospectos:
-        conteo[p.nivel] = conteo.get(p.nivel, 0) + 1
-    return f"UY {conteo['local']} · LATAM {conteo['latam']} · Mundo {conteo['mundo']}"
+        conteo[geo.normalizar_nivel(p.nivel)] += 1
+    pais = geo.obtener(base)
+    region = geo.nombre_region(pais.region, idioma)
+    return (f"{geo.nombre_pais(base, idioma)} {conteo[geo.NIVEL_LOCAL]} · "
+            f"{region} {conteo[geo.NIVEL_REGIONAL]} · "
+            f"Mundo {conteo[geo.NIVEL_MUNDO]}")
 
 
 def _detalle_idiomas(emails: list[Email]) -> str:
@@ -334,6 +359,12 @@ def _cli() -> int:
     ap.add_argument("--decisores", type=int, default=DECISORES_POR_EMPRESA_DEFAULT)
     ap.add_argument("--emails", type=int, default=LIMITE_EMAILS_DEFAULT)
     ap.add_argument("--idioma", default="es", choices=list(geo.IDIOMAS))
+    ap.add_argument("--pais", default="",
+                    help="Tu mercado, ISO alfa-2 (UY, DE, JP…). Vacío: se deduce "
+                         "del TLD del dominio y, si es genérico, del idioma")
+    ap.add_argument("--mercado", default="todos",
+                    choices=["todos", *geo.NIVELES],
+                    help="Recorte: todos | local (tu país) | regional (tu región) | mundo")
     ap.add_argument("--firma", default="")
     ap.add_argument("--nombre", default="", help="Nombre comercial, ej. 'MV Kobra AI'")
     ap.add_argument("--sitio", default="", help="Sitio para los enlaces (por defecto, el dominio)")
@@ -357,6 +388,7 @@ def _cli() -> int:
                        decisores_por_empresa=args.decisores,
                        limite_emails=args.emails,
                        idioma_ui=args.idioma, firma=args.firma, nombre=args.nombre,
+                       pais_base=args.pais, mercado=args.mercado,
                        enlaces={"sitio": args.sitio or args.dominio,
                                 "videos": {"es": args.video_es, "pt": args.video_pt,
                                            "en": args.video_en},
@@ -368,6 +400,7 @@ def _cli() -> int:
     else:
         r = corrida.resumen()
         print(f"\n  estado: {corrida.estado}")
+        print(f"  mercado base: {geo.nombre_pais(corrida.pais_base, args.idioma)}")
         print(f"  prospectos por ola: {r['prospectos_por_nivel']}")
         print(f"  correos por idioma: {r['emails_por_idioma']}")
         print(f"  con video: {r['con_video']} · con LinkedIn: {r['con_linkedin']}")

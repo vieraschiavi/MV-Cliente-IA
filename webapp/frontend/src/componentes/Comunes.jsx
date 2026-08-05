@@ -1,13 +1,26 @@
 import React, { useState } from "react";
 import { t } from "../i18n/index.js";
 
-/** Etiqueta de color: ola geográfica (local/latam/mundo) o idioma (es/pt/en). */
+/** Etiqueta de color: ola geográfica (local/regional/mundo) o idioma (es/pt/en). */
 export function Pill({ tipo, children }) {
   return <span className={`pill ${tipo}`}>{children}</span>;
 }
 
-export function Ola({ nivel }) {
-  return <Pill tipo={nivel}>{t(`ola.${nivel}`)}</Pill>;
+/**
+ * Nombre de cada ola para ESTA corrida. Sin corrida quedan los genéricos
+ * ("Tu país", "Tu región"); con corrida se dice cuál es. En una tabla de
+ * sesenta filas, sesenta pills que dicen "Tu país" no informan nada.
+ */
+export function etiquetasOla(corrida) {
+  return {
+    local: corrida?.pais_base_nombre || t("ola.local"),
+    regional: corrida?.region_base || t("ola.regional"),
+    mundo: t("ola.mundo"),
+  };
+}
+
+export function Ola({ nivel, etiquetas }) {
+  return <Pill tipo={nivel}>{etiquetas?.[nivel] || t(`ola.${nivel}`)}</Pill>;
 }
 
 export function Idioma({ codigo }) {

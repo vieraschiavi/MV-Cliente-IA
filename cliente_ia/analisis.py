@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import json
 
+from . import geo
+
 # Multiplicadores por escenario sobre los números DEL USUARIO. Son supuestos
 # a la vista, no predicciones: pesimista consigue la mitad de clientes y
 # pierde 1.5× más; optimista consigue 1.5× y retiene mejor.
@@ -90,7 +92,9 @@ def cualitativo(llm, empresa: dict, competidores: list[dict],
     es un ProveedorLLM ya construido (con la clave del usuario)."""
     from .proveedores.llm import ErrorLLM, _json_del_texto
 
-    pais = str(empresa.get("pais") or "UY")
+    cod = str(empresa.get("pais") or "UY")
+    pais = geo.nombre_pais(cod, idioma)
+    region = geo.nombre_region(geo.region_de(cod), idioma)
     resumen = str(empresa.get("resumen_sitio") or "")[:2000]
     rivales = [
         {"nombre": c.get("nombre", ""), "pais": c.get("pais", ""),
@@ -109,13 +113,13 @@ def cualitativo(llm, empresa: dict, competidores: list[dict],
            if rivales else "Sin competidores identificados en la corrida.\n\n")
         + f"El análisis se escribe COMPLETO en {NOMBRE_IDIOMA.get(idioma, 'español')}. "
         f"El foco es proporcional: primero y con más profundidad {pais} (su "
-        "mercado de origen), después Latinoamérica, después el resto del "
-        "mundo.\n\n"
+        f"mercado de origen), después el resto de {region}, después el resto "
+        "del mundo.\n\n"
         "Devolvé SOLO un objeto JSON con esta forma exacta:\n"
         "{\n"
         '  "probabilidad_exito": 0-100,\n'
         '  "veredicto": "2-3 frases: por qué esa probabilidad",\n'
-        '  "mercado_potencial": {"local": "...", "latam": "...", "mundo": "..."},\n'
+        '  "mercado_potencial": {"local": "...", "regional": "...", "mundo": "..."},\n'
         '  "foda": [{"competidor": "...", "fortalezas": ["..."], "debilidades": ["..."],\n'
         '            "oportunidades": ["..."], "amenazas": ["..."]}],\n'
         '  "riesgos": ["los 3-5 riesgos principales del negocio"]\n'
@@ -137,7 +141,8 @@ def cualitativo(llm, empresa: dict, competidores: list[dict],
         "veredicto": str(datos.get("veredicto", "")).strip(),
         "mercado_potencial": {
             "local": str(mp.get("local", "")).strip(),
-            "latam": str(mp.get("latam", "")).strip(),
+            # El modelo puede contestar con el nombre viejo de la ola.
+            "regional": str(mp.get("regional") or mp.get("latam") or "").strip(),
             "mundo": str(mp.get("mundo", "")).strip(),
         },
         "foda": [
