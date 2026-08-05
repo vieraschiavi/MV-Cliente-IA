@@ -36,17 +36,17 @@ TEXTOS = {
     "es": {
         "marca": "MV CLIENTE", "marca2": "IA",
         "titulo": "Tus próximos clientes,\nencontrados por vos.",
-        "pie": "Ver el video de 90 segundos  ▸",
+        "pie": "Ver el video  ▸",
     },
     "pt": {
         "marca": "MV CLIENTE", "marca2": "IA",
         "titulo": "Seus próximos clientes,\nencontrados para você.",
-        "pie": "Ver o vídeo de 90 segundos  ▸",
+        "pie": "Ver o vídeo  ▸",
     },
     "en": {
         "marca": "MV SearchCostumer", "marca2": "AI",
         "titulo": "Your next customers,\nfound for you.",
-        "pie": "Watch the 90-second video  ▸",
+        "pie": "Watch the video  ▸",
     },
 }
 

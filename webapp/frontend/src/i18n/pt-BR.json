@@ -108,7 +108,7 @@
     "local": "Uruguai",
     "latam": "LATAM",
     "mundo": "Resto do mundo",
-    "explicacion": "Uruguai primeiro, depois LATAM, depois o resto do mundo. A pontuação já carrega esse peso: um prospecto uruguaio bom sempre vem antes de um igualmente bom de fora."
+    "explicacion": "Empresas que se encaixam no seu perfil de cliente, ordenadas por probabilidade de fechamento."
   },
   "kpi": {
     "prospectos": "Empresas",

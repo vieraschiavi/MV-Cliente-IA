@@ -41,9 +41,8 @@ TEXTOS: dict[str, dict] = {
         "marca": "MV Cliente IA",
         "titulo": "MV Cliente IA · Encontrá tus próximos clientes",
         "desc": "Pegá el enlace de tu producto: la IA investiga tu empresa, encuentra a tus "
-                "compradores, ubica a los decisores y escribe los correos. Uruguay primero, "
-                "después LATAM, después el mundo.",
-        "nav": ["Cómo funciona", "Orden de mercado", "Video", "Idiomas", "Descargar", "Precios"],
+                "compradores, ubica a los decisores y escribe los correos.",
+        "nav": ["Cómo funciona", "Video", "Idiomas", "Descargar", "Precios"],
         "hero_k": "Prospección automática, 24/7",
         "hero_h1": ["¿Sin clientes? Meses construyendo,", "todavía $0 de ingresos."],
         "hero_p": "El problema nunca fue el producto — eran las ventas. Pegá el enlace de tu "
@@ -60,21 +59,12 @@ TEXTOS: dict[str, dict] = {
         "pasos": [
             ("Investigá tu empresa", "Lee tu sitio y saca qué vendés, a quién y con qué argumento."),
             ("Explorá la competencia", "Contra quién te van a comparar y en qué se te parecen."),
-            ("Definí campañas", "Un ángulo de mensaje por sector y por ola geográfica."),
+            ("Definí campañas", "Un ángulo de mensaje por sector y por mercado."),
             ("Encontrá clientes potenciales", "Empresas que encajan en tu perfil, con el motivo de por qué ahora."),
             ("Encontrá a los decisores", "Quién firma la decisión en cada una, con su cargo."),
             ("Escribí los correos", "Un primer contacto y su seguimiento, en el idioma de quien lo recibe."),
         ],
-        "olas_h": "Uruguay primero. Después LATAM. Después el mundo.",
-        "olas_p": "No es un filtro que se pone y se saca: el orden está adentro del puntaje. "
-                  "Un prospecto uruguayo bueno siempre queda por delante de uno igual de bueno "
-                  "de afuera, porque en Uruguay podés tocar la puerta.",
-        "olas": [
-            ("Uruguay", "Peso 1.00", "El mercado donde una reunión se consigue con una llamada."),
-            ("LATAM", "Peso 0.72", "Argentina, Brasil, Chile, México y diez países más."),
-            ("Resto del mundo", "Peso 0.45", "Donde el producto entra por el caso, no por la cercanía."),
-        ],
-        "video_h": "Noventa segundos, de punta a punta",
+        "video_h": "Miralo funcionando, de punta a punta",
         "video_p": "Es el mismo video que va en los correos: cada país lo recibe en su idioma.",
         "video_falta": "El video todavía no está publicado. Poné tu archivo en "
                        "<code>landing/video/es/demo.mp4</code> y aparece acá.",
@@ -137,9 +127,8 @@ TEXTOS: dict[str, dict] = {
         "marca": "MV Cliente IA",
         "titulo": "MV Cliente IA · Encontre seus próximos clientes",
         "desc": "Cole o link do seu produto: a IA pesquisa sua empresa, encontra seus "
-                "compradores, localiza os decisores e escreve os e-mails. Uruguai primeiro, "
-                "depois LATAM, depois o mundo.",
-        "nav": ["Como funciona", "Ordem de mercado", "Vídeo", "Idiomas", "Baixar", "Preços"],
+                "compradores, localiza os decisores e escreve os e-mails.",
+        "nav": ["Como funciona", "Vídeo", "Idiomas", "Baixar", "Preços"],
         "hero_k": "Prospecção automática, 24/7",
         "hero_h1": ["Sem clientes? Meses construindo,", "e ainda R$0 de receita."],
         "hero_p": "O problema nunca foi o produto — eram as vendas. Cole o link do seu site e o "
@@ -156,21 +145,12 @@ TEXTOS: dict[str, dict] = {
         "pasos": [
             ("Pesquise sua empresa", "Lê seu site e extrai o que você vende, para quem e com qual argumento."),
             ("Explore a concorrência", "Com quem vão comparar você e no que vocês se parecem."),
-            ("Defina campanhas", "Um ângulo de mensagem por setor e por onda geográfica."),
+            ("Defina campanhas", "Um ângulo de mensagem por setor e por mercado."),
             ("Encontre clientes potenciais", "Empresas que se encaixam no seu perfil, com o motivo de por que agora."),
             ("Encontre os decisores", "Quem assina a decisão em cada uma, com o cargo."),
             ("Escreva os e-mails", "Um primeiro contato e seu follow-up, no idioma de quem recebe."),
         ],
-        "olas_h": "Uruguai primeiro. Depois LATAM. Depois o mundo.",
-        "olas_p": "Não é um filtro que se liga e desliga: a ordem está dentro da pontuação. "
-                  "Um prospecto uruguaio bom sempre fica à frente de um igualmente bom de fora, "
-                  "porque no Uruguai dá para bater na porta.",
-        "olas": [
-            ("Uruguai", "Peso 1,00", "O mercado onde uma reunião se consegue com um telefonema."),
-            ("LATAM", "Peso 0,72", "Argentina, Brasil, Chile, México e mais dez países."),
-            ("Resto do mundo", "Peso 0,45", "Onde o produto entra pelo caso, não pela proximidade."),
-        ],
-        "video_h": "Noventa segundos, de ponta a ponta",
+        "video_h": "Veja funcionando, de ponta a ponta",
         "video_p": "É o mesmo vídeo que vai nos e-mails: cada país recebe no seu idioma.",
         "video_falta": "O vídeo ainda não foi publicado. Coloque seu arquivo em "
                        "<code>landing/video/pt/demo.mp4</code> e ele aparece aqui.",
@@ -233,9 +213,8 @@ TEXTOS: dict[str, dict] = {
         "marca": "MV SearchCostumer AI",
         "titulo": "MV SearchCostumer AI · Find your next customers",
         "desc": "Drop your product link: the AI researches your company, finds your buyers, "
-                "locates the decision makers and writes the emails. Uruguay first, then LATAM, "
-                "then the world.",
-        "nav": ["How it works", "Market order", "Video", "Languages", "Download", "Pricing"],
+                "locates the decision makers and writes the emails.",
+        "nav": ["How it works", "Video", "Languages", "Download", "Pricing"],
         "hero_k": "Automatic prospecting, 24/7",
         "hero_h1": ["No customers? Months building,", "still $0 in revenue."],
         "hero_p": "The problem was never the product — it was sales. Drop your website link and "
@@ -252,21 +231,12 @@ TEXTOS: dict[str, dict] = {
         "pasos": [
             ("Research your company", "Reads your site and extracts what you sell, to whom, and with what argument."),
             ("Explore the competition", "Who you'll be compared against, and where you overlap."),
-            ("Define campaigns", "One message angle per sector and per geographic wave."),
+            ("Define campaigns", "One message angle per sector and per market."),
             ("Find potential customers", "Companies matching your profile, with the reason why now."),
             ("Find the decision makers", "Who signs off at each one, with their title."),
             ("Write the emails", "A first touch and its follow-up, in the recipient's language."),
         ],
-        "olas_h": "Uruguay first. Then LATAM. Then the world.",
-        "olas_p": "It isn't a filter you toggle: the ordering lives inside the score. A good "
-                  "Uruguayan prospect always ranks ahead of an equally good one from abroad, "
-                  "because in Uruguay you can knock on the door.",
-        "olas": [
-            ("Uruguay", "Weight 1.00", "The market where one phone call gets you a meeting."),
-            ("LATAM", "Weight 0.72", "Argentina, Brazil, Chile, Mexico and ten more countries."),
-            ("Rest of the world", "Weight 0.45", "Where the product wins on the case, not on proximity."),
-        ],
-        "video_h": "Ninety seconds, end to end",
+        "video_h": "See it running, end to end",
         "video_p": "It's the same video the emails carry: each country gets it in its language.",
         "video_falta": "The video isn't published yet. Drop your file at "
                        "<code>landing/video/en/demo.mp4</code> and it shows up here.",
@@ -390,13 +360,6 @@ section{padding:64px 0;border-top:1px solid var(--line)}
 .paso b{display:block;font-size:15px;margin-bottom:6px}
 .paso p{margin:0;color:var(--muted);font-size:13.5px}
 
-.olas{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
-.ola{background:var(--navy2);border:1px solid var(--line);border-radius:14px;padding:22px}
-.ola.uno{border-color:rgba(0,200,150,.4)}
-.ola b{display:block;font-size:17px;margin-bottom:4px}
-.ola .peso{color:var(--green);font-weight:800;font-size:13px;font-variant-numeric:tabular-nums}
-.ola p{margin:10px 0 0;color:var(--muted);font-size:13.5px}
-
 .video-caja{background:var(--navy2);border:1px solid var(--line);border-radius:16px;
   padding:14px;max-width:820px}
 .video-caja video{display:block;width:100%;border-radius:10px;background:#000}
@@ -460,10 +423,6 @@ def render(idioma: str) -> str:
     pasos = "\n".join(
         f'<article class="paso"><div class="n">{i}</div><b>{_esc(n)}</b><p>{_esc(d)}</p></article>'
         for i, (n, d) in enumerate(t["pasos"], 1))
-    olas = "\n".join(
-        f'<article class="ola{" uno" if i == 0 else ""}"><b>{_esc(n)}</b>'
-        f'<span class="peso">{_esc(p)}</span><p>{_esc(d)}</p></article>'
-        for i, (n, p, d) in enumerate(t["olas"]))
     def _tarjeta_descarga(n, d, cta, href, nota, *extra):
         if href == APP:
             enlace = f'<a class="btn btn-o" href="{base}app/">{_esc(cta)} →</a>'
@@ -482,7 +441,7 @@ def render(idioma: str) -> str:
     items_pago = "".join(f"<li>{_esc(x)}</li>" for x in t["plan_pago"])
     enlaces = "".join(
         f'<a href="#{ancla}">{_esc(txt)}</a>'
-        for ancla, txt in zip(("pasos", "olas", "video", "idiomas", "descargar", "precios"),
+        for ancla, txt in zip(("pasos", "video", "idiomas", "descargar", "precios"),
                               t["nav"], strict=True))
 
     # El aviso «todavía no está publicado» sólo tiene sentido mientras el
@@ -535,12 +494,6 @@ def render(idioma: str) -> str:
   <h2 class="sec-h">{_esc(t['pasos_h'])}</h2>
   <p class="sec-p">{_esc(t['pasos_p'])}</p>
   <div class="pasos">{pasos}</div>
-</div></section>
-
-<section id="olas"><div class="wrap">
-  <h2 class="sec-h">{_esc(t['olas_h'])}</h2>
-  <p class="sec-p">{_esc(t['olas_p'])}</p>
-  <div class="olas">{olas}</div>
 </div></section>
 
 <section id="video"><div class="wrap">

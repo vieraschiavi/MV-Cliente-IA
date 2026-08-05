@@ -64,11 +64,11 @@ PLANTILLAS: dict[str, dict[str, str]] = {
             "Saludos,\n{firma}"
         ),
         # Enlaces, en texto plano — se pegan antes de la firma.
-        "linea_video": "Video de 90 segundos ({idioma_nombre}): {video_url}",
+        "linea_video": "Video ({idioma_nombre}): {video_url}",
         "linea_sitio": "Más detalle: {landing_url}",
         # HTML
         "boton": "Ver cómo funciona",
-        "boton_video": "▸ Mirar el video de 90 segundos",
+        "boton_video": "▸ Mirar el video",
         "alt_banner": "{producto} — tus próximos clientes, encontrados por vos",
         "pie_html": "Te escribo porque {empresa_prospecto} encaja con lo que hacemos. "
                     "Si preferís que no te escriba más, respondeme «bajá» y listo.",
@@ -77,7 +77,7 @@ PLANTILLAS: dict[str, dict[str, str]] = {
             "Hola {nombre_pila}, vi que {empresa_prospecto} {senal}. "
             "En {sector_min} eso suele venir con {dolor_min}.\n\n"
             "{producto} {propuesta_corta}\n\n"
-            "Te dejo el video de 90 segundos por si te sirve: {video_url}\n"
+            "Te dejo el video por si te sirve: {video_url}\n"
             "¿Charlamos 15 minutos esta semana?"
         ),
         "linkedin_sin_video": (
@@ -113,10 +113,10 @@ PLANTILLAS: dict[str, dict[str, str]] = {
             "a demo leva 15 minutos.\n\n"
             "Abraço,\n{firma}"
         ),
-        "linea_video": "Vídeo de 90 segundos ({idioma_nombre}): {video_url}",
+        "linea_video": "Vídeo ({idioma_nombre}): {video_url}",
         "linea_sitio": "Mais detalhes: {landing_url}",
         "boton": "Ver como funciona",
-        "boton_video": "▸ Assistir ao vídeo de 90 segundos",
+        "boton_video": "▸ Assistir ao vídeo",
         "alt_banner": "{producto} — seus próximos clientes, encontrados para você",
         "pie_html": "Escrevo porque a {empresa_prospecto} combina com o que fazemos. "
                     "Se preferir não receber mais, responda «sair» e pronto.",
@@ -124,7 +124,7 @@ PLANTILLAS: dict[str, dict[str, str]] = {
             "Olá, {nombre_pila}! Vi que a {empresa_prospecto} {senal}. "
             "Em {sector_min} isso costuma vir com {dolor_min}.\n\n"
             "{producto} {propuesta_corta}\n\n"
-            "Deixo o vídeo de 90 segundos, caso ajude: {video_url}\n"
+            "Deixo o vídeo, caso ajude: {video_url}\n"
             "Podemos conversar 15 minutos esta semana?"
         ),
         "linkedin_sin_video": (
@@ -160,10 +160,10 @@ PLANTILLAS: dict[str, dict[str, str]] = {
             "second, the demo takes 15 minutes.\n\n"
             "Best,\n{firma}"
         ),
-        "linea_video": "90-second video ({idioma_nombre}): {video_url}",
+        "linea_video": "Video ({idioma_nombre}): {video_url}",
         "linea_sitio": "More detail: {landing_url}",
         "boton": "See how it works",
-        "boton_video": "▸ Watch the 90-second video",
+        "boton_video": "▸ Watch the video",
         "alt_banner": "{producto} — your next customers, found for you",
         "pie_html": "I'm writing because {empresa_prospecto} fits what we do. "
                     "If you'd rather not hear from me again, reply “stop” and that's it.",
@@ -171,7 +171,7 @@ PLANTILLAS: dict[str, dict[str, str]] = {
             "Hi {nombre_pila} — I saw that {empresa_prospecto} {senal}. "
             "In {sector_min} that usually comes with {dolor_min}.\n\n"
             "{producto} {propuesta_corta}\n\n"
-            "Here's the 90-second video in case it helps: {video_url}\n"
+            "Here's the video in case it helps: {video_url}\n"
             "Worth 15 minutes this week?"
         ),
         "linkedin_sin_video": (
