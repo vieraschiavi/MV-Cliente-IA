@@ -36,6 +36,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # el paso que commitea los SHA-256 hace rebase
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -110,6 +112,30 @@ jobs:
             $h = (Get-FileHash "dist/$f" -Algorithm SHA256).Hash.ToLower()
             "$h  $f" | Out-File -Encoding ascii "dist/$f.sha256"
             Write-Host "SHA-256 ${f}: $h"
+          }
+
+      - name: Dejar los SHA-256 en instalador/ (constancia versionada)
+        # Nunca puede bloquear la publicación del instalador: los hashes son
+        # un extra, la Release es lo que baja el comprador.
+        continue-on-error: true
+        # Los binarios NO se versionan (95 MB + 126 MB quedarían en el
+        # historial para siempre, y el ZIP supera el límite de 100 MB por
+        # archivo), pero sus hashes sí: son 89 bytes y permiten comprobar que
+        # el archivo que bajó un comprador es EXACTAMENTE el que compiló CI.
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path instalador | Out-Null
+          Copy-Item dist/MVClienteIA_Setup.exe.sha256 instalador/ -Force
+          Copy-Item dist/MVClienteIA_Portable.zip.sha256 instalador/ -Force
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add instalador/*.sha256
+          if (git diff --cached --quiet) {
+            Write-Host "Los hashes no cambiaron"
+          } else {
+            git commit -m "CI: SHA-256 del build ${{ steps.ver.outputs.MVVER }}"
+            git pull --rebase --autostash origin ${{ github.ref_name }}
+            git push origin HEAD:${{ github.ref_name }}
           }
 
       - name: Publicar en la Release (canal de descarga de la landing)

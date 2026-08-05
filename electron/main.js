@@ -171,6 +171,81 @@ function fallar(mensaje) {
   dialog.showErrorBox("MV Cliente IA — no se pudo iniciar el motor", detalle);
 }
 
+/**
+ * Menú nativo de Windows. Un programa de escritorio de verdad tiene barra de
+ * menú, atajos y un "Acerca de" — sin eso la ventana se siente una página web
+ * metida en un marco. Nada de DevTools ni recargas de navegador a la vista:
+ * lo que hay son acciones del PRODUCTO.
+ */
+function menuNativo(url) {
+  const plantilla = [
+    {
+      label: "&Archivo",
+      submenu: [
+        {
+          label: "Nueva búsqueda",
+          accelerator: "CmdOrCtrl+N",
+          click: () => { if (ventana) ventana.loadURL(url); },
+        },
+        {
+          label: "Abrir carpeta de datos",
+          click: () => {
+            const dir = dirDatos();
+            if (dir) shell.openPath(dir);
+            else dialog.showMessageBox(ventana, {
+              type: "info", title: "MV Cliente IA",
+              message: "Las corridas y los exports se guardan en la carpeta de datos de tu usuario.",
+            });
+          },
+        },
+        { type: "separator" },
+        { label: "Salir", accelerator: "Alt+F4", role: "quit" },
+      ],
+    },
+    {
+      label: "&Ver",
+      submenu: [
+        { label: "Actualizar", accelerator: "F5", role: "reload" },
+        { type: "separator" },
+        { label: "Acercar", accelerator: "CmdOrCtrl+Plus", role: "zoomIn" },
+        { label: "Alejar", accelerator: "CmdOrCtrl+-", role: "zoomOut" },
+        { label: "Tamaño normal", accelerator: "CmdOrCtrl+0", role: "resetZoom" },
+        { type: "separator" },
+        { label: "Pantalla completa", accelerator: "F11", role: "togglefullscreen" },
+      ],
+    },
+    {
+      label: "A&yuda",
+      submenu: [
+        {
+          label: "Ver registro de arranque",
+          click: () => shell.openPath(rutaLog()),
+        },
+        {
+          label: "Sitio del producto",
+          click: () => shell.openExternal("https://mv-cliente-ia.vercel.app"),
+        },
+        { type: "separator" },
+        {
+          label: "Acerca de MV Cliente IA",
+          click: () => dialog.showMessageBox(ventana, {
+            type: "info",
+            title: "Acerca de MV Cliente IA",
+            message: `MV Cliente IA ${app.getVersion()}`,
+            detail:
+              "Encontrá tus próximos clientes: investiga tu producto, mapea la " +
+              "competencia, busca compradores, ubica decisores y escribe los correos.\n\n" +
+              "El motor corre en esta computadora — tus datos no salen de acá.\n" +
+              `Datos: ${dirDatos() || "carpeta de datos del usuario"}`,
+            buttons: ["Cerrar"],
+          }),
+        },
+      ],
+    },
+  ];
+  return Menu.buildFromTemplate(plantilla);
+}
+
 async function arrancar(intento = 0) {
   const puerto = await puertoLibre();
   const { cmd, args, cwd, esFuente } = comandoBackend(puerto);
@@ -258,7 +333,7 @@ async function arrancar(intento = 0) {
     webPreferences: { contextIsolation: true, nodeIntegration: false,
                       preload: path.join(__dirname, "preload.js") },
   });
-  Menu.setApplicationMenu(null);
+  Menu.setApplicationMenu(menuNativo(url));
   // Los enlaces externos (un sitio de prospecto) van al navegador del sistema,
   // no reemplazan la ventana de la app.
   ventana.webContents.setWindowOpenHandler(({ url: destino }) => {
