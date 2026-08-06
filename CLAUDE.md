@@ -27,6 +27,8 @@ diseño de **MV Kobra AI**: se le pasa la URL de un producto y recorre seis fase
 | APK | `npm run apk:debug` (necesita `ANDROID_HOME`) |
 | Landing | `python3 -m marketing.generar_landing` |
 | Banners | `python3 -m marketing.generar_banners` |
+| Video demo (16:9) | `python3 -m marketing.generar_video` |
+| Reels redes (9:16) | `python3 -m marketing.generar_reel` |
 
 ## Reglas que no se rompen
 1. **El país del cliente primero, y es RELATIVO.** El cliente elige su país

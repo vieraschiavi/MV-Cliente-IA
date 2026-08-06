@@ -69,6 +69,10 @@ def armar(estricto: bool = True) -> Path:
     # Los videos son opcionales: si el usuario todavía no los puso, el sitio
     # se publica igual y la sección de video muestra su aviso.
     _copiar_dir(LANDING / "video", PUBLICO / "video")
+    # Los reels verticales para redes (generar_reel). La landing no los
+    # muestra: se publican para poder enlazarlos o bajarlos desde cualquier
+    # lado sin andar pasándose archivos.
+    _copiar_dir(LANDING / "reel", PUBLICO / "reel")
 
     # --- la aplicación --------------------------------------------------
     if APP.exists():
@@ -85,7 +89,7 @@ def _resumen() -> str:
     archivos = [p for p in PUBLICO.rglob("*") if p.is_file()]
     peso = sum(p.stat().st_size for p in archivos)
     lineas = [f"  ✓ public/  ({len(archivos)} archivos · {peso / 1024:.0f} KB)"]
-    for sub in ("", "pt", "en", "app", "banners", "video"):
+    for sub in ("", "pt", "en", "app", "banners", "video", "reel"):
         d = PUBLICO / sub if sub else PUBLICO
         n = sum(1 for p in d.glob("*") if p.is_file()) if d.exists() else 0
         lineas.append(f"      /{sub or ''}{'/' if sub else ''}  {n} archivo(s)")

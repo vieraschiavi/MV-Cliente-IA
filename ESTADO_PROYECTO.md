@@ -23,7 +23,7 @@ escribe los correos — Uruguay → LATAM → mundo, en es/pt/en.
 | # | Pedido | Estado | Evidencia |
 |---|--------|--------|-----------|
 | 1 | Pipeline de 6 fases estilo explee (investigar → correos) | ✅ | 107 tests; corrida real en producción |
-| 2 | Uruguay primero, luego LATAM, luego mundo | ✅ | test de olas; corrida `mercado=local` → 10/10 UY |
+| 2 | El país del cliente primero (elegible, ~100 países), luego su región, luego mundo | ✅ | tests de olas relativas (`test_geo`); corrida en producción con Japón → 11 JP / 8 Asia / 5 mundo |
 | 3 | Tres idiomas (es/pt/en); el idioma del receptor manda | ✅ | tests de no-mezcla de idiomas |
 | 4 | Video demo propio, voz humana rioplatense (es-UY), pt/en nativas, sin lag, mostrando TODOS los dashboards (incl. competencia y análisis) | ✅ | videos 71/79/72 s servidos en producción |
 | 5 | Campo de clave de IA en la app | ✅ | Configuración → Investigación con IA |
@@ -41,6 +41,7 @@ escribe los correos — Uruguay → LATAM → mundo, en es/pt/en.
 | 17 | Web: cada uno con su clave; 3 búsquedas gratis avisadas, por correo válido; dueño sin límite; precios + MercadoPago como Kobra | ✅ | cupo cookie+IP+correo; `vieraschiavi@gmail.com` exento; licencia US$ 149 / ≈$U 6.000; checkout integrado (falta el token, ver abajo) |
 | 18 | Resultados en streaming (no esperar todo junto) | ✅ | NDJSON por fase, verificado vivo |
 | 19 | Datos sintéticos siempre marcados; jamás personas reales con contacto | ✅ | regla de diseño, cubierta por tests |
+| 20 | Reels verticales 9:16 para redes (estilo Instagram: rótulos, resaltes, contador, CTA), en 3 idiomas | ✅ | `python3 -m marketing.generar_reel` → `/reel/{es,pt,en}/reel.mp4` en producción (52/58/50 s) |
 
 ## ⚠️ Lo que depende del dueño (no es código)
 
