@@ -223,7 +223,10 @@
     "smtp_ssl": "Direct SSL (port 465, instead of STARTTLS)",
     "smtp_guardado": "Mailbox saved in this browser",
     "owner": "Owner code",
-    "owner_ayuda": "Deployment owner only: if it matches the server's MVCLIENTE_OWNER variable, this browser is exempt from the free web quota."
+    "owner_ayuda": "Deployment owner only: if it matches the server's MVCLIENTE_OWNER variable, this browser is exempt from the free web quota.",
+    "x": "X (Twitter) API",
+    "x_ayuda": "So that “Automate flow” can publish the campaign post on your X account. The four keys come from developer.x.com (an app with write permission). They stay in this browser and travel only with the request that uses them: the server never stores them.",
+    "x_guardado": "X keys saved in this browser."
   },
   "aviso": {
     "sintetico": "Demo data: the companies and people in this list are synthetic, generated to exercise the flow. Switch the data source to “Read my real website” or “AI research” to work with real information.",
@@ -286,5 +289,23 @@
     "sin_movimiento": "Heads up: with no current customers, no new customers per month and no ads (with a CAC), the projection is guaranteed zero. Fill in at least one way customers come in.",
     "prefill_precio": "The price was read from your website — fix it if it's not the real one.",
     "prefill_clientes": "New customers per month are estimated from your {{n}} prospects at a typical 3% conversion (≈ {{est}}/month) — replace with your real data if you have it."
+  },
+  "auto": {
+    "titulo": "Automate flow",
+    "ayuda": "Once the flow, the customers and the channels are approved: one click sends everything and the receipt lands in your inbox. LinkedIn, Instagram and TikTok don't sell a sending API, so they stay queued for manual posting — the receipt says so; nothing is simulated here.",
+    "linea_correos": "{{n}} emails through your SMTP, each in the recipient's language",
+    "linea_x": "Publish the campaign post on X (with your API keys)",
+    "x_faltan_claves": "Publish on X — paste your API keys in Settings",
+    "linea_manuales": "queued for manual posting (no sending API)",
+    "x_texto": "X post text (max 280)",
+    "comprobante_a": "Receipt goes to",
+    "boton": "Automate flow",
+    "confirmar": "Approve the flow? {{n}} emails go out now and the receipt lands in your inbox.",
+    "corriendo": "Automating…",
+    "listo_correos": "{{ok}} of {{total}} emails sent",
+    "listo_x": "Published on X:",
+    "pendiente_manual": "queued for manual posting",
+    "comprobante_ok": "Receipt sent to {{a}}",
+    "comprobante_fallo": "The batch went out but the receipt didn't: check your SMTP"
   }
 }

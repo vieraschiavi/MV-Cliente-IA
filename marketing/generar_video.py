@@ -331,6 +331,23 @@ def _locucion(idioma: str, escena: str, destino: Path) -> Path:
     raise RuntimeError(f"La locución de {idioma}/{escena} salió vacía")
 
 
+def _voz_recortada(ff: str, mp3: Path, destino: Path) -> Path:
+    """Recorta el silencio que edge-tts deja en los bordes de cada síntesis
+    (~0,7 s al final, ~0,1 al principio). Sin esto, entre escena y escena se
+    acumulaban casi dos segundos de silencio y el video se sentía con lag —
+    la voz estaba bien; lo lento eran los bordes."""
+    subprocess.run(
+        [ff, "-y", "-loglevel", "error", "-i", str(mp3),
+         "-af",
+         "silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.05,"
+         "areverse,"
+         "silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.12,"
+         "areverse",
+         str(destino)],
+        check=True)
+    return destino
+
+
 def _duracion(ff: str, medio: Path) -> float:
     r = subprocess.run([ff, "-i", str(medio)], capture_output=True, text=True)
     m = re.search(r"Duration: (\d+):(\d+):(\d+\.\d+)", r.stderr)
@@ -398,7 +415,10 @@ def generar() -> list[Path]:
 
                 partes = []
                 for escena in ESCENAS:
-                    voz = _locucion(idioma, escena, carpeta / f"{idioma}_{escena}.mp3")
+                    voz = _voz_recortada(
+                        ff,
+                        _locucion(idioma, escena, carpeta / f"{idioma}_{escena}.mp3"),
+                        carpeta / f"{idioma}_{escena}.wav")
                     partes.append(_escena_mp4(ff, imagenes[escena], voz,
                                               carpeta / f"{idioma}_{escena}.mp4"))
                 destino = DESTINO / idioma / "demo.mp4"

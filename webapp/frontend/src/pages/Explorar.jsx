@@ -48,7 +48,7 @@ export default function Explorar() {
   const [id, setId] = useState(getCorridaId());
   const { corrida, error } = useCorrida(id);
   const [form, setForm] = useState({
-    dominio: "mvkobranzaia.com", nombre: "MV Kobra AI", modo: "demo", prospectos: 60,
+    dominio: "mvkobranzaia.com", nombre: "MV Kobra AI", modo: "demo", prospectos: 50,
     // Recorte geográfico: "todos" mantiene el país propio primero en
     // proporción; "local" es para productos que exigen presencia física.
     mercado: "todos",
@@ -257,7 +257,7 @@ export default function Explorar() {
           <label htmlFor="cuantos">{t("explorar.prospectos")}</label>
           <select id="cuantos" value={form.prospectos}
                   onChange={(e) => setForm({ ...form, prospectos: e.target.value })}>
-            {[20, 40, 60, 100, 150].map((n) => <option key={n} value={n}>{n}</option>)}
+            {[50, 100, 200, 500, 1000].map((n) => <option key={n} value={n}>{n}</option>)}
           </select>
         </div>
         {/* Las búsquedas reales gratis de la web piden un correo válido:

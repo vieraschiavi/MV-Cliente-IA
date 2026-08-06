@@ -32,12 +32,12 @@ from PIL import Image, ImageDraw, ImageFilter
 
 from .generar_banners import APAGADO, ICONO, NAVY, NAVY2, TINTA, VERDE, _fuente
 from .generar_video import (
-    RESPIRO,
     _correr_corrida,
     _duracion,
     _esperar_api,
     _ffmpeg,
     _puerto_libre,
+    _voz_recortada,
 )
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -45,7 +45,10 @@ DESTINO = RAIZ / "landing" / "reel"
 
 ANCHO, ALTO = 720, 1280
 FPS = 30
-FUNDIDO = 0.35
+FUNDIDO = 0.3
+# Aire después de la voz de cada escena. Más corto que en el demo 16:9 a
+# propósito: un reel con pausas largas se siente con lag y se abandona.
+RESPIRO = 0.45
 AMARILLO = (255, 209, 60)
 
 # La captura móvil se hace a 360×640 con factor 2: sale un PNG de 720×1280
@@ -71,15 +74,15 @@ GUION: dict[str, dict] = {
         "hook_titulo": ("Clientes que", "llegan solos"),
         "chips": ("CORREO", "LINKEDIN", "X (TWITTER)", "EXCEL / CSV"),
         "chips_sub": "En el idioma de quien lo recibe: ES · PT · EN",
-        "contador_n": 60,
-        "contador_sub": "empresas · 90 decisores · 40 correos",
+        "contador_n": 1000,
+        "contador_sub": "empresas por corrida · decisores · correos",
         "cta_caja": "PROBALO GRATIS",
         "cta_sub": "mvclienteia.com · 3 búsquedas de regalo",
         "sub": {
             "hook": "Pegás tu enlace y *aparecen* tus clientes.",
             "panel": "Seis fases *automáticas*, de tu web a los correos.",
             "canales": "Correo, LinkedIn y X, en *su* idioma.",
-            "contador": "Todo listo en *una* corrida.",
+            "contador": "Hasta *mil* empresas por corrida.",
             "prospectos": "Ordenada por *probabilidad* de cierre.",
             "analisis": "Ventas, gastos y *neto* a 24 meses.",
             "cta": "Entrá y probalo *gratis*.",
@@ -92,8 +95,9 @@ GUION: dict[str, dict] = {
             "canales": "Escribe el correo, el mensaje de LinkedIn y el posteo "
                        "para equis, en el idioma de quien lo recibe: español, "
                        "portugués o inglés.",
-            "contador": "En una sola corrida: sesenta empresas, noventa "
-                        "decisores, cuarenta correos listos para salir.",
+            "contador": "Elegís cuántas: cincuenta, cien, quinientas, hasta mil "
+                        "empresas por corrida, con sus decisores y los correos "
+                        "listos para salir.",
             "prospectos": "La lista llega ordenada por probabilidad de cierre, "
                           "con las señales de por qué contactar a cada empresa.",
             "analisis": "Y el análisis proyecta tu negocio con tus números: "
@@ -117,15 +121,15 @@ GUION: dict[str, dict] = {
         "hook_titulo": ("Clientes que", "chegam sozinhos"),
         "chips": ("E-MAIL", "LINKEDIN", "X (TWITTER)", "EXCEL / CSV"),
         "chips_sub": "No idioma de quem recebe: ES · PT · EN",
-        "contador_n": 60,
-        "contador_sub": "empresas · 90 decisores · 40 e-mails",
+        "contador_n": 1000,
+        "contador_sub": "empresas por rodada · decisores · e-mails",
         "cta_caja": "TESTE GRÁTIS",
         "cta_sub": "mvclienteia.com · 3 buscas de presente",
         "sub": {
             "hook": "Cole o seu link e seus clientes *aparecem*.",
             "panel": "Seis fases *automáticas*, do seu site aos e-mails.",
             "canales": "E-mail, LinkedIn e X, no idioma *deles*.",
-            "contador": "Tudo pronto em *uma* rodada.",
+            "contador": "Até *mil* empresas por rodada.",
             "prospectos": "Ordenada por *probabilidade* de fechamento.",
             "analisis": "Vendas, custos e *líquido* em 24 meses.",
             "cta": "Entre e teste *grátis*.",
@@ -138,8 +142,9 @@ GUION: dict[str, dict] = {
             "canales": "Escreve o e-mail, a mensagem do LinkedIn e o post para "
                        "o xis, no idioma de quem recebe: espanhol, português "
                        "ou inglês.",
-            "contador": "Em uma única rodada: sessenta empresas, noventa "
-                        "decisores, quarenta e-mails prontos para sair.",
+            "contador": "Você escolhe quantas: cinquenta, cem, quinhentas, até mil "
+                        "empresas por rodada, com os decisores e os e-mails "
+                        "prontos para sair.",
             "prospectos": "A lista chega ordenada por probabilidade de "
                           "fechamento, com os sinais de por que contatar cada empresa.",
             "analisis": "E a análise projeta o seu negócio com os seus números: "
@@ -163,15 +168,15 @@ GUION: dict[str, dict] = {
         "hook_titulo": ("Customers that", "show up alone"),
         "chips": ("EMAIL", "LINKEDIN", "X (TWITTER)", "EXCEL / CSV"),
         "chips_sub": "In the recipient's language: ES · PT · EN",
-        "contador_n": 60,
-        "contador_sub": "companies · 90 decision makers · 40 emails",
+        "contador_n": 1000,
+        "contador_sub": "companies per run · decision makers · emails",
         "cta_caja": "TRY IT FREE",
         "cta_sub": "mvclienteia.com · 3 searches on us",
         "sub": {
             "hook": "Paste your link and your customers *appear*.",
             "panel": "Six *automatic* phases, from your site to the emails.",
             "canales": "Email, LinkedIn and X, in *their* language.",
-            "contador": "All done in *one* run.",
+            "contador": "Up to *1,000* companies per run.",
             "prospectos": "Ranked by *likelihood* to close.",
             "analisis": "Sales, costs and *net* over 24 months.",
             "cta": "Come try it for *free*.",
@@ -184,8 +189,9 @@ GUION: dict[str, dict] = {
             "canales": "It writes the email, the LinkedIn message and the X "
                        "post, in the recipient's language: Spanish, Portuguese "
                        "or English.",
-            "contador": "In one single run: sixty companies, ninety decision "
-                        "makers, forty emails ready to go.",
+            "contador": "You choose how many: fifty, one hundred, five hundred, up "
+                        "to one thousand companies per run, with their decision "
+                        "makers and ready-to-send emails.",
             "prospectos": "The list arrives ranked by likelihood to close, with "
                           "the signals for why to contact each company.",
             "analisis": "And the analysis projects your business with your "
@@ -605,8 +611,10 @@ def generar() -> list[Path]:
                 fotos = _capturas_movil(idioma, base, corrida_id, carpeta)
                 partes: list[Path] = []
                 for escena in ESCENAS:
-                    voz = _locucion(idioma, escena,
-                                    carpeta / f"{idioma}_r_{escena}.mp3")
+                    voz = _voz_recortada(
+                        ff,
+                        _locucion(idioma, escena, carpeta / f"{idioma}_r_{escena}.mp3"),
+                        carpeta / f"{idioma}_r_{escena}.wav")
                     mp4 = carpeta / f"{idioma}_r_{escena}.mp4"
                     if escena == "hook":
                         img = _escena_hook(idioma, carpeta / f"{idioma}_hook.png")

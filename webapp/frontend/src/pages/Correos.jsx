@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { api, descargar, getSmtp } from "../api.js";
+import { api, descargar, getEmail, getSmtp, getX } from "../api.js";
 import { Copiar, Idioma, Vacio } from "../componentes/Comunes.jsx";
 import { getCorridaId, useCorrida } from "../estado.js";
 import { t } from "../i18n/index.js";
@@ -164,6 +164,113 @@ function Mensaje({ correo, decisor, para, setPara, enviar, estado, smtpListo }) 
   );
 }
 
+/**
+ * La tarjeta «Automatizar flujo»: el usuario YA revisó el flujo, los clientes
+ * y los canales; un click manda todo y el comprobante llega a su casilla.
+ * Automatiza lo que tiene API real (correo por SMTP, post en X con las claves
+ * del usuario); LinkedIn, Instagram y TikTok no venden API de envío, así que
+ * quedan como cola manual y el comprobante lo dice — acá no se simula nada.
+ */
+function Automatizar({ listos, adjunto, smtp, correoDe }) {
+  const x = getX();
+  const [conX, setConX] = useState(Boolean(x));
+  const [xTexto, setXTexto] = useState("");
+  const [comprobanteA, setComprobanteA] = useState(getEmail() || smtp?.usuario || "");
+  const [estado, setEstado] = useState("");        // "" | "corriendo" | "listo" | error
+  const [comp, setComp] = useState(null);
+
+  const conLinkedIn = listos.filter(({ correo }) => correo.linkedin).length;
+  const manuales = { linkedin: conLinkedIn, instagram: 1, tiktok: 1 };
+
+  const correr = async () => {
+    if (!window.confirm(t("auto.confirmar", { n: listos.length }))) return;
+    setEstado("corriendo");
+    setComp(null);
+    try {
+      const cuerpo = {
+        smtp: { host: smtp.host, puerto: smtp.puerto, usuario: smtp.usuario,
+                clave: smtp.clave, ssl: Boolean(smtp.ssl) },
+        remitente: smtp.remitente || "",
+        correos: listos.map(({ correo, para }) => correoDe(correo, para)),
+        adjuntos: adjunto ? [adjunto] : [],
+        comprobante_a: comprobanteA.trim(),
+        manuales,
+        ...(conX && x && xTexto.trim() ? { x, x_texto: xTexto.trim() } : {}),
+      };
+      const r = await api("/api/automatizar", { metodo: "POST", cuerpo });
+      setComp(r);
+      setEstado("listo");
+    } catch (e) {
+      setEstado(e.message);
+    }
+  };
+
+  return (
+    <div className="card" style={{ marginBottom: 14 }}>
+      <h3>🚀 {t("auto.titulo")}</h3>
+      <p className="nota" style={{ marginTop: 0 }}>{t("auto.ayuda")}</p>
+
+      <ul style={{ margin: "10px 0", paddingLeft: 20, fontSize: 13.5, lineHeight: 1.9 }}>
+        <li>✉️ {t("auto.linea_correos", { n: listos.length })}</li>
+        <li>
+          <label style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+            <input type="checkbox" checked={conX} disabled={!x}
+                   onChange={(e) => setConX(e.target.checked)} />
+            𝕏 {x ? t("auto.linea_x") : t("auto.x_faltan_claves")}
+          </label>
+        </li>
+        <li>💼 LinkedIn · 📸 Instagram · 🎵 TikTok — {t("auto.linea_manuales")}</li>
+      </ul>
+
+      {conX && x ? (
+        <div className="campo crece" style={{ marginBottom: 10 }}>
+          <label htmlFor="auto-x">{t("auto.x_texto")}</label>
+          <textarea id="auto-x" rows={3} maxLength={280} value={xTexto}
+                    onChange={(e) => setXTexto(e.target.value)} />
+        </div>
+      ) : null}
+      <div className="campo crece" style={{ marginBottom: 12 }}>
+        <label htmlFor="auto-comp">{t("auto.comprobante_a")}</label>
+        <input id="auto-comp" type="email" value={comprobanteA}
+               onChange={(e) => setComprobanteA(e.target.value)} />
+      </div>
+
+      <button className="btn" disabled={!smtp || !listos.length || estado === "corriendo"}
+              title={smtp ? "" : t("correos.smtp_falta")} onClick={correr}>
+        {estado === "corriendo" ? t("auto.corriendo") : `${t("auto.boton")} (${listos.length})`}
+      </button>
+
+      {estado && estado !== "corriendo" && estado !== "listo" ? (
+        <p className="error-note">{estado}</p>
+      ) : null}
+      {comp ? (
+        <div style={{ marginTop: 12, fontSize: 13.5, lineHeight: 1.9 }}>
+          <p style={{ margin: 0, color: "var(--green-deep)", fontWeight: 700 }}>
+            ✔ {t("auto.listo_correos", {
+              ok: comp.correos.enviados, total: comp.correos.total })}
+          </p>
+          {comp.x ? (
+            comp.x.ok
+              ? <p style={{ margin: 0 }}>✔ {t("auto.listo_x")}{" "}
+                  <a href={comp.x.url} target="_blank" rel="noreferrer">{comp.x.url}</a></p>
+              : <p className="error-note" style={{ margin: 0 }}>✘ X: {comp.x.detalle}</p>
+          ) : null}
+          {Object.entries(comp.manuales || {}).map(([canal, n]) => (
+            <p key={canal} style={{ margin: 0, color: "var(--muted)" }}>
+              ⏳ {canal[0].toUpperCase() + canal.slice(1)}: {n} {t("auto.pendiente_manual")}
+            </p>
+          ))}
+          <p style={{ margin: 0 }}>
+            {comp.comprobante?.ok
+              ? `📧 ${t("auto.comprobante_ok", { a: comp.comprobante.a })}`
+              : `⚠️ ${t("auto.comprobante_fallo")}`}
+          </p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function Correos() {
   const { corrida } = useCorrida(getCorridaId());
   const [idioma, setIdioma] = useState("");
@@ -282,6 +389,12 @@ export default function Correos() {
       </div>
       {!smtp ? <p className="nota">{t("correos.smtp_falta")}</p> : null}
       {avisoLote ? <p className="nota">{avisoLote}</p> : null}
+
+      <Automatizar listos={listos} adjunto={adjunto} smtp={smtp}
+                   correoDe={(correo, para) => ({
+                     para, asunto: correo.asunto, cuerpo: correo.cuerpo,
+                     cuerpo_html: correo.cuerpo_html || "",
+                   })} />
 
       {filas.length ? filas.map((e) => (
         <Mensaje key={e.id} correo={e} decisor={decisores[e.decisor_id]}

@@ -406,57 +406,64 @@ class EnvioIn(BaseModel):
     adjuntos: list[AdjuntoIn] = Field(default_factory=list, max_length=3)
 
 
-@app.post("/api/enviar", dependencies=[Depends(requiere_auth)])
-def enviar_correos(entrada: EnvioIn):
-    """Envía los correos generados por el SMTP del usuario (su casilla
-    corporativa o personal). Devuelve el resultado por destinatario: un
-    rebote no frena a los demás."""
+def _conectar_smtp(smtp: SmtpIn):
     import smtplib
     import ssl as modulo_ssl
-    from email.message import EmailMessage
-    from email.utils import formataddr
 
     try:
-        if entrada.smtp.ssl:
-            servidor = smtplib.SMTP_SSL(entrada.smtp.host, entrada.smtp.puerto,
-                                        timeout=30)
+        if smtp.ssl:
+            servidor = smtplib.SMTP_SSL(smtp.host, smtp.puerto, timeout=30)
         else:
-            servidor = smtplib.SMTP(entrada.smtp.host, entrada.smtp.puerto,
-                                    timeout=30)
+            servidor = smtplib.SMTP(smtp.host, smtp.puerto, timeout=30)
             servidor.starttls(context=modulo_ssl.create_default_context())
-        servidor.login(entrada.smtp.usuario, entrada.smtp.clave)
+        servidor.login(smtp.usuario, smtp.clave)
+        return servidor
     except Exception as e:                              # noqa: BLE001
         # Tipo y mensaje del servidor SMTP: nunca la clave.
         raise HTTPException(
             502, f"No se pudo conectar al SMTP: {type(e).__name__}: "
                  f"{str(e)[:200]}") from e
 
+
+def _mandar_uno(servidor, smtp: SmtpIn, remitente: str, c: CorreoEnvioIn,
+                adjuntos: list[AdjuntoIn]) -> dict:
+    from email.message import EmailMessage
+    from email.utils import formataddr
+
+    m = EmailMessage()
+    m["From"] = formataddr((remitente or smtp.usuario, smtp.usuario))
+    m["To"] = c.para
+    m["Subject"] = c.asunto
+    m.set_content(c.cuerpo)
+    if c.cuerpo_html:
+        m.add_alternative(c.cuerpo_html, subtype="html")
+    for a in adjuntos:
+        try:
+            datos = base64.b64decode(a.contenido_b64)
+        except Exception:                                # noqa: BLE001
+            continue
+        tipo, _, subtipo = (a.tipo or "application/octet-stream").partition("/")
+        m.add_attachment(datos, maintype=tipo or "application",
+                         subtype=subtipo or "octet-stream", filename=a.nombre)
+    try:
+        servidor.send_message(m)
+        return {"para": c.para, "ok": True, "detalle": ""}
+    except Exception as e:                               # noqa: BLE001
+        return {"para": c.para, "ok": False,
+                "detalle": f"{type(e).__name__}: {str(e)[:200]}"}
+
+
+@app.post("/api/enviar", dependencies=[Depends(requiere_auth)])
+def enviar_correos(entrada: EnvioIn):
+    """Envía los correos generados por el SMTP del usuario (su casilla
+    corporativa o personal). Devuelve el resultado por destinatario: un
+    rebote no frena a los demás."""
+    servidor = _conectar_smtp(entrada.smtp)
     resultados = []
     try:
         for c in entrada.correos:
-            m = EmailMessage()
-            m["From"] = formataddr((entrada.remitente or entrada.smtp.usuario,
-                                    entrada.smtp.usuario))
-            m["To"] = c.para
-            m["Subject"] = c.asunto
-            m.set_content(c.cuerpo)
-            if c.cuerpo_html:
-                m.add_alternative(c.cuerpo_html, subtype="html")
-            for a in entrada.adjuntos:
-                try:
-                    datos = base64.b64decode(a.contenido_b64)
-                except Exception:                        # noqa: BLE001
-                    continue
-                tipo, _, subtipo = (a.tipo or "application/octet-stream").partition("/")
-                m.add_attachment(datos, maintype=tipo or "application",
-                                 subtype=subtipo or "octet-stream",
-                                 filename=a.nombre)
-            try:
-                servidor.send_message(m)
-                resultados.append({"para": c.para, "ok": True, "detalle": ""})
-            except Exception as e:                       # noqa: BLE001
-                resultados.append({"para": c.para, "ok": False,
-                                   "detalle": f"{type(e).__name__}: {str(e)[:200]}"})
+            resultados.append(_mandar_uno(servidor, entrada.smtp,
+                                          entrada.remitente, c, entrada.adjuntos))
     finally:
         try:
             servidor.quit()
@@ -464,6 +471,182 @@ def enviar_correos(entrada: EnvioIn):
             pass
     return {"resultados": resultados,
             "enviados": sum(1 for r in resultados if r["ok"])}
+
+
+# ---------------------------------------------------------------------------
+# Automatizar el flujo: un click, todo enviado, comprobante a tu casilla
+# ---------------------------------------------------------------------------
+class XClavesIn(BaseModel):
+    """Claves de la API de X (developer.x.com). Misma política que el SMTP y
+    la clave de IA: viajan, se usan y se descartan."""
+    consumer_key: str = Field(min_length=3, max_length=120)
+    consumer_secret: str = Field(min_length=3, max_length=120)
+    access_token: str = Field(min_length=3, max_length=160)
+    access_secret: str = Field(min_length=3, max_length=120)
+
+
+class AutomatizarIn(BaseModel):
+    smtp: SmtpIn
+    remitente: str = Field(default="", max_length=120)
+    correos: list[CorreoEnvioIn] = Field(default_factory=list, max_length=500)
+    adjuntos: list[AdjuntoIn] = Field(default_factory=list, max_length=3)
+    # A qué casilla llega el comprobante (por defecto, la propia del SMTP).
+    comprobante_a: str = Field(default="", max_length=200)
+    # Publicación real en X, sólo si el usuario cargó sus claves de API.
+    x: XClavesIn | None = None
+    x_texto: str = Field(default="", max_length=280)
+    # Canales SIN API de envío (LinkedIn no vende API de mensajes; Instagram
+    # y TikTok exigen una app aprobada por Meta/ByteDance). Van al comprobante
+    # como cola manual, con honestidad — no se simula un envío que no existe.
+    manuales: dict[str, int] = Field(default_factory=dict)
+
+
+def _publicar_en_x(claves: XClavesIn, texto: str) -> dict:
+    """Publica el post con OAuth 1.0a firmado a mano (HMAC-SHA1, stdlib).
+    El SDK oficial no está en el instalador y para UNA petición no hace
+    falta: la firma son veinte líneas."""
+    import hashlib as _hl
+    import hmac as _hmac
+    import json as _json
+    import secrets as _secrets
+    import time as _time
+    import urllib.parse as _up
+    import urllib.request as _ur
+
+    url = "https://api.x.com/2/tweets"
+    oauth = {
+        "oauth_consumer_key": claves.consumer_key,
+        "oauth_nonce": _secrets.token_hex(16),
+        "oauth_signature_method": "HMAC-SHA1",
+        "oauth_timestamp": str(int(_time.time())),
+        "oauth_token": claves.access_token,
+        "oauth_version": "1.0",
+    }
+    # Con cuerpo JSON, la base de la firma lleva sólo los parámetros oauth.
+    params = "&".join(f"{_up.quote(k, safe='')}={_up.quote(v, safe='')}"
+                      for k, v in sorted(oauth.items()))
+    base = "&".join(("POST", _up.quote(url, safe=""), _up.quote(params, safe="")))
+    llave = f"{_up.quote(claves.consumer_secret, safe='')}&" \
+            f"{_up.quote(claves.access_secret, safe='')}"
+    firma = base64.b64encode(
+        _hmac.new(llave.encode(), base.encode(), _hl.sha1).digest()).decode()
+    oauth["oauth_signature"] = firma
+    cabecera = "OAuth " + ", ".join(
+        f'{_up.quote(k, safe="")}="{_up.quote(v, safe="")}"'
+        for k, v in sorted(oauth.items()))
+
+    req = _ur.Request(url, data=_json.dumps({"text": texto}).encode(),
+                      headers={"Authorization": cabecera,
+                               "Content-Type": "application/json"})
+    try:
+        with _ur.urlopen(req, timeout=30) as r:
+            datos = _json.load(r)
+        tweet_id = str((datos.get("data") or {}).get("id") or "")
+        return {"ok": bool(tweet_id), "id": tweet_id,
+                "url": f"https://x.com/i/status/{tweet_id}" if tweet_id else "",
+                "detalle": ""}
+    except Exception as e:                               # noqa: BLE001
+        detalle = str(e)[:300]
+        if hasattr(e, "read"):
+            try:
+                detalle = e.read().decode()[:300]
+            except Exception:                            # noqa: BLE001
+                pass
+        # Nunca las claves en el detalle (X no las repite, pero por las dudas).
+        for secreto in (claves.consumer_secret, claves.access_secret,
+                        claves.access_token, claves.consumer_key):
+            detalle = detalle.replace(secreto, "•••")
+        return {"ok": False, "id": "", "url": "",
+                "detalle": f"{type(e).__name__}: {detalle[:200]}"}
+
+
+def _html_comprobante(comp: dict) -> str:
+    """El correo del comprobante. Tablas y estilos en línea, nada de flexbox
+    ni <style>: Outlook no los soporta (regla de la casa)."""
+    filas_correos = "".join(
+        f'<tr><td style="padding:6px 12px;border-bottom:1px solid #e3e8ef">{r["para"]}</td>'
+        f'<td style="padding:6px 12px;border-bottom:1px solid #e3e8ef;'
+        f'color:{"#0a7d55" if r["ok"] else "#b3261e"}">'
+        f'{"✔ enviado" if r["ok"] else "✘ " + (r["detalle"] or "falló")}</td></tr>'
+        for r in comp["correos"]["resultados"])
+    x = comp.get("x")
+    fila_x = ""
+    if x is not None:
+        estado = (f'✔ publicado — <a href="{x["url"]}">{x["url"]}</a>'
+                  if x["ok"] else f'✘ {x["detalle"] or "falló"}')
+        fila_x = (f'<tr><td style="padding:6px 12px">X (Twitter)</td>'
+                  f'<td style="padding:6px 12px">{estado}</td></tr>')
+    filas_manuales = "".join(
+        f'<tr><td style="padding:6px 12px">{canal.title()}</td>'
+        f'<td style="padding:6px 12px;color:#8a6d1a">⏳ {n} para publicar a mano '
+        f'(sin API de envío)</td></tr>'
+        for canal, n in (comp.get("manuales") or {}).items())
+    return (
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+        'style="font-family:Arial,Helvetica,sans-serif;color:#15243c">'
+        '<tr><td style="padding:18px 12px;font-size:20px;font-weight:bold">'
+        "Comprobante de automatización · MV Cliente IA</td></tr>"
+        f'<tr><td style="padding:0 12px 14px;color:#4a5a74">{comp["fecha"]} · '
+        f'{comp["correos"]["enviados"]} de {comp["correos"]["total"]} correos '
+        "enviados</td></tr>"
+        '<tr><td><table role="presentation" cellpadding="0" cellspacing="0" '
+        'style="font-size:14px;border:1px solid #e3e8ef;border-radius:6px" width="100%">'
+        f"{filas_correos}{fila_x}{filas_manuales}"
+        "</table></td></tr>"
+        '<tr><td style="padding:14px 12px;color:#8a97ab;font-size:12px">'
+        "Generado automáticamente al aprobar el flujo. Los canales sin API de "
+        "envío quedan listos en la app para publicarlos con un click.</td></tr>"
+        "</table>")
+
+
+@app.post("/api/automatizar", dependencies=[Depends(requiere_auth)])
+def automatizar_flujo(entrada: AutomatizarIn):
+    """El botón «Automatizar flujo»: con el flujo YA aprobado por el usuario,
+    un solo click envía todos los correos por su SMTP, publica en X si cargó
+    sus claves, y manda el comprobante a su propia casilla con el detalle de
+    qué salió, qué falló y qué quedó en cola manual."""
+    from datetime import UTC as _UTC
+    from datetime import datetime as _dt
+
+    servidor = _conectar_smtp(entrada.smtp)
+    resultados: list[dict] = []
+    try:
+        for c in entrada.correos:
+            resultados.append(_mandar_uno(servidor, entrada.smtp,
+                                          entrada.remitente, c, entrada.adjuntos))
+
+        comp: dict = {
+            "fecha": _dt.now(_UTC).strftime("%Y-%m-%d %H:%M UTC"),
+            "correos": {"total": len(resultados),
+                        "enviados": sum(1 for r in resultados if r["ok"]),
+                        "resultados": resultados},
+            "x": (_publicar_en_x(entrada.x, entrada.x_texto.strip())
+                  if entrada.x and entrada.x_texto.strip() else None),
+            "manuales": {k: v for k, v in entrada.manuales.items() if v > 0},
+        }
+
+        # El comprobante viaja a la casilla del usuario por el mismo SMTP.
+        destino = (entrada.comprobante_a or entrada.smtp.usuario).strip()
+        recibo = CorreoEnvioIn(
+            para=destino,
+            asunto=f"Comprobante · {comp['correos']['enviados']}/"
+                   f"{comp['correos']['total']} correos enviados · MV Cliente IA",
+            cuerpo=(f"Automatización del {comp['fecha']}.\n"
+                    f"Correos: {comp['correos']['enviados']} de "
+                    f"{comp['correos']['total']} enviados.\n"
+                    + (f"X: {'publicado ' + comp['x']['url'] if comp['x']['ok'] else 'falló'}\n"
+                       if comp.get("x") else "")
+                    + "".join(f"{c.title()}: {n} para publicar a mano\n"
+                              for c, n in comp["manuales"].items())),
+            cuerpo_html=_html_comprobante(comp))
+        r = _mandar_uno(servidor, entrada.smtp, entrada.remitente, recibo, [])
+        comp["comprobante"] = {"a": destino, "ok": r["ok"], "detalle": r["detalle"]}
+    finally:
+        try:
+            servidor.quit()
+        except Exception:                                # noqa: BLE001
+            pass
+    return comp
 
 
 @app.get("/api/geo")
@@ -532,7 +715,9 @@ class CorridaIn(BaseModel):
     # Copilot es Azure OpenAI y necesita además la URL del endpoint.
     proveedor_ia: str = "claude"
     endpoint_ia: str = Field(default="", max_length=500)
-    prospectos: int = Field(default=pipeline.LIMITE_PROSPECTOS_DEFAULT, ge=5, le=400)
+    # Hasta mil por corrida — los tramos del selector (50/100/200/500/1000).
+    # La corrida de mil pesa ~1,7 MB en JSON: entra en el límite de Vercel.
+    prospectos: int = Field(default=pipeline.LIMITE_PROSPECTOS_DEFAULT, ge=5, le=1000)
     decisores: int = Field(default=pipeline.DECISORES_POR_EMPRESA_DEFAULT, ge=1, le=5)
     emails: int = Field(default=pipeline.LIMITE_EMAILS_DEFAULT, ge=1, le=300)
 

@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import {
   api, esNativo, getBase, getClaveIA, getEndpointIA, getOwner, getProveedorIA,
-  getSmtp, setBase, setClaveIA, setEndpointIA, setOwner, setProveedorIA,
-  setSmtp, setToken,
+  getSmtp, getX, setBase, setClaveIA, setEndpointIA, setOwner, setProveedorIA,
+  setSmtp, setToken, setX,
 } from "../api.js";
 import { SelectorIdioma } from "../App.jsx";
 import { t } from "../i18n/index.js";
@@ -63,6 +63,48 @@ function FormSmtp() {
                onChange={(e) => campo("ssl", e.target.checked)} />
         {t("config.smtp_ssl")}
       </label>
+      <div style={{ marginTop: 12 }}>
+        <button className="btn" type="submit">{t("config.guardar")}</button>
+      </div>
+      {aviso ? <p className="nota" style={{ color: "var(--green-deep)" }}>{aviso}</p> : null}
+    </form>
+  );
+}
+
+function FormX() {
+  const guardado = getX() || {};
+  const [x, setXLocal] = useState({
+    consumer_key: guardado.consumer_key || "",
+    consumer_secret: guardado.consumer_secret || "",
+    access_token: guardado.access_token || "",
+    access_secret: guardado.access_secret || "",
+  });
+  const [aviso, setAviso] = useState("");
+  const campo = (clave, valor) => setXLocal({ ...x, [clave]: valor.trim() });
+  const guardarX = (e) => {
+    e.preventDefault();
+    setX(x.consumer_key && x.access_token ? x : null);
+    setAviso(x.consumer_key ? t("config.x_guardado") : t("config.clave_borrada"));
+    setTimeout(() => setAviso(""), 2500);
+  };
+  const CAMPOS = [
+    ["consumer_key", "API Key"], ["consumer_secret", "API Key Secret"],
+    ["access_token", "Access Token"], ["access_secret", "Access Token Secret"],
+  ];
+  return (
+    <form className="card" style={{ maxWidth: 620, marginBottom: 14 }} onSubmit={guardarX}>
+      <h3>{t("config.x")}</h3>
+      <p className="nota" style={{ marginTop: 0 }}>{t("config.x_ayuda")}</p>
+      <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}>
+        {CAMPOS.map(([clave, etiqueta]) => (
+          <div className="campo" key={clave}>
+            <label htmlFor={`x-${clave}`}>{etiqueta}</label>
+            <input id={`x-${clave}`} type="password" value={x[clave]}
+                   autoComplete="off" autoCapitalize="none"
+                   onChange={(e) => campo(clave, e.target.value)} />
+          </div>
+        ))}
+      </div>
       <div style={{ marginTop: 12 }}>
         <button className="btn" type="submit">{t("config.guardar")}</button>
       </div>
@@ -192,6 +234,7 @@ export default function Configuracion({ onSalir }) {
       </form>
 
       <FormSmtp />
+      <FormX />
 
       <form className="card" style={{ maxWidth: 620 }} onSubmit={guardar}>
         <h3>{t("config.servidor")}</h3>

@@ -223,7 +223,10 @@
     "smtp_ssl": "SSL directo (puerto 465, en vez de STARTTLS)",
     "smtp_guardado": "Casilla guardada en este navegador",
     "owner": "Código de dueño",
-    "owner_ayuda": "Sólo para el dueño del despliegue: si coincide con la variable MVCLIENTE_OWNER del servidor, este navegador queda exento del cupo gratis de la web."
+    "owner_ayuda": "Sólo para el dueño del despliegue: si coincide con la variable MVCLIENTE_OWNER del servidor, este navegador queda exento del cupo gratis de la web.",
+    "x": "API de X (Twitter)",
+    "x_ayuda": "Para que «Automatizar flujo» publique el post de campaña en tu cuenta de X. Las cuatro claves salen de developer.x.com (app con permiso de escritura). Quedan en este navegador y viajan sólo con la petición que las usa: el servidor no las guarda.",
+    "x_guardado": "Claves de X guardadas en este navegador."
   },
   "aviso": {
     "sintetico": "Datos de demostración: las empresas y las personas de esta lista son sintéticas, generadas para probar el flujo. Cambiá el origen de datos a «Leer mi sitio real» o «Investigación con IA» para trabajar con información real.",
@@ -286,5 +289,23 @@
     "sin_movimiento": "Ojo: sin clientes actuales, sin clientes nuevos por mes y sin ads (con su CAC), la proyección da cero sí o sí. Cargá al menos por dónde entran clientes.",
     "prefill_precio": "El precio se leyó de tu web — corregilo si no es el real.",
     "prefill_clientes": "Los clientes nuevos por mes se estiman de tus {{n}} prospectos con una conversión típica del 3% (≈ {{est}}/mes) — reemplazalo por tus datos reales si los tenés."
+  },
+  "auto": {
+    "titulo": "Automatizar flujo",
+    "ayuda": "Cuando el flujo, los clientes y los canales ya están aprobados: un click manda todo y el comprobante llega a tu casilla. LinkedIn, Instagram y TikTok no venden API de envío, así que quedan listos para publicar a mano — el comprobante lo aclara, acá no se simula nada.",
+    "linea_correos": "{{n}} correos por tu SMTP, cada uno en el idioma del receptor",
+    "linea_x": "Publicar el post de campaña en X (con tus claves de API)",
+    "x_faltan_claves": "Publicar en X — pegá tus claves de API en Configuración",
+    "linea_manuales": "quedan en cola para publicar a mano (sin API de envío)",
+    "x_texto": "Texto del post en X (máx. 280)",
+    "comprobante_a": "El comprobante llega a",
+    "boton": "Automatizar flujo",
+    "confirmar": "¿Aprobás el flujo? Se envían {{n}} correos ahora y llega el comprobante a tu casilla.",
+    "corriendo": "Automatizando…",
+    "listo_correos": "{{ok}} de {{total}} correos enviados",
+    "listo_x": "Publicado en X:",
+    "pendiente_manual": "para publicar a mano",
+    "comprobante_ok": "Comprobante enviado a {{a}}",
+    "comprobante_fallo": "El envío salió pero el comprobante no llegó: revisá tu SMTP"
   }
 }

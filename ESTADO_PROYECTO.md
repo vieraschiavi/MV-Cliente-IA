@@ -41,7 +41,9 @@ escribe los correos — Uruguay → LATAM → mundo, en es/pt/en.
 | 17 | Web: cada uno con su clave; 3 búsquedas gratis avisadas, por correo válido; dueño sin límite; precios + MercadoPago como Kobra | ✅ | cupo cookie+IP+correo; `vieraschiavi@gmail.com` exento; licencia US$ 149 / ≈$U 6.000; checkout integrado (falta el token, ver abajo) |
 | 18 | Resultados en streaming (no esperar todo junto) | ✅ | NDJSON por fase, verificado vivo |
 | 19 | Datos sintéticos siempre marcados; jamás personas reales con contacto | ✅ | regla de diseño, cubierta por tests |
-| 20 | Reels verticales 9:16 para redes (estilo Instagram: rótulos, resaltes, contador, CTA), en 3 idiomas | ✅ | `python3 -m marketing.generar_reel` → `/reel/{es,pt,en}/reel.mp4` en producción (52/58/50 s) |
+| 20 | Reels verticales 9:16 para redes (estilo Instagram: rótulos, resaltes, contador, CTA), en 3 idiomas, voz Kobra sin lags | ✅ | `python3 -m marketing.generar_reel` → `/reel/{es,pt,en}/reel.mp4`; silencios entre escenas recortados de ~1,9 s a ~0,6 s (también en el demo 16:9) |
+| 21 | Prospectos en tramos 50/100/200/500/1000 (sin tope en 60) | ✅ | selector con los 5 tramos; API `le=1000`; test de la corrida de 1000 completa |
+| 22 | «Automatizar flujo»: 1 click envía todo y llega comprobante | ✅ | correos por SMTP + post real en X con claves del usuario + cola manual honesta (LinkedIn/IG/TikTok sin API de envío) + comprobante HTML a la casilla; tests del lote, del 502 y del tachado de secretos |
 
 ## ⚠️ Lo que depende del dueño (no es código)
 

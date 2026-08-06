@@ -102,6 +102,24 @@ export function setSmtp(cfg) {
   else localStorage.removeItem(KEY_SMTP);
 }
 
+// Claves de la API de X (developer.x.com) para publicar el post de campaña
+// desde «Automatizar flujo». Misma política que el SMTP: viven en ESTE
+// navegador y viajan sólo con la petición que las usa.
+const KEY_X = "mvcliente_x";
+
+export function getX() {
+  try {
+    return JSON.parse(localStorage.getItem(KEY_X)) || null;
+  } catch {
+    return null;
+  }
+}
+export function setX(cfg) {
+  if (cfg && cfg.consumer_key && cfg.access_token) {
+    localStorage.setItem(KEY_X, JSON.stringify(cfg));
+  } else localStorage.removeItem(KEY_X);
+}
+
 export function getOwner() {
   return localStorage.getItem(KEY_OWNER) || "";
 }

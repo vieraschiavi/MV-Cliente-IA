@@ -343,7 +343,9 @@ class ProveedorDemo(Proveedor):
                 lo, hi = sec["empleados"]
 
                 for _ in range(cantidad):
-                    for _intento in range(12):
+                    # 40 intentos de nombre único: con 12, una corrida de mil
+                    # prospectos perdía cuatro por choques de nombre.
+                    for _intento in range(40):
                         raiz = rnd.choice(raices)
                         mod = rnd.choice(mods)
                         base = f"{mod} {raiz}" if mod[0].isupper() and not mod.startswith("&") \

@@ -287,3 +287,107 @@ def test_cupo_gratis_de_la_web(monkeypatch):
     assert rs.status_code == 200
     lineas = [jsonmod.loads(x) for x in rs.text.strip().splitlines()]
     assert lineas and lineas[-1]["estado"] == "listo"
+
+
+def test_corrida_de_mil_prospectos(cliente):
+    """El selector va en tramos hasta 1000: la API tiene que aceptarlo y el
+    demo entregarlo entero (con 12 intentos de nombre único llegaba a 996)."""
+    r = cliente.post("/api/corridas", json={
+        "dominio": "mvkobranzaia.com", "modo": "demo", "prospectos": 1000})
+    assert r.status_code == 200
+    d = _esperar(cliente, r.json()["id"])
+    assert d["estado"] == "listo"
+    assert len(d["prospectos"]) == 1000
+    assert cliente.post("/api/corridas", json={
+        "dominio": "mvkobranzaia.com", "modo": "demo",
+        "prospectos": 1001}).status_code == 422
+
+
+def test_automatizar_sin_smtp_no_manda_nada(cliente):
+    """Con credenciales SMTP inválidas el flujo NO arranca: 502 claro, sin
+    medio lote enviado y medio no."""
+    r = cliente.post("/api/automatizar", json={
+        "smtp": {"host": "smtp.invalido.test", "puerto": 587,
+                 "usuario": "nadie@test.com", "clave": "x"},
+        "correos": [{"para": "a@b.com", "asunto": "Hola", "cuerpo": "Hola"}],
+    })
+    assert r.status_code == 502
+    assert "SMTP" in r.json()["detail"]
+    assert "x" != r.json()["detail"]                 # nunca la clave
+
+
+def test_publicar_en_x_tacha_los_secretos(monkeypatch):
+    """Si X rechaza la petición, el detalle del comprobante no puede llevar
+    ninguna de las cuatro claves (va a un correo y a la pantalla)."""
+    import urllib.request
+
+    from webapp.backend import api
+
+    claves = api.XClavesIn(consumer_key="ck-123", consumer_secret="cs-456",
+                           access_token="at-789", access_secret="as-000")
+
+    def reventar(*_a, **_k):
+        raise RuntimeError("rechazado: token at-789 con secreto as-000")
+
+    monkeypatch.setattr(urllib.request, "urlopen", reventar)
+    r = api._publicar_en_x(claves, "hola")
+    assert r["ok"] is False
+    for secreto in ("cs-456", "at-789", "as-000", "ck-123"):
+        assert secreto not in r["detalle"]
+
+
+def test_automatizar_manda_lote_y_comprobante(cliente, monkeypatch):
+    """El camino feliz del botón: salen los correos, el que rebota queda
+    anotado, y el ÚLTIMO mensaje es el comprobante a la casilla elegida con
+    el detalle honesto (incluida la cola manual sin API)."""
+    import smtplib
+
+    mandados = []
+
+    class SmtpFalso:
+        def __init__(self, host, puerto, timeout=30):
+            pass
+
+        def starttls(self, context=None):
+            pass
+
+        def login(self, usuario, clave):
+            pass
+
+        def send_message(self, m):
+            if m["To"] == "rebota@x.com":
+                raise smtplib.SMTPRecipientsRefused({m["To"]: (550, b"no")})
+            mandados.append(m)
+
+        def quit(self):
+            pass
+
+    monkeypatch.setattr(smtplib, "SMTP", SmtpFalso)
+    r = cliente.post("/api/automatizar", json={
+        "smtp": {"host": "smtp.prueba.com", "puerto": 587,
+                 "usuario": "yo@prueba.com", "clave": "secreta"},
+        "correos": [
+            {"para": "destino@x.com", "asunto": "Hola", "cuerpo": "Cuerpo"},
+            {"para": "rebota@x.com", "asunto": "Hola", "cuerpo": "Cuerpo"},
+        ],
+        "comprobante_a": "dueno@prueba.com",
+        "manuales": {"linkedin": 12, "instagram": 1, "tiktok": 1, "vacio": 0},
+    })
+    assert r.status_code == 200
+    d = r.json()
+    assert d["correos"] == {"total": 2, "enviados": 1,
+                            "resultados": d["correos"]["resultados"]}
+    assert d["x"] is None                      # sin claves no se toca X
+    assert d["manuales"] == {"linkedin": 12, "instagram": 1, "tiktok": 1}
+    assert d["comprobante"]["a"] == "dueno@prueba.com"
+    assert d["comprobante"]["ok"] is True
+    assert "secreta" not in r.text
+
+    # El comprobante es el último envío y cuenta lo que pasó, canal por canal.
+    recibo = mandados[-1]
+    assert recibo["To"] == "dueno@prueba.com"
+    assert "1/2" in recibo["Subject"]
+    cuerpo = recibo.get_body(("plain",)).get_content()
+    assert "Linkedin: 12" in cuerpo and "Tiktok: 1" in cuerpo
+    html = recibo.get_body(("html",)).get_content()
+    assert "<table" in html and "<style" not in html   # regla Outlook
