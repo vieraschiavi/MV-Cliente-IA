@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import {
   api, esNativo, getBase, getClaveIA, getEndpointIA, getOwner, getProveedorIA,
-  getSmtp, getX, setBase, setClaveIA, setEndpointIA, setOwner, setProveedorIA,
-  setSmtp, setToken, setX,
+  getLinkedIn, getSmtp, getX, setBase, setClaveIA, setEndpointIA, setLinkedIn,
+  setOwner, setProveedorIA, setSmtp, setToken, setX,
 } from "../api.js";
 import { SelectorIdioma } from "../App.jsx";
+import { Aviso } from "../componentes/Comunes.jsx";
 import { t } from "../i18n/index.js";
 
 function FormSmtp() {
@@ -63,6 +64,61 @@ function FormSmtp() {
                onChange={(e) => campo("ssl", e.target.checked)} />
         {t("config.smtp_ssl")}
       </label>
+      <div style={{ marginTop: 12 }}>
+        <button className="btn" type="submit">{t("config.guardar")}</button>
+      </div>
+      {aviso ? <p className="nota" style={{ color: "var(--green-deep)" }}>{aviso}</p> : null}
+    </form>
+  );
+}
+
+function FormLinkedIn() {
+  const guardado = getLinkedIn() || {};
+  const [li, setLiLocal] = useState({
+    proveedor: guardado.proveedor || "unipile",
+    dsn: guardado.dsn || "", api_key: guardado.api_key || "",
+    account_id: guardado.account_id || "",
+  });
+  const [aviso, setAviso] = useState("");
+  const campo = (clave, valor) => setLiLocal({ ...li, [clave]: valor.trim() });
+  const guardarLi = (e) => {
+    e.preventDefault();
+    setLinkedIn(li.dsn && li.api_key && li.account_id ? li : null);
+    setAviso(li.dsn ? t("config.li_guardado") : t("config.clave_borrada"));
+    setTimeout(() => setAviso(""), 2500);
+  };
+  return (
+    <form className="card" style={{ maxWidth: 620, marginBottom: 14 }} onSubmit={guardarLi}>
+      <h3>{t("config.li")}</h3>
+      <p className="nota" style={{ marginTop: 0 }}>{t("config.li_ayuda")}</p>
+      {/* El riesgo se dice ANTES de que pegue la clave, no después de que le
+          restrinjan la cuenta. */}
+      <Aviso>{t("config.li_riesgo")}</Aviso>
+      <div className="campo crece" style={{ margin: "10px 0" }}>
+        <label htmlFor="li-proveedor">{t("config.li_proveedor")}</label>
+        <select id="li-proveedor" value={li.proveedor}
+                onChange={(e) => campo("proveedor", e.target.value)}>
+          <option value="unipile">Unipile</option>
+        </select>
+      </div>
+      <div className="campo crece" style={{ marginBottom: 10 }}>
+        <label htmlFor="li-dsn">{t("config.li_dsn")}</label>
+        <input id="li-dsn" type="text" value={li.dsn} autoCapitalize="none"
+               placeholder="api1.unipile.com:13111"
+               onChange={(e) => campo("dsn", e.target.value)} />
+      </div>
+      <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}>
+        <div className="campo">
+          <label htmlFor="li-key">{t("config.li_key")}</label>
+          <input id="li-key" type="password" value={li.api_key} autoComplete="off"
+                 onChange={(e) => campo("api_key", e.target.value)} />
+        </div>
+        <div className="campo">
+          <label htmlFor="li-cuenta">{t("config.li_cuenta")}</label>
+          <input id="li-cuenta" type="text" value={li.account_id} autoCapitalize="none"
+                 onChange={(e) => campo("account_id", e.target.value)} />
+        </div>
+      </div>
       <div style={{ marginTop: 12 }}>
         <button className="btn" type="submit">{t("config.guardar")}</button>
       </div>
@@ -234,6 +290,7 @@ export default function Configuracion({ onSalir }) {
       </form>
 
       <FormSmtp />
+      <FormLinkedIn />
       <FormX />
 
       <form className="card" style={{ maxWidth: 620 }} onSubmit={guardar}>

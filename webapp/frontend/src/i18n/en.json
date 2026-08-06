@@ -19,7 +19,8 @@
     "correos": "Emails",
     "analisis": "Analysis",
     "historial": "History",
-    "configuracion": "Settings"
+    "configuracion": "Settings",
+    "metricas": "Metrics"
   },
   "login": {
     "subtitulo": "Find your next customers",
@@ -226,7 +227,15 @@
     "owner_ayuda": "Deployment owner only: if it matches the server's MVCLIENTE_OWNER variable, this browser is exempt from the free web quota.",
     "x": "X (Twitter) API",
     "x_ayuda": "So that “Automate flow” can publish the campaign post on your X account. The four keys come from developer.x.com (an app with write permission). They stay in this browser and travel only with the request that uses them: the server never stores them.",
-    "x_guardado": "X keys saved in this browser."
+    "x_guardado": "X keys saved in this browser.",
+    "li": "LinkedIn (via provider)",
+    "li_ayuda": "LinkedIn offers no public API for sending messages or invitations: its Messages API is partner-only. The bots that message you use session-based tools. Here we talk to the provider you hire (Unipile), with YOUR key: this product never handles or stores your LinkedIn session.",
+    "li_riesgo": "Automating LinkedIn goes against its User Agreement and can get your account restricted or closed. It's your account and your call: go slow, few messages a day, and never with the company's main account.",
+    "li_proveedor": "Provider",
+    "li_dsn": "Provider DSN",
+    "li_key": "API Key",
+    "li_cuenta": "Connected account ID",
+    "li_guardado": "LinkedIn provider saved in this browser."
   },
   "aviso": {
     "sintetico": "Demo data: the companies and people in this list are synthetic, generated to exercise the flow. Switch the data source to “Read my real website” or “AI research” to work with real information.",
@@ -240,7 +249,8 @@
     "correos": "Emails",
     "analisis": "Analysis",
     "historial": "History",
-    "configuracion": "Settings"
+    "configuracion": "Settings",
+    "metricas": "Metrics"
   },
   "analisis": {
     "titulo": "Business analysis",
@@ -306,6 +316,36 @@
     "listo_x": "Published on X:",
     "pendiente_manual": "queued for manual posting",
     "comprobante_ok": "Receipt sent to {{a}}",
-    "comprobante_fallo": "The batch went out but the receipt didn't: check your SMTP"
+    "comprobante_fallo": "The batch went out but the receipt didn't: check your SMTP",
+    "linea_li": "{{n}} LinkedIn messages via {{prov}}",
+    "li_falta_proveedor": "LinkedIn — set up your provider in Settings",
+    "listo_li": "{{ok}} of {{total}} sent via {{prov}}"
+  },
+  "metricas": {
+    "subtitulo": "What went out on each channel and how each post performed. The history stays on this device: it never leaves for a server.",
+    "vacio": "You haven't automated a flow yet. Once you do it from “Emails”, this is where each channel's results show up.",
+    "correos": "Emails sent",
+    "de_total": "of {{n}} attempted",
+    "posts_x": "X posts",
+    "publicados": "published from here",
+    "impresiones": "Impressions",
+    "en_x": "on X (last read)",
+    "interacciones": "Engagement",
+    "likes_respuestas": "likes + replies",
+    "likes": "Likes",
+    "respuestas": "Replies",
+    "retweets": "Reposts",
+    "refrescar": "Refresh X metrics",
+    "cargando": "Asking X…",
+    "borrar": "Clear history",
+    "confirmar_borrar": "Clear all send history from this device? This can't be undone.",
+    "envios": "{{n}} automations saved",
+    "x_falta": "To see impressions and likes, paste your X API keys in Settings.",
+    "por_publicacion": "Per post",
+    "por_envio": "Per automation",
+    "fecha": "Date",
+    "post": "Post",
+    "producto": "Product",
+    "manual": "Manual"
   }
 }

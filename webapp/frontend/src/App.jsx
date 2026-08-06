@@ -10,6 +10,7 @@ import Decisores from "./pages/Decisores.jsx";
 import Explorar from "./pages/Explorar.jsx";
 import Historial from "./pages/Historial.jsx";
 import Login from "./pages/Login.jsx";
+import Metricas from "./pages/Metricas.jsx";
 import Prospectos from "./pages/Prospectos.jsx";
 
 const NAV = [
@@ -18,6 +19,7 @@ const NAV = [
   { ruta: "/decisores", ico: "📇", clave: "nav.decisores" },
   { ruta: "/correos", ico: "✉️", clave: "nav.correos" },
   { ruta: "/analisis", ico: "📊", clave: "nav.analisis" },
+  { ruta: "/metricas", ico: "📈", clave: "nav.metricas" },
   { ruta: "/historial", ico: "🕘", clave: "nav.historial" },
   { ruta: "/configuracion", ico: "⚙️", clave: "nav.configuracion" },
 ];
@@ -132,6 +134,7 @@ export default function App() {
           <Route path="/decisores" element={<Decisores />} />
           <Route path="/correos" element={<Correos />} />
           <Route path="/analisis" element={<Analisis />} />
+          <Route path="/metricas" element={<Metricas />} />
           <Route path="/historial" element={<Historial />} />
           <Route path="/configuracion" element={<Configuracion onSalir={() => setToken(null)} />} />
           <Route path="*" element={<Navigate to="/" replace />} />

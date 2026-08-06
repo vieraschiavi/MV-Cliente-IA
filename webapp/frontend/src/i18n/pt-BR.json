@@ -19,7 +19,8 @@
     "correos": "E-mails",
     "analisis": "Análise",
     "historial": "Histórico",
-    "configuracion": "Configurações"
+    "configuracion": "Configurações",
+    "metricas": "Métricas"
   },
   "login": {
     "subtitulo": "Encontre seus próximos clientes",
@@ -226,7 +227,15 @@
     "owner_ayuda": "Só para o dono da implantação: se coincidir com a variável MVCLIENTE_OWNER do servidor, este navegador fica isento do limite grátis da web.",
     "x": "API do X (Twitter)",
     "x_ayuda": "Para que «Automatizar fluxo» publique o post da campanha na sua conta do X. As quatro chaves saem de developer.x.com (app com permissão de escrita). Ficam neste navegador e viajam só com a requisição que as usa: o servidor não as guarda.",
-    "x_guardado": "Chaves do X salvas neste navegador."
+    "x_guardado": "Chaves do X salvas neste navegador.",
+    "li": "LinkedIn (por provedor)",
+    "li_ayuda": "O LinkedIn não oferece API pública para enviar mensagens nem convites: a Messages API é só para parceiros aprovados. Os bots que te escrevem usam ferramentas de sessão. Aqui se fala com o provedor que você contratar (Unipile), com a SUA chave: o produto não gerencia nem guarda a sua sessão do LinkedIn.",
+    "li_riesgo": "Automatizar o LinkedIn vai contra o Contrato do Usuário e pode terminar com a sua conta restrita ou fechada. A conta é sua e a decisão também: vá devagar, poucas mensagens por dia, e nunca com a conta principal da empresa.",
+    "li_proveedor": "Provedor",
+    "li_dsn": "DSN do provedor",
+    "li_key": "API Key",
+    "li_cuenta": "ID da conta conectada",
+    "li_guardado": "Provedor de LinkedIn salvo neste navegador."
   },
   "aviso": {
     "sintetico": "Dados de demonstração: as empresas e as pessoas desta lista são sintéticas, geradas para testar o fluxo. Mude a origem dos dados para «Ler meu site real» ou «Pesquisa com IA» para trabalhar com informação real.",
@@ -240,7 +249,8 @@
     "correos": "E-mails",
     "analisis": "Análise",
     "historial": "Histórico",
-    "configuracion": "Ajustes"
+    "configuracion": "Ajustes",
+    "metricas": "Métricas"
   },
   "analisis": {
     "titulo": "Análise de negócio",
@@ -306,6 +316,36 @@
     "listo_x": "Publicado no X:",
     "pendiente_manual": "para publicar à mão",
     "comprobante_ok": "Comprovante enviado para {{a}}",
-    "comprobante_fallo": "O envio saiu, mas o comprovante não chegou: verifique seu SMTP"
+    "comprobante_fallo": "O envio saiu, mas o comprovante não chegou: verifique seu SMTP",
+    "linea_li": "{{n}} mensagens de LinkedIn por {{prov}}",
+    "li_falta_proveedor": "LinkedIn — configure o seu provedor em Configurações",
+    "listo_li": "{{ok}} de {{total}} enviados por {{prov}}"
+  },
+  "metricas": {
+    "subtitulo": "O que saiu por cada canal e como rendeu cada publicação. O histórico fica neste dispositivo: não sobe para nenhum servidor.",
+    "vacio": "Você ainda não automatizou nenhum fluxo. Quando fizer isso em «E-mails», aqui aparece o que saiu por cada canal.",
+    "correos": "E-mails enviados",
+    "de_total": "de {{n}} tentados",
+    "posts_x": "Posts no X",
+    "publicados": "publicados daqui",
+    "impresiones": "Impressões",
+    "en_x": "no X (últimas lidas)",
+    "interacciones": "Interações",
+    "likes_respuestas": "likes + respostas",
+    "likes": "Likes",
+    "respuestas": "Respostas",
+    "retweets": "Reposts",
+    "refrescar": "Atualizar métricas do X",
+    "cargando": "Consultando o X…",
+    "borrar": "Apagar histórico",
+    "confirmar_borrar": "Apagar todo o histórico de envios deste dispositivo? Não dá para desfazer.",
+    "envios": "{{n}} automatizações salvas",
+    "x_falta": "Para ver impressões e likes, cole suas chaves da API do X em Configurações.",
+    "por_publicacion": "Por publicação",
+    "por_envio": "Por automatização",
+    "fecha": "Data",
+    "post": "Post",
+    "producto": "Produto",
+    "manual": "À mão"
   }
 }

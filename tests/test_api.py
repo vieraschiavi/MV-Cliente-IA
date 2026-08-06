@@ -321,16 +321,15 @@ def test_publicar_en_x_tacha_los_secretos(monkeypatch):
     ninguna de las cuatro claves (va a un correo y a la pantalla)."""
     import urllib.request
 
-    from webapp.backend import api
+    from cliente_ia import redes
 
-    claves = api.XClavesIn(consumer_key="ck-123", consumer_secret="cs-456",
-                           access_token="at-789", access_secret="as-000")
+    claves = redes.ClavesX("ck-123", "cs-456", "at-789", "as-000")
 
     def reventar(*_a, **_k):
         raise RuntimeError("rechazado: token at-789 con secreto as-000")
 
     monkeypatch.setattr(urllib.request, "urlopen", reventar)
-    r = api._publicar_en_x(claves, "hola")
+    r = redes.publicar_en_x(claves, "hola")
     assert r["ok"] is False
     for secreto in ("cs-456", "at-789", "as-000", "ck-123"):
         assert secreto not in r["detalle"]

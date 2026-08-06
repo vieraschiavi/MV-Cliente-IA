@@ -120,6 +120,51 @@ export function setX(cfg) {
   } else localStorage.removeItem(KEY_X);
 }
 
+// Proveedor de LinkedIn del usuario (ver cliente_ia/redes.py: LinkedIn no
+// expone API pública de mensajes, así que se pasa por el proveedor que él
+// contrató). Mismas reglas que el SMTP: vive acá, viaja sólo con la petición.
+const KEY_LI = "mvcliente_linkedin";
+
+export function getLinkedIn() {
+  try {
+    return JSON.parse(localStorage.getItem(KEY_LI)) || null;
+  } catch {
+    return null;
+  }
+}
+export function setLinkedIn(cfg) {
+  if (cfg && cfg.dsn && cfg.api_key && cfg.account_id) {
+    localStorage.setItem(KEY_LI, JSON.stringify(cfg));
+  } else localStorage.removeItem(KEY_LI);
+}
+
+// Historial de automatizaciones: qué se mandó, a quién y cómo salió. Vive en
+// ESTE dispositivo a propósito — en Vercel el backend es sin estado (no hay
+// disco que sobreviva a la respuesta), así que un historial servidor no
+// existiría en el despliegue web. Acá anda igual en web, PC y APK.
+const KEY_ENVIOS = "mvcliente_envios";
+const TOPE_ENVIOS = 200;
+
+export function getEnvios() {
+  try {
+    const v = JSON.parse(localStorage.getItem(KEY_ENVIOS));
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+}
+export function agregarEnvio(registro) {
+  const previos = getEnvios();
+  // El más nuevo primero y con tope: sin el corte, un usuario que automatiza
+  // todos los días termina llenando localStorage y la app deja de guardar.
+  const nuevos = [registro, ...previos].slice(0, TOPE_ENVIOS);
+  localStorage.setItem(KEY_ENVIOS, JSON.stringify(nuevos));
+  return nuevos;
+}
+export function borrarEnvios() {
+  localStorage.removeItem(KEY_ENVIOS);
+}
+
 export function getOwner() {
   return localStorage.getItem(KEY_OWNER) || "";
 }

@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { api, descargar, getEmail, getSmtp, getX } from "../api.js";
+import { agregarEnvio, api, descargar, getEmail, getLinkedIn, getSmtp, getX } from "../api.js";
 import { Copiar, Idioma, Vacio } from "../componentes/Comunes.jsx";
 import { getCorridaId, useCorrida } from "../estado.js";
 import { t } from "../i18n/index.js";
@@ -171,16 +171,31 @@ function Mensaje({ correo, decisor, para, setPara, enviar, estado, smtpListo }) 
  * del usuario); LinkedIn, Instagram y TikTok no venden API de envío, así que
  * quedan como cola manual y el comprobante lo dice — acá no se simula nada.
  */
-function Automatizar({ listos, adjunto, smtp, correoDe }) {
+function Automatizar({ listos, adjunto, smtp, correoDe, corrida }) {
   const x = getX();
+  const li = getLinkedIn();
   const [conX, setConX] = useState(Boolean(x));
+  const [conLi, setConLi] = useState(Boolean(li));
   const [xTexto, setXTexto] = useState("");
   const [comprobanteA, setComprobanteA] = useState(getEmail() || smtp?.usuario || "");
   const [estado, setEstado] = useState("");        // "" | "corriendo" | "listo" | error
   const [comp, setComp] = useState(null);
 
-  const conLinkedIn = listos.filter(({ correo }) => correo.linkedin).length;
-  const manuales = { linkedin: conLinkedIn, instagram: 1, tiktok: 1 };
+  // Sólo van por LinkedIn los decisores con identificador de perfil REAL: los
+  // sintéticos de la demo no existen, y una llamada al proveedor se paga.
+  const paraLinkedIn = listos
+    .map(({ correo, decisor }) => ({ correo, decisor }))
+    // Sólo perfiles PERSONALES (/in/…): las fichas traen a veces la búsqueda
+    // de gente de una empresa, que no identifica a nadie.
+    .filter(({ correo, decisor }) =>
+      correo.linkedin && /linkedin\.com\/in\//i.test(decisor?.linkedin || ""))
+    .map(({ correo, decisor }) => ({
+      destinatario: decisor.linkedin,
+      texto: correo.linkedin,
+      etiqueta: `${decisor.nombre} · ${decisor.empresa}`,
+    }));
+  const manuales = { instagram: 1, tiktok: 1 };
+  if (!conLi || !li) manuales.linkedin = listos.filter((f) => f.correo.linkedin).length;
 
   const correr = async () => {
     if (!window.confirm(t("auto.confirmar", { n: listos.length }))) return;
@@ -196,10 +211,25 @@ function Automatizar({ listos, adjunto, smtp, correoDe }) {
         comprobante_a: comprobanteA.trim(),
         manuales,
         ...(conX && x && xTexto.trim() ? { x, x_texto: xTexto.trim() } : {}),
+        ...(conLi && li && paraLinkedIn.length
+          ? { linkedin: li, linkedin_mensajes: paraLinkedIn } : {}),
       };
       const r = await api("/api/automatizar", { metodo: "POST", cuerpo });
       setComp(r);
       setEstado("listo");
+      // Al panel de métricas: qué se mandó, cuándo y cómo salió.
+      agregarEnvio({
+        fecha: new Date().toISOString(),
+        dominio: corrida?.dominio || "",
+        corrida_id: corrida?.id || "",
+        correos: { total: r.correos.total, enviados: r.correos.enviados },
+        x: r.x ? { ok: r.x.ok, id: r.x.id, url: r.x.url, texto: xTexto.trim() } : null,
+        linkedin: r.linkedin
+          ? { total: r.linkedin.total, enviados: r.linkedin.enviados,
+              proveedor: r.linkedin.proveedor }
+          : null,
+        manuales: r.manuales || {},
+      });
     } catch (e) {
       setEstado(e.message);
     }
@@ -219,7 +249,16 @@ function Automatizar({ listos, adjunto, smtp, correoDe }) {
             𝕏 {x ? t("auto.linea_x") : t("auto.x_faltan_claves")}
           </label>
         </li>
-        <li>💼 LinkedIn · 📸 Instagram · 🎵 TikTok — {t("auto.linea_manuales")}</li>
+        <li>
+          <label style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+            <input type="checkbox" checked={conLi} disabled={!li}
+                   onChange={(e) => setConLi(e.target.checked)} />
+            💼 {li
+              ? t("auto.linea_li", { n: paraLinkedIn.length, prov: li.proveedor })
+              : t("auto.li_falta_proveedor")}
+          </label>
+        </li>
+        <li>📸 Instagram · 🎵 TikTok — {t("auto.linea_manuales")}</li>
       </ul>
 
       {conX && x ? (
@@ -249,6 +288,14 @@ function Automatizar({ listos, adjunto, smtp, correoDe }) {
             ✔ {t("auto.listo_correos", {
               ok: comp.correos.enviados, total: comp.correos.total })}
           </p>
+          {comp.linkedin ? (
+            <p style={{ margin: 0, color: comp.linkedin.enviados ? "var(--green-deep)" : "" }}>
+              {comp.linkedin.enviados ? "✔" : "✘"} LinkedIn:{" "}
+              {t("auto.listo_li", { ok: comp.linkedin.enviados,
+                                    total: comp.linkedin.total,
+                                    prov: comp.linkedin.proveedor })}
+            </p>
+          ) : null}
           {comp.x ? (
             comp.x.ok
               ? <p style={{ margin: 0 }}>✔ {t("auto.listo_x")}{" "}
@@ -390,7 +437,7 @@ export default function Correos() {
       {!smtp ? <p className="nota">{t("correos.smtp_falta")}</p> : null}
       {avisoLote ? <p className="nota">{avisoLote}</p> : null}
 
-      <Automatizar listos={listos} adjunto={adjunto} smtp={smtp}
+      <Automatizar listos={listos} adjunto={adjunto} smtp={smtp} corrida={corrida}
                    correoDe={(correo, para) => ({
                      para, asunto: correo.asunto, cuerpo: correo.cuerpo,
                      cuerpo_html: correo.cuerpo_html || "",

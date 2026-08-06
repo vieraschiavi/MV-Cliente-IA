@@ -60,7 +60,17 @@ from fastapi.responses import (
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from cliente_ia import __version__, almacen, exportar, geo, modelos, pipeline, proveedores, rutas
+from cliente_ia import (
+    __version__,
+    almacen,
+    exportar,
+    geo,
+    modelos,
+    pipeline,
+    proveedores,
+    redes,
+    rutas,
+)
 from cliente_ia.modelos import Corrida
 
 # Cuántas corridas pueden estar en vuelo a la vez. Cada una es corta (el modo
@@ -485,6 +495,28 @@ class XClavesIn(BaseModel):
     access_secret: str = Field(min_length=3, max_length=120)
 
 
+class LinkedInClavesIn(BaseModel):
+    """Credenciales del proveedor de LinkedIn del usuario. El producto no
+    guarda ni maneja la sesión de LinkedIn de nadie: habla con el proveedor
+    que el usuario contrató, con SU clave, y la descarta."""
+    proveedor: str = Field(default="unipile", max_length=30)
+    dsn: str = Field(min_length=4, max_length=200)
+    api_key: str = Field(min_length=8, max_length=300)
+    account_id: str = Field(min_length=3, max_length=120)
+
+
+class MensajeRedIn(BaseModel):
+    destinatario: str = Field(min_length=1, max_length=200)
+    texto: str = Field(min_length=1, max_length=8000)
+    # Sólo para mostrar en el comprobante ("Elena · Banco Sur"), no se envía.
+    etiqueta: str = Field(default="", max_length=160)
+
+
+class MetricasXIn(BaseModel):
+    x: XClavesIn
+    ids: list[str] = Field(min_length=1, max_length=100)
+
+
 class AutomatizarIn(BaseModel):
     smtp: SmtpIn
     remitente: str = Field(default="", max_length=120)
@@ -495,69 +527,48 @@ class AutomatizarIn(BaseModel):
     # Publicación real en X, sólo si el usuario cargó sus claves de API.
     x: XClavesIn | None = None
     x_texto: str = Field(default="", max_length=280)
-    # Canales SIN API de envío (LinkedIn no vende API de mensajes; Instagram
-    # y TikTok exigen una app aprobada por Meta/ByteDance). Van al comprobante
-    # como cola manual, con honestidad — no se simula un envío que no existe.
+    # LinkedIn por el proveedor que el usuario eligió y paga (ver
+    # cliente_ia/redes.py: LinkedIn no expone API pública de mensajes).
+    linkedin: LinkedInClavesIn | None = None
+    linkedin_mensajes: list[MensajeRedIn] = Field(default_factory=list,
+                                                  max_length=500)
+    # Canales SIN API de envío alcanzable (Instagram y TikTok exigen una app
+    # aprobada por Meta/ByteDance). Van al comprobante como cola manual, con
+    # honestidad — no se simula un envío que no existe.
     manuales: dict[str, int] = Field(default_factory=dict)
 
 
-def _publicar_en_x(claves: XClavesIn, texto: str) -> dict:
-    """Publica el post con OAuth 1.0a firmado a mano (HMAC-SHA1, stdlib).
-    El SDK oficial no está en el instalador y para UNA petición no hace
-    falta: la firma son veinte líneas."""
-    import hashlib as _hl
-    import hmac as _hmac
-    import json as _json
-    import secrets as _secrets
-    import time as _time
-    import urllib.parse as _up
-    import urllib.request as _ur
+def _claves_x(x: XClavesIn) -> redes.ClavesX:
+    return redes.ClavesX(x.consumer_key, x.consumer_secret,
+                         x.access_token, x.access_secret)
 
-    url = "https://api.x.com/2/tweets"
-    oauth = {
-        "oauth_consumer_key": claves.consumer_key,
-        "oauth_nonce": _secrets.token_hex(16),
-        "oauth_signature_method": "HMAC-SHA1",
-        "oauth_timestamp": str(int(_time.time())),
-        "oauth_token": claves.access_token,
-        "oauth_version": "1.0",
-    }
-    # Con cuerpo JSON, la base de la firma lleva sólo los parámetros oauth.
-    params = "&".join(f"{_up.quote(k, safe='')}={_up.quote(v, safe='')}"
-                      for k, v in sorted(oauth.items()))
-    base = "&".join(("POST", _up.quote(url, safe=""), _up.quote(params, safe="")))
-    llave = f"{_up.quote(claves.consumer_secret, safe='')}&" \
-            f"{_up.quote(claves.access_secret, safe='')}"
-    firma = base64.b64encode(
-        _hmac.new(llave.encode(), base.encode(), _hl.sha1).digest()).decode()
-    oauth["oauth_signature"] = firma
-    cabecera = "OAuth " + ", ".join(
-        f'{_up.quote(k, safe="")}="{_up.quote(v, safe="")}"'
-        for k, v in sorted(oauth.items()))
 
-    req = _ur.Request(url, data=_json.dumps({"text": texto}).encode(),
-                      headers={"Authorization": cabecera,
-                               "Content-Type": "application/json"})
-    try:
-        with _ur.urlopen(req, timeout=30) as r:
-            datos = _json.load(r)
-        tweet_id = str((datos.get("data") or {}).get("id") or "")
-        return {"ok": bool(tweet_id), "id": tweet_id,
-                "url": f"https://x.com/i/status/{tweet_id}" if tweet_id else "",
-                "detalle": ""}
-    except Exception as e:                               # noqa: BLE001
-        detalle = str(e)[:300]
-        if hasattr(e, "read"):
-            try:
-                detalle = e.read().decode()[:300]
-            except Exception:                            # noqa: BLE001
-                pass
-        # Nunca las claves en el detalle (X no las repite, pero por las dudas).
-        for secreto in (claves.consumer_secret, claves.access_secret,
-                        claves.access_token, claves.consumer_key):
-            detalle = detalle.replace(secreto, "•••")
-        return {"ok": False, "id": "", "url": "",
-                "detalle": f"{type(e).__name__}: {detalle[:200]}"}
+def _mandar_linkedin(entrada: AutomatizarIn) -> dict | None:
+    """Los mensajes de LinkedIn, uno por uno, por el proveedor del usuario.
+    Devuelve None si no configuró proveedor: no es un fallo, es que ese canal
+    no está enchufado."""
+    if not entrada.linkedin or not entrada.linkedin_mensajes:
+        return None
+    claves = redes.ClavesLinkedIn(
+        proveedor=entrada.linkedin.proveedor, dsn=entrada.linkedin.dsn,
+        api_key=entrada.linkedin.api_key, account_id=entrada.linkedin.account_id)
+    resultados = []
+    for m in entrada.linkedin_mensajes:
+        r = redes.enviar_linkedin(claves, m.destinatario, m.texto)
+        resultados.append({"a": m.etiqueta or m.destinatario,
+                           "ok": r["ok"], "detalle": r.get("detalle", "")})
+    return {"proveedor": entrada.linkedin.proveedor,
+            "total": len(resultados),
+            "enviados": sum(1 for r in resultados if r["ok"]),
+            "resultados": resultados}
+
+
+@app.post("/api/metricas/x", dependencies=[Depends(requiere_auth)])
+def metricas_x(entrada: MetricasXIn):
+    """Métricas públicas de los posts ya publicados — es lo que refresca el
+    panel de métricas. El historial vive en el dispositivo del usuario; acá
+    sólo se consultan los números de X con sus claves."""
+    return {"metricas": redes.metricas_de_x(_claves_x(entrada.x), entrada.ids)}
 
 
 def _html_comprobante(comp: dict) -> str:
@@ -576,6 +587,17 @@ def _html_comprobante(comp: dict) -> str:
                   if x["ok"] else f'✘ {x["detalle"] or "falló"}')
         fila_x = (f'<tr><td style="padding:6px 12px">X (Twitter)</td>'
                   f'<td style="padding:6px 12px">{estado}</td></tr>')
+    li = comp.get("linkedin")
+    fila_li = ""
+    if li:
+        fallas = [r for r in li["resultados"] if not r["ok"]]
+        detalle = (f'✔ {li["enviados"]} de {li["total"]} enviados por '
+                   f'{li["proveedor"]}')
+        if fallas:
+            detalle += (f' · ✘ {len(fallas)} fallaron '
+                        f'({fallas[0]["detalle"] or "sin detalle"})')
+        fila_li = (f'<tr><td style="padding:6px 12px">LinkedIn</td>'
+                   f'<td style="padding:6px 12px">{detalle}</td></tr>')
     filas_manuales = "".join(
         f'<tr><td style="padding:6px 12px">{canal.title()}</td>'
         f'<td style="padding:6px 12px;color:#8a6d1a">⏳ {n} para publicar a mano '
@@ -591,7 +613,7 @@ def _html_comprobante(comp: dict) -> str:
         "enviados</td></tr>"
         '<tr><td><table role="presentation" cellpadding="0" cellspacing="0" '
         'style="font-size:14px;border:1px solid #e3e8ef;border-radius:6px" width="100%">'
-        f"{filas_correos}{fila_x}{filas_manuales}"
+        f"{filas_correos}{fila_x}{fila_li}{filas_manuales}"
         "</table></td></tr>"
         '<tr><td style="padding:14px 12px;color:#8a97ab;font-size:12px">'
         "Generado automáticamente al aprobar el flujo. Los canales sin API de "
@@ -620,8 +642,10 @@ def automatizar_flujo(entrada: AutomatizarIn):
             "correos": {"total": len(resultados),
                         "enviados": sum(1 for r in resultados if r["ok"]),
                         "resultados": resultados},
-            "x": (_publicar_en_x(entrada.x, entrada.x_texto.strip())
+            "x": (redes.publicar_en_x(_claves_x(entrada.x),
+                                      entrada.x_texto.strip())
                   if entrada.x and entrada.x_texto.strip() else None),
+            "linkedin": _mandar_linkedin(entrada),
             "manuales": {k: v for k, v in entrada.manuales.items() if v > 0},
         }
 
@@ -636,6 +660,10 @@ def automatizar_flujo(entrada: AutomatizarIn):
                     f"{comp['correos']['total']} enviados.\n"
                     + (f"X: {'publicado ' + comp['x']['url'] if comp['x']['ok'] else 'falló'}\n"
                        if comp.get("x") else "")
+                    + (f"LinkedIn: {comp['linkedin']['enviados']} de "
+                       f"{comp['linkedin']['total']} enviados por "
+                       f"{comp['linkedin']['proveedor']}\n"
+                       if comp.get("linkedin") else "")
                     + "".join(f"{c.title()}: {n} para publicar a mano\n"
                               for c, n in comp["manuales"].items())),
             cuerpo_html=_html_comprobante(comp))
