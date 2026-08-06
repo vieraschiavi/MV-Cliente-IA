@@ -314,11 +314,17 @@ def _subtitulo(img: Image.Image, idioma: str, escena: str, y: int = 1130) -> Non
         x += d.textlength(parte, font=f)
 
 
-def _tarjeta_captura(fondo: Image.Image, captura: Path) -> None:
+def _tarjeta_captura(fondo: Image.Image, captura: Path,
+                     con_cara: bool = False) -> None:
     """La captura móvil dentro de una tarjeta redondeada con borde, centrada
-    entre el rótulo y el subtítulo."""
+    entre el rótulo y el subtítulo.
+
+    Con presentador la tarjeta se achica: si no, el recuadro de la cara le
+    caía encima. El teléfono se ve igual de bien más corto; dos cosas pisadas,
+    no.
+    """
     shot = Image.open(captura).convert("RGB")
-    alto_obj = 850
+    alto_obj = 620 if con_cara else 850
     ancho_obj = int(shot.width * alto_obj / shot.height)
     shot = shot.resize((ancho_obj, alto_obj), Image.LANCZOS)
 
@@ -351,12 +357,13 @@ def _escena_hook(idioma: str, destino: Path) -> Path:
     return destino
 
 
-def _escena_captura(idioma: str, escena: str, captura: Path, destino: Path) -> Path:
+def _escena_captura(idioma: str, escena: str, captura: Path, destino: Path,
+                    con_cara: bool = False) -> Path:
     img = _fondo_estrellas()
     d = ImageDraw.Draw(img)
     _cabecera(d, idioma)
     _kicker(d, idioma, escena)
-    _tarjeta_captura(img, captura)
+    _tarjeta_captura(img, captura, con_cara)
     _subtitulo(img, idioma, escena)
     img.save(destino)
     return destino
@@ -457,6 +464,68 @@ def _escena_cta(idioma: str, destino: Path) -> Path:
     _subtitulo(img, idioma, "cta")
     img.save(destino)
     return destino
+
+
+# ---------------------------------------------------------------------------
+# Presentador (el recuadro con la cara, como en los reels de referencia)
+# ---------------------------------------------------------------------------
+# Los reels que funcionan tienen una persona hablando en un recuadro: es lo que
+# los hace mirar. Eso no se genera con código — hace falta una cara. Así que el
+# generador acepta un clip del dueño y lo compone encima de todas las escenas.
+# Se graba UNA vez con el teléfono y todos los reels futuros lo llevan.
+#
+#   marketing/presentador/es.mp4   (y pt.mp4 / en.mp4)
+#
+# Sin clip, el reel sale como hasta ahora. No se inventa una cara.
+PRESENTADOR = RAIZ / "marketing" / "presentador"
+# Tamaño y posición del recuadro, en píxeles del lienzo 720×1280. Va abajo de
+# todo y ARRIBA del subtítulo, como en las referencias. Con un clip 4:3 el
+# recuadro mide ~201 px de alto y termina en 1081, con aire hasta el subtítulo.
+PIP_ANCHO = 260
+PIP_Y = 880
+
+
+def clip_presentador(idioma: str) -> Path | None:
+    """El clip del idioma, o el de español como respaldo, o nada."""
+    for candidato in (PRESENTADOR / f"{idioma}.mp4", PRESENTADOR / "es.mp4"):
+        if candidato.exists() and candidato.stat().st_size > 10_000:
+            return candidato
+    return None
+
+
+def _con_presentador(ff: str, escena_mp4: Path, clip: Path, desde: float,
+                     destino: Path) -> tuple[Path, float]:
+    """Pega el recuadro del presentador sobre una escena ya armada.
+
+    `desde` es el segundo del clip por donde va esta escena: así el
+    presentador avanza a lo largo del reel en vez de reiniciarse en cada
+    corte, que se nota y queda a robot. Devuelve dónde quedó el clip.
+    """
+    dur = _duracion(ff, escena_mp4)
+    largo_clip = _duracion(ff, clip)
+    if largo_clip <= 0.5:
+        return escena_mp4, desde
+    # Si el clip se termina, se vuelve al principio: es preferible repetir a
+    # dejar el recuadro congelado en el último cuadro.
+    if desde + dur > largo_clip:
+        desde = 0.0
+    filtro = (
+        f"[1:v]trim=start={desde:.2f}:duration={dur:.2f},setpts=PTS-STARTPTS,"
+        f"scale={PIP_ANCHO}:-2,"
+        # Esquinas redondeadas + borde verde, con la misma geometría que la
+        # tarjeta de las capturas para que se lea como el mismo diseño.
+        f"pad=iw+6:ih+6:3:3:color=0x00C896[pip];"
+        f"[0:v][pip]overlay=x=(W-w)/2:y={PIP_Y}:shortest=0[v]"
+    )
+    subprocess.run(
+        [ff, "-y", "-loglevel", "error",
+         "-i", str(escena_mp4), "-i", str(clip),
+         "-filter_complex", filtro,
+         "-map", "[v]", "-map", "0:a?",
+         "-c:v", "libx264", "-preset", "medium", "-crf", "22", "-r", str(FPS),
+         "-c:a", "copy", "-t", f"{dur:.2f}", str(destino)],
+        check=True)
+    return destino, desde + dur
 
 
 # ---------------------------------------------------------------------------
@@ -609,6 +678,8 @@ def generar() -> list[Path]:
             corrida_id = _correr_corrida(base)
             for idioma in GUION:
                 fotos = _capturas_movil(idioma, base, corrida_id, carpeta)
+                cara = clip_presentador(idioma)
+                reloj_cara = 0.0
                 partes: list[Path] = []
                 for escena in ESCENAS:
                     voz = _voz_recortada(
@@ -632,13 +703,22 @@ def generar() -> list[Path]:
                         partes.append(_escena_mp4(ff, img, voz, mp4))
                     else:                                # panel · prospectos · analisis
                         img = _escena_captura(idioma, escena, fotos[escena],
-                                              carpeta / f"{idioma}_{escena}.png")
+                                              carpeta / f"{idioma}_{escena}.png",
+                                              con_cara=bool(cara))
                         partes.append(_escena_mp4(ff, img, voz, mp4))
+                    if cara:
+                        # El recuadro se pega sobre la escena ya armada, y el
+                        # clip sigue avanzando de una escena a la otra.
+                        con_cara, reloj_cara = _con_presentador(
+                            ff, partes[-1], cara, reloj_cara,
+                            carpeta / f"{idioma}_pip_{escena}.mp4")
+                        partes[-1] = con_cara
                 destino = DESTINO / idioma / "reel.mp4"
                 salidas.append(_concatenar(ff, partes, destino))
                 print(f"  ✓ {destino.relative_to(RAIZ)}  "
                       f"({destino.stat().st_size // 1024} KB · "
-                      f"{_duracion(ff, destino):.0f} s)")
+                      f"{_duracion(ff, destino):.0f} s"
+                      f"{' · con presentador' if cara else ''})")
         finally:
             servidor.terminate()
             servidor.wait(timeout=10)

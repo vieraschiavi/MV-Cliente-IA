@@ -45,6 +45,7 @@ escribe los correos — Uruguay → LATAM → mundo, en es/pt/en.
 | 21 | Prospectos en tramos 50/100/200/500/1000 (sin tope en 60) | ✅ | selector con los 5 tramos; API `le=1000`; test de la corrida de 1000 completa |
 | 22 | «Automatizar flujo»: 1 click envía todo y llega comprobante | ✅ | correos por SMTP + post real en X + mensajes de LinkedIn por el proveedor del usuario + cola manual honesta (IG/TikTok) + comprobante HTML a la casilla; tests del lote, del 502 y del tachado de secretos |
 | 23 | LinkedIn automatizado de verdad (como los bots que le llegan al dueño) | ✅ | `cliente_ia/redes.py`: LinkedIn NO tiene API pública de mensajes, así que se integra el proveedor de sesión que el usuario contrata (Unipile), resolviendo el perfil `/in/…` a su identificador. El riesgo de restricción de cuenta se avisa ANTES de pegar la clave |
+| 25 | Recuadro con presentador en los reels (como los reels de referencia) | ✅ | `marketing/presentador/{es,pt,en}.mp4`: el clip se compone sobre todas las escenas y avanza entre cortes; la tarjeta de la captura se achica sola para dejarle lugar. Sin clip, el reel sale como antes |
 | 24 | Dashboard de métricas por red y por publicación | ✅ | pestaña Métricas: correos enviados/intentados, mensajes de LinkedIn, posts de X con impresiones/likes/respuestas/reposts en vivo desde la API de X; historial en el dispositivo (el web es serverless y no tiene disco) |
 
 ## ⚠️ Lo que depende del dueño (no es código)
