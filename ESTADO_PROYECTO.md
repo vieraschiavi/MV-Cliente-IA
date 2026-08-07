@@ -115,10 +115,16 @@ porque **cambia de dónde despliega Vercel** (ver abajo).
    resuelve en Settings → Billing → Spending limit, o esperando el recálculo
    (6-12 h). No es un problema del código: la última corrida real dejó el
    motor en verde.
-8. **`MVCLIENTE_LICENCIA_SECRETO`** — el secreto con el que firmás las claves
-   de tus compradores. Ponelo como secret del repositorio para que el CI lo
-   hornee, y guardalo: si lo perdés, las claves ya emitidas dejan de validar.
-   Emitir una: `python3 -m cliente_ia.licencia emitir --email X --meses 12`.
+8. **`MVCLIENTE_LICENCIA_SECRETO` en Vercel** — el secreto con el que se
+   firman y validan las claves. Va como variable de entorno **del servidor**
+   (nunca en un instalador: el programa activa en línea contra
+   `/api/licencia/validar`). Guardalo: si lo perdés, las claves ya emitidas
+   dejan de validar. Generar uno:
+   `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`.
+   Emitir la clave de un comprador:
+   `MVCLIENTE_LICENCIA_SECRETO=... python3 -m cliente_ia.licencia emitir --email X --meses 12`.
+   Mientras no lo definas, cae a `MVCLIENTE_OWNER`, que ya está configurado —
+   así que el sistema funciona hoy, pero conviene separarlos.
 9. **Estructura de ramas (decisión, no código)** — el repo tiene una sola rama
    y es la que Vercel publica. Para que el merge automático tenga sentido hay
    que volver al flujo `main` + ramas de trabajo con PR, y eso implica

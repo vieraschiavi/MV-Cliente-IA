@@ -191,3 +191,106 @@ def test_la_web_no_usa_licencias(monkeypatch):
     monkeypatch.setattr(api, "SIN_ESTADO", True)
     d = TestClient(api.app).get("/api/licencia").json()
     assert d == {"aplica": False, "edicion": "web"}
+
+
+# ---------------------------------------------------------------------------
+# Activación en línea: el instalador NO lleva el secreto
+# ---------------------------------------------------------------------------
+def test_sin_secreto_la_clave_se_valida_contra_el_servidor(monkeypatch):
+    """El caso de TODOS los instaladores. Hornear el secreto adentro del .exe
+    dejaría a cualquiera emitiendo claves; en vez de eso se pregunta al
+    servidor, que sí lo tiene."""
+    monkeypatch.setenv("MVCLIENTE_EDICION", "cliente")
+    clave = licencia.emitir("comprador@ejemplo.com", meses=12)
+
+    # La máquina del cliente no tiene con qué firmar ni verificar.
+    monkeypatch.delenv("MVCLIENTE_LICENCIA_SECRETO")
+    monkeypatch.delenv("MVCLIENTE_OWNER", raising=False)
+    assert licencia._secreto() == b""
+
+    pedidos = []
+
+    def servidor_falso(clave_pedida):
+        pedidos.append(clave_pedida)
+        return {"ok": True, "email": "comprador@ejemplo.com", "vence": "2027-08-14"}
+
+    monkeypatch.setattr(licencia, "_validar_en_linea", servidor_falso)
+    assert licencia.guardar_clave(clave)["ok"] is True
+    assert pedidos == [clave]
+
+    e = licencia.estado()
+    assert e.activa is True
+    assert e.email == "comprador@ejemplo.com"
+
+
+def test_una_vez_activada_anda_sin_conexion(monkeypatch):
+    """Volver a preguntarle al servidor en cada arranque dejaría al cliente
+    sin producto cada vez que se le cae internet."""
+    monkeypatch.setenv("MVCLIENTE_EDICION", "cliente")
+    clave = licencia.emitir("comprador@ejemplo.com", meses=12)
+    monkeypatch.delenv("MVCLIENTE_LICENCIA_SECRETO")
+    monkeypatch.delenv("MVCLIENTE_OWNER", raising=False)
+    monkeypatch.setattr(licencia, "_validar_en_linea", lambda c: {
+        "ok": True, "email": "comprador@ejemplo.com", "vence": "2027-08-14"})
+    licencia.guardar_clave(clave)
+
+    # Ahora el servidor no existe: el estado tiene que seguir activo.
+    def sin_internet(_c):
+        raise AssertionError("no se puede llamar al servidor en cada arranque")
+
+    monkeypatch.setattr(licencia, "_validar_en_linea", sin_internet)
+    assert licencia.estado().activa is True
+
+
+def test_offline_el_vencimiento_igual_se_respeta(monkeypatch, entorno):
+    """El dato guardado sirve para la firma, no para el reloj: una licencia de
+    un año no puede quedar abierta dos porque se activó sin conexión."""
+    monkeypatch.setenv("MVCLIENTE_EDICION", "cliente")
+    monkeypatch.delenv("MVCLIENTE_LICENCIA_SECRETO")
+    monkeypatch.delenv("MVCLIENTE_OWNER", raising=False)
+    (entorno / "licencia.json").write_text(json.dumps({
+        "clave": "la-que-sea", "email": "viejo@ejemplo.com",
+        "vence": "2020-01-01", "activada": "2019-01-01"}), encoding="utf-8")
+    e = licencia.estado()
+    assert e.activa is False
+    assert "venció" in e.motivo
+
+
+def test_un_error_de_red_no_dice_que_la_clave_es_mala(monkeypatch):
+    """Distinguir «clave inválida» de «no llegué al servidor» es la diferencia
+    entre un cliente que revisa su conexión y uno que cree que lo estafaron."""
+    monkeypatch.setenv("MVCLIENTE_EDICION", "cliente")
+    monkeypatch.delenv("MVCLIENTE_LICENCIA_SECRETO")
+    monkeypatch.delenv("MVCLIENTE_OWNER", raising=False)
+    import urllib.request
+
+    def sin_red(*_a, **_k):
+        raise OSError("Network is unreachable")
+
+    monkeypatch.setattr(urllib.request, "urlopen", sin_red)
+    r = licencia.comprobar("cualquier-clave")
+    assert r["ok"] is False
+    assert "conexión" in r["motivo"] or "servidor" in r["motivo"]
+    assert "inválida" not in r["motivo"]
+
+
+def test_el_endpoint_de_validacion_no_pide_autenticacion(monkeypatch):
+    """Lo llama un programa recién instalado que todavía no es usuario de
+    nada. Y con clave mala devuelve 200 con ok:false, no un 4xx que el
+    cliente confundiría con un problema de red."""
+    from fastapi.testclient import TestClient
+
+    from webapp.backend import api
+
+    monkeypatch.setenv("MVCLIENTE_LICENCIA_SECRETO", SECRETO)
+    cliente = TestClient(api.app)
+    clave = licencia.emitir("comprador@ejemplo.com", meses=12)
+
+    r = cliente.post("/api/licencia/validar", json={"clave": clave})
+    assert r.status_code == 200
+    assert r.json()["ok"] is True
+    assert r.json()["email"] == "comprador@ejemplo.com"
+
+    mala = cliente.post("/api/licencia/validar", json={"clave": "eyJhIjoxfQ.falsa"})
+    assert mala.status_code == 200
+    assert mala.json()["ok"] is False

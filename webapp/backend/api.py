@@ -691,6 +691,21 @@ def ver_licencia():
     return {"aplica": True, **licencia.estado().a_dict()}
 
 
+@app.post("/api/licencia/validar")
+def validar_licencia(entrada: LicenciaIn):
+    """Valida una clave contra el secreto del SERVIDOR. Es lo que llama el
+    programa instalado al activarse: así el secreto de firma no viaja adentro
+    de ningún .exe. Sin autenticación a propósito — el que activa todavía no
+    es usuario de nada, y lo único que se puede hacer acá es preguntar si una
+    clave es válida."""
+    r = licencia.verificar(entrada.clave)
+    if not r["ok"]:
+        # 200 con ok:false, no 4xx: el programa distingue «clave inválida» de
+        # «no pude llegar al servidor», y un 4xx se confunde con lo segundo.
+        return {"ok": False, "motivo": r["motivo"]}
+    return {"ok": True, "email": r.get("email", ""), "vence": r.get("vence", "")}
+
+
 @app.post("/api/licencia", dependencies=[Depends(requiere_auth)])
 def activar_licencia(entrada: LicenciaIn):
     """Guarda la clave que el comprador recibió. La firma se verifica contra

@@ -116,7 +116,15 @@ jobs:
           cd electron
           npm pkg set version=${{ steps.ver.outputs.MVVER }}
           npm install
-          foreach ($ed in "demo", "cliente", "owner") {
+          # Los minutos de Windows facturan al doble y construir tres veces
+          # los triplica. En un push normal se arma sólo la edición cliente;
+          # las tres salen cuando se lanza a mano o se etiqueta una versión,
+          # que es cuando de verdad se publican descargas.
+          $todas = ($env:GITHUB_EVENT_NAME -eq "workflow_dispatch") -or `
+                   ($env:GITHUB_REF -like "refs/tags/*")
+          $ediciones = if ($todas) { @("demo", "cliente", "owner") } else { @("cliente") }
+          Write-Host "Ediciones a construir: $($ediciones -join ', ')"
+          foreach ($ed in $ediciones) {
             Write-Host "=== Edición $ed ==="
             # El sello va DENTRO del backend empaquetado, al lado del .exe de
             # PyInstaller, que es donde `licencia._ruta_sello()` lo busca.
@@ -140,19 +148,21 @@ jobs:
           # Sin firma de código por ahora: no fallar buscando certificado. La
           # landing avisa del cartel de SmartScreen y publica el SHA-256.
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REF: ${{ github.ref }}
 
       - name: Calcular SHA-256 (verificación de integridad de las descargas)
         shell: pwsh
         run: |
-          $archivos = @(
-            "MVClienteIA_Setup.exe",        "MVClienteIA_Portable.zip",
-            "MVClienteIA_Setup_demo.exe",   "MVClienteIA_Portable_demo.zip",
-            "MVClienteIA_Setup_owner.exe",  "MVClienteIA_Portable_owner.zip")
-          foreach ($f in $archivos) {
-            $h = (Get-FileHash "dist/$f" -Algorithm SHA256).Hash.ToLower()
-            "$h  $f" | Out-File -Encoding ascii "dist/$f.sha256"
-            Write-Host "SHA-256 ${f}: $h"
-          }
+          # Se hashea lo que EXISTE: en un push normal sólo salió la edición
+          # cliente, y pedirle el hash a un archivo que no está corta el build
+          # por nada.
+          Get-ChildItem "dist/MVClienteIA_*.exe", "dist/MVClienteIA_*.zip" |
+            ForEach-Object {
+              $h = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+              "$h  $($_.Name)" | Out-File -Encoding ascii "$($_.FullName).sha256"
+              Write-Host "SHA-256 $($_.Name): $h"
+            }
 
       - name: Dejar los SHA-256 en INSTALADOR/ (constancia versionada)
         # Nunca puede bloquear la publicación del instalador: los hashes son
@@ -185,6 +195,9 @@ jobs:
         with:
           tag_name: v${{ steps.ver.outputs.MVVER }}
           name: MV Cliente IA v${{ steps.ver.outputs.MVVER }}
+          # En un push normal sólo existe la edición cliente; los demás
+          # archivos de la lista simplemente no se suben.
+          fail_on_unmatched_files: false
           body: >
             App de escritorio para Windows (Electron + React, no requiere
             Python ni dependencias). **Probala**: `MVClienteIA_Setup_demo.exe`,
@@ -210,7 +223,32 @@ jobs:
             dist/MVClienteIA_Portable_demo.zip
             dist/MVClienteIA_Portable_demo.zip.sha256
 
+      - name: Comprobar que el repositorio siga siendo privado
+        # Lo ÚNICO que protege a la edición owner es que este repo sea
+        # privado: el permiso viaja adentro del .exe. Si alguien lo hace
+        # público, publicar la owner sería regalar la versión completa — así
+        # que acá se corta antes, en vez de descubrirlo cuando ya se bajó.
+        id: visibilidad
+        if: hashFiles('dist/MVClienteIA_Setup_owner.exe') != ''
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $vis = gh repo view ${{ github.repository }} --json visibility --jq .visibility
+          Write-Host "Visibilidad del repositorio: $vis"
+          if ($vis -ne "private") {
+            Write-Error @"
+          El repositorio es '$vis', no 'private'.
+          La edición owner lleva el permiso adentro del archivo y su unica
+          proteccion es que este repo sea privado. NO se publica.
+          Si esto es a proposito: borra la Release owner-v* y saca este paso.
+          "@
+            exit 1
+          }
+
       - name: Publicar la edición owner (sólo para el dueño)
+        if: steps.visibilidad.outcome == 'success' &&
+            hashFiles('dist/MVClienteIA_Setup_owner.exe') != ''
         # En una Release APARTE, marcada como prerelease para que no aparezca
         # como "latest" ni la agarre ningún enlace de la landing. Lo único que
         # la protege es que el repositorio sea privado: si el repo se hace

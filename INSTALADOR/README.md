@@ -82,27 +82,36 @@ lo cambio, pero con LFS la cuota de ancho de banda se paga aparte.
 4. Le mandás esa clave y el enlace a **`MVClienteIA_Setup.exe`**. La pega una
    vez en Configuración → Licencia y queda activo.
 
-La clave está firmada con HMAC-SHA256 sobre un secreto que **sólo tenés vos**
-(`MVCLIENTE_LICENCIA_SECRETO`). El programa la **verifica**, pero no puede
-fabricarla: el secreto no viaja en ningún instalador.
+La clave está firmada con HMAC-SHA256 sobre un secreto que vive en **tu
+máquina** (para emitir) y en **el servidor** (para validar) —
+`MVCLIENTE_LICENCIA_SECRETO`. **Nunca dentro de un instalador**, así que nadie
+puede sacarlo del `.exe` y emitirse claves.
+
+Por eso activar pide **internet una vez**: el programa manda la clave a
+`/api/licencia/validar` y guarda el resultado. Después funciona sin conexión.
+El vencimiento se sigue mirando contra el reloj en cada arranque.
 
 **Lo que esto no es:** protección contra alguien que quiera crackear el binario.
-Un `.exe` que corre en la máquina del cliente siempre se puede parchear — vale
-para este programa y para cualquier otro. Es el candado honesto que hace que el
-que paga tenga su clave y el que no, vea el aviso.
+Un `.exe` que corre en la máquina del cliente siempre se puede parchear, y el
+archivo de activación que queda en disco se puede editar. Vale para este
+programa y para cualquier otro que no consulte al servidor en cada uso. Es el
+candado honesto que hace que el que paga tenga su clave y el que no, vea el
+aviso.
 
 ---
 
 ## ⚠️ La edición owner
 
 Lleva el permiso **adentro del archivo**. Lo único que la protege es que **este
-repositorio es privado**. Dos consecuencias:
+repositorio es privado**. Si ese `.exe` se filtra, quien lo tenga tiene la
+edición completa para siempre.
 
-- Si ese `.exe` se filtra, quien lo tenga tiene la edición completa para
-  siempre.
-- **Si alguna vez hacés público el repositorio, borrá primero la Release
-  `owner-v*`.** Está marcada como prerelease para que no la agarre ningún
-  enlace `latest`, pero pública sería visible igual.
+**Esto ya está protegido automáticamente:** antes de publicar la Release
+`owner-v*`, el workflow consulta la visibilidad del repositorio y **corta el
+build con un error si no es `private`**. No hace falta acordarse.
+
+La edición owner además **no se construye en cada push**: sale sólo cuando
+lanzás el workflow a mano o etiquetás una versión.
 
 Si preferís no tener ese riesgo, la alternativa es no compilar la edición owner
 y usar la `cliente` con una clave que emitas a tu nombre por 50 años: mismo

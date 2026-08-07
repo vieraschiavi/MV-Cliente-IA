@@ -13,16 +13,25 @@ al construir (`MVCLIENTE_EDICION`), no el código:
 Por qué así y no de otra forma
 ------------------------------
 La clave de licencia es un texto firmado con HMAC-SHA256 sobre un secreto que
-sólo tiene el dueño (`MVCLIENTE_LICENCIA_SECRETO`). El programa **verifica**
-la firma; no puede fabricar claves porque el secreto no viaja en el
-instalador. Emitirlas es un comando del dueño (`python -m cliente_ia.licencia
-emitir`).
+existe en dos lugares: la máquina del dueño (para emitir) y el servidor (para
+validar). **Nunca dentro de un instalador.**
+
+Eso obliga a que el programa instalado active **en línea**: manda la clave a
+`/api/licencia/validar` y guarda el resultado. Es a propósito. Hornear el
+secreto en el `.exe` habría evitado la conexión, pero cualquiera que abriera
+el binario con un editor hexadecimal podría emitirse claves ilimitadas — y
+convertiría en mentira la única promesa que vale acá.
+
+Después de activar, el programa anda **sin conexión**: se guarda el resultado
+de la validación. El vencimiento igual se vuelve a mirar contra el reloj en
+cada arranque, así que una licencia de un año no queda abierta dos.
 
 Lo que esto NO es: una protección contra alguien que quiera crackear el
 binario. Un `.exe` que corre en la máquina del cliente siempre se puede
-parchear — eso vale para este programa y para cualquier otro. Es el candado
-honesto que hace que el que paga tenga su clave y el que no, vea el aviso; no
-una promesa de inviolabilidad que no podría cumplir.
+parchear, y el archivo de activación que queda en disco se puede editar. Eso
+vale para este programa y para cualquier otro que no consulte al servidor en
+cada uso. Es el candado honesto que hace que el que paga tenga su clave y el
+que no, vea el aviso; no una promesa de inviolabilidad que no podría cumplir.
 
 Y la edición `owner` lleva el permiso adentro: su seguridad es que **el
 repositorio es privado**. Si ese `.exe` se filtra, quien lo tenga tiene la
@@ -127,9 +136,52 @@ def _instalada_el() -> datetime:
 # ---------------------------------------------------------------------------
 # Claves de licencia
 # ---------------------------------------------------------------------------
+# Dónde se validan las claves cuando el programa NO tiene el secreto — que es
+# el caso de todos los instaladores. Se puede apuntar a un servidor propio con
+# `MVCLIENTE_URL_LICENCIAS`.
+URL_VALIDACION = os.getenv("MVCLIENTE_URL_LICENCIAS",
+                           "https://mv-cliente-ia.vercel.app")
+TIMEOUT_VALIDACION = 20
+
+
 def _secreto() -> bytes:
+    """El secreto de firma. Existe en la máquina del dueño y en el servidor
+    (variable de entorno); **nunca** en un instalador."""
     return (os.getenv("MVCLIENTE_LICENCIA_SECRETO", "")
             or os.getenv("MVCLIENTE_OWNER", "")).encode()
+
+
+def _validar_en_linea(clave: str) -> dict:
+    """Valida contra el servidor, que sí tiene el secreto.
+
+    Es el camino normal del programa instalado. La alternativa —hornear el
+    secreto adentro del .exe— dejaría a cualquiera que abra el binario con un
+    editor hexadecimal emitiendo claves ilimitadas, y además volvería mentira
+    la única promesa que vale acá: que el secreto no viaja.
+
+    A cambio, activar pide internet una vez. Después queda guardada y el
+    programa anda sin conexión.
+    """
+    import json as _json
+    import urllib.error
+    import urllib.request
+
+    cuerpo = _json.dumps({"clave": clave}).encode()
+    peticion = urllib.request.Request(
+        f"{URL_VALIDACION.rstrip('/')}/api/licencia/validar", data=cuerpo,
+        headers={"content-type": "application/json"})
+    try:
+        with urllib.request.urlopen(peticion, timeout=TIMEOUT_VALIDACION) as r:
+            return _json.load(r)
+    except urllib.error.HTTPError as e:
+        try:
+            return _json.loads(e.read().decode())
+        except Exception:                                # noqa: BLE001
+            return {"ok": False, "motivo": f"El servidor respondió {e.code}"}
+    except Exception:                                    # noqa: BLE001
+        return {"ok": False,
+                "motivo": "No se pudo contactar al servidor para activar la "
+                          "licencia. Revisá tu conexión y probá de nuevo."}
 
 
 def emitir(email: str, meses: int = 12, secreto: str = "") -> str:
@@ -174,22 +226,40 @@ def verificar(clave: str, secreto: str = "") -> dict:
             "motivo": ""}
 
 
-def _clave_guardada() -> str:
+def _guardado() -> dict:
     try:
         with open(rutas.dir_datos() / "licencia.json", encoding="utf-8") as f:
-            return str(json.load(f).get("clave", ""))
+            d = json.load(f)
+        return d if isinstance(d, dict) else {}
     except (OSError, ValueError):
-        return ""
+        return {}
+
+
+def comprobar(clave: str) -> dict:
+    """Valida una clave por el camino que corresponda: local si esta máquina
+    tiene el secreto (el dueño, el servidor, los tests); si no, contra el
+    servidor."""
+    if _secreto():
+        return verificar(clave)
+    return _validar_en_linea(clave)
 
 
 def guardar_clave(clave: str) -> dict:
-    """Guarda la clave si es válida. Devuelve el estado resultante."""
-    r = verificar(clave)
-    if not r["ok"]:
+    """Activa la licencia: valida y, si pasa, la guarda junto con lo que dijo
+    la validación (correo y vencimiento).
+
+    Se guarda el RESULTADO además de la clave para que el programa arranque
+    sin conexión: volver a llamar al servidor en cada inicio dejaría al
+    cliente sin producto cada vez que se le cae internet.
+    """
+    r = comprobar(clave)
+    if not r.get("ok"):
         return r
     destino = rutas.dir_datos() / "licencia.json"
     with open(destino, "w", encoding="utf-8") as f:
-        json.dump({"clave": clave.strip()}, f)
+        json.dump({"clave": clave.strip(), "email": r.get("email", ""),
+                   "vence": r.get("vence", ""),
+                   "activada": datetime.now(UTC).date().isoformat()}, f)
     return r
 
 
@@ -202,20 +272,31 @@ def estado() -> Estado:
         return Estado("owner", True, "", -1)
 
     if ed == "cliente":
-        clave = _clave_guardada()
-        if clave:
-            r = verificar(clave)
-            if r["ok"]:
-                dias = -1
-                if r.get("vence"):
-                    dias = (datetime.fromisoformat(r["vence"]).date()
-                            - datetime.now(UTC).date()).days
-                return Estado("cliente", True, r.get("vence", ""), dias,
-                              r.get("email", ""))
-            return Estado("cliente", False, r.get("vence", ""), 0,
-                          r.get("email", ""), r["motivo"])
-        return Estado("cliente", False, "", 0, "",
-                      "Pegá la clave de licencia que te llegó con la compra")
+        guardado = _guardado()
+        if not guardado.get("clave"):
+            return Estado("cliente", False, "", 0, "",
+                          "Pegá la clave de licencia que te llegó con la compra")
+        # Con el secreto a mano se revalida la firma; sin él (el instalador)
+        # vale lo que quedó guardado en la activación. El vencimiento SIEMPRE
+        # se vuelve a mirar contra el reloj: una licencia de un año no puede
+        # seguir abierta dos años porque la activación fue offline.
+        if _secreto():
+            r = verificar(guardado["clave"])
+            if not r["ok"]:
+                return Estado("cliente", False, r.get("vence", ""), 0,
+                              r.get("email", ""), r["motivo"])
+            vence, email = r.get("vence", ""), r.get("email", "")
+        else:
+            vence, email = guardado.get("vence", ""), guardado.get("email", "")
+        if vence and vence < datetime.now(UTC).date().isoformat():
+            return Estado("cliente", False, vence, 0, email,
+                          f"La licencia venció el {vence}. Renovala para seguir "
+                          "usando las búsquedas reales.")
+        dias = -1
+        if vence:
+            dias = (datetime.fromisoformat(vence).date()
+                    - datetime.now(UTC).date()).days
+        return Estado("cliente", True, vence, dias, email)
 
     # demo: 14 días desde el primer arranque
     vence_dt = _instalada_el() + timedelta(days=DIAS_DEMO)
