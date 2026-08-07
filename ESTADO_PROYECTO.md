@@ -63,6 +63,24 @@ dejó de correr **sin avisar**: quince commits seguidos sin linter ni tests del
 lado del servidor. Ahora no tiene filtro de rama — un filtro que nombra una
 rama que puede desaparecer es un interruptor de apagado silencioso.
 
+**⚠️ La cuenta de GitHub está en el tope de su cuota (2026-08-07).** Al
+arreglar el disparador, el CI corrió por primera vez en cinco días y dio dos
+datos:
+
+1. La corrida `fe2b5fa` ejecutó de verdad: **el motor pasó entero** (ruff,
+   pytest y la corrida end-to-end) y el frontend compiló en 1,86 s. El job
+   quedó rojo sólo por `upload-artifact` → *«Artifact storage quota has been
+   hit»*. Ese paso se sacó: no le servía a nadie.
+2. La corrida siguiente (`34eb3b5`) murió **en 4 segundos**, con los dos jobs
+   sin logs. Los jobs llegaron a crearse, así que no es un error de sintaxis:
+   es la cuenta contra su límite de gasto de Actions.
+
+O sea: **los workflows están bien y el código está verde**; lo que falta es
+levantar el límite en GitHub (Settings → Billing → Spending limit) o esperar a
+que la cuota se recalcule, cosa que GitHub hace cada 6-12 horas. Hasta que eso
+pase, ningún workflow del repo va a poder correr — ni el CI, ni el instalador
+de Windows, ni el APK, ni el auto-merge.
+
 **Sobre el merge automático:** hoy el repositorio tiene **una sola rama**
 (`claude/replicate-explee-kobra-s9sx0s`), que además es la de por defecto y la
 que Vercel publica en producción. No hay merge que automatizar porque no hay
@@ -91,7 +109,12 @@ porque **cambia de dónde despliega Vercel** (ver abajo).
 6. **Dominio propio (opcional)** — hoy el sitio vive en `*.vercel.app`.
    `mvclienteia.com` (el que dicen los videos) está **libre**: US$ 11,25/año
    desde Vercel, o se compra en cualquier registrador y se apunta al proyecto.
-7. **Estructura de ramas (decisión, no código)** — el repo tiene una sola rama
+7. **Cuota de GitHub Actions** — la cuenta está en su tope: los workflows
+   fallan en segundos y sin logs, y los artifacts no se pueden subir. Se
+   resuelve en Settings → Billing → Spending limit, o esperando el recálculo
+   (6-12 h). No es un problema del código: la última corrida real dejó el
+   motor en verde.
+8. **Estructura de ramas (decisión, no código)** — el repo tiene una sola rama
    y es la que Vercel publica. Para que el merge automático tenga sentido hay
    que volver al flujo `main` + ramas de trabajo con PR, y eso implica
    revisar qué rama tiene Vercel como «Production Branch» antes de cambiar la
