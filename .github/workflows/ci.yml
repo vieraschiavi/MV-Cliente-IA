@@ -62,8 +62,9 @@ jobs:
         working-directory: webapp/frontend
       - run: npm run build
         working-directory: webapp/frontend
-      - uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dist
-          path: webapp/frontend/dist
-          retention-days: 7
+      # Acá NO se sube el `dist` como artifact. Lo hacía, y la primera corrida
+      # del CI arreglado murió con «Artifact storage quota has been hit»: el
+      # build compilaba bien y el job igual salía rojo. Además el artifact no
+      # le servía a nadie — los instaladores se construyen su propio frontend
+      # y las descargas de los clientes salen de la Release, que es otra cuota.
+      # Lo que este job tiene que responder es una sola pregunta: ¿compila?
