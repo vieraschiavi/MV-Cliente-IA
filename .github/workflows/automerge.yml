@@ -1,0 +1,62 @@
+name: Auto-merge
+
+# Mergea y borra la rama SOLO, cuando se cumplen las tres condiciones juntas:
+#
+#   1. hay un PR abierto para esa rama,
+#   2. el PR lleva la etiqueta `automerge`,
+#   3. el CI terminó en VERDE sobre ese mismo commit.
+#
+# El disparador es el fin del CI (`workflow_run`) y no el propio PR: así el
+# merge sucede cuando hay evidencia de que el código anda, no cuando alguien
+# abre el PR. Y no depende de que «Allow auto-merge» esté prendido en los
+# ajustes del repo — es una cosa menos que se pueda apagar sin que nadie note.
+#
+# La etiqueta es el interruptor a propósito: sin ella no se mergea nada solo.
+# Un repo donde todo lo verde entra sin que nadie mire es un repo donde el CI
+# es el único revisor, y el CI no lee lo que el código quiso decir.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: automerge-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
+jobs:
+  merge:
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mergear y borrar la rama
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # El evento trae el commit, no el PR: se busca el PR abierto cuya
+          # punta sea ESE commit. Si el autor pusheó algo más mientras el CI
+          # corría, headRefOid ya no coincide y no se mergea una versión que
+          # nadie verificó — que es exactamente lo que se quiere.
+          numero=$(gh pr list --repo "$REPO" --state open \
+                     --json number,headRefOid,labels,isDraft \
+                     --jq ".[]
+                           | select(.headRefOid == \"$SHA\")
+                           | select(.isDraft | not)
+                           | select(.labels | map(.name) | index(\"automerge\"))
+                           | .number" | head -n1)
+
+          if [ -z "$numero" ]; then
+            echo "Sin PR abierto, listo y etiquetado 'automerge' en $SHA. Nada que hacer."
+            exit 0
+          fi
+
+          echo "PR #$numero verde y etiquetado: mergeando."
+          gh pr merge "$numero" --repo "$REPO" --squash --delete-branch

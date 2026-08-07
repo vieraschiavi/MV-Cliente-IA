@@ -48,6 +48,28 @@ escribe los correos — Uruguay → LATAM → mundo, en es/pt/en.
 | 25 | Recuadro con presentador en los reels (como los reels de referencia) | ✅ | `marketing/presentador/{es,pt,en}.mp4`: el clip se compone sobre todas las escenas y avanza entre cortes; la tarjeta de la captura se achica sola para dejarle lugar. Sin clip, el reel sale como antes |
 | 24 | Dashboard de métricas por red y por publicación | ✅ | pestaña Métricas: correos enviados/intentados, mensajes de LinkedIn, posts de X con impresiones/likes/respuestas/reposts en vivo desde la API de X; historial en el dispositivo (el web es serverless y no tiene disco) |
 
+## Automatización del repositorio
+
+| Qué | Cuándo se dispara | Qué hace |
+|-----|-------------------|----------|
+| `ci.yml` | todo push a **cualquier** rama y todo PR | ruff + pytest + corrida end-to-end + build del frontend |
+| `build_windows.yml` | push que toca `packaging/`, `electron/`, `cliente_ia/`, `webapp/` — **y sólo si ruff y los tests pasan** | `MVClienteIA_Setup.exe` + portable ZIP a la Release |
+| `apk.yml` | push que toca `webapp/frontend/`, `android/`, capacitor — **y sólo si el frontend compila** | `MVClienteIA.apk` a la Release |
+| `automerge.yml` | cuando el CI termina en verde sobre un PR | mergea con squash y **borra la rama**, si el PR lleva la etiqueta `automerge` y no es borrador |
+
+**Bug encontrado y arreglado (2026-08-07):** `ci.yml` decía `branches: [main]`.
+Cuando `main` se borró y la rama de trabajo pasó a ser la de por defecto, el CI
+dejó de correr **sin avisar**: quince commits seguidos sin linter ni tests del
+lado del servidor. Ahora no tiene filtro de rama — un filtro que nombra una
+rama que puede desaparecer es un interruptor de apagado silencioso.
+
+**Sobre el merge automático:** hoy el repositorio tiene **una sola rama**
+(`claude/replicate-explee-kobra-s9sx0s`), que además es la de por defecto y la
+que Vercel publica en producción. No hay merge que automatizar porque no hay
+rama destino. `automerge.yml` queda listo y probado para cuando se trabaje con
+ramas + PR; recrear `main` como rama por defecto es una decisión del dueño
+porque **cambia de dónde despliega Vercel** (ver abajo).
+
 ## ⚠️ Lo que depende del dueño (no es código)
 
 1. **`MERCADOPAGO_ACCESS_TOKEN` en Vercel** — ✅ configurado por el dueño
@@ -66,8 +88,15 @@ escribe los correos — Uruguay → LATAM → mundo, en es/pt/en.
 5. **Prueba de humo en Windows físico** — el Setup compila y publica bien
    desde CI, pero el doble-click final en una máquina real lo confirma el
    dueño (2 min): instalar, abrir, correr una demo, desinstalar.
-6. **`MERCADOPAGO`/dominio propio (opcional)** — hoy el sitio vive en
-   `*.vercel.app`; un dominio propio se conecta desde el panel de Vercel.
+6. **Dominio propio (opcional)** — hoy el sitio vive en `*.vercel.app`.
+   `mvclienteia.com` (el que dicen los videos) está **libre**: US$ 11,25/año
+   desde Vercel, o se compra en cualquier registrador y se apunta al proyecto.
+7. **Estructura de ramas (decisión, no código)** — el repo tiene una sola rama
+   y es la que Vercel publica. Para que el merge automático tenga sentido hay
+   que volver al flujo `main` + ramas de trabajo con PR, y eso implica
+   revisar qué rama tiene Vercel como «Production Branch» antes de cambiar la
+   de por defecto. Hasta entonces `automerge.yml` no hace nada (no falla: no
+   encuentra PR y sale limpio).
 
 ## Cómo re-verificar todo (5 min)
 

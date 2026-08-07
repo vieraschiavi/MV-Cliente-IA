@@ -1,11 +1,16 @@
 name: CI
 
+# Corre en CUALQUIER rama y en todo PR. Antes decía `branches: [main]`, y
+# cuando `main` se borró (la rama de trabajo pasó a ser la de por defecto) el
+# CI dejó de correr sin avisar: quince commits seguidos sin tests ni linter en
+# el servidor. Un filtro de rama que nombra una rama que puede desaparecer es
+# un interruptor de apagado silencioso — por eso acá no hay ninguno.
 on:
   push:
-    branches: [main]
-    paths-ignore: ['**.md', 'landing/**']
+    paths-ignore: ['**.md', 'landing/**', 'public/**']
   pull_request:
-    paths-ignore: ['**.md', 'landing/**']
+    paths-ignore: ['**.md', 'landing/**', 'public/**']
+  workflow_dispatch: {}
 
 concurrency:
   group: ci-${{ github.ref }}

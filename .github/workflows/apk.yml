@@ -25,7 +25,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Mismo portón que el instalador de Windows: el SDK de Android y Gradle son
+  # diez minutos largos, y no se empiezan si el frontend no compila.
+  verificar:
+    name: Build del frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: webapp/frontend/package-lock.json
+      - run: npm ci
+        working-directory: webapp/frontend
+      - run: npm run build
+        working-directory: webapp/frontend
+
   apk:
+    needs: verificar
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
