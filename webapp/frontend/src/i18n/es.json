@@ -235,7 +235,17 @@
     "li_dsn": "DSN del proveedor",
     "li_key": "API Key",
     "li_cuenta": "ID de la cuenta conectada",
-    "li_guardado": "Proveedor de LinkedIn guardado en este navegador."
+    "li_guardado": "Proveedor de LinkedIn guardado en este navegador.",
+    "lic": "Licencia del programa",
+    "lic_demo": "Prueba (demo)",
+    "lic_cliente": "Licencia comprada",
+    "lic_owner": "Edición del dueño",
+    "lic_dias": "{{n}} días restantes",
+    "lic_clave": "Clave de licencia",
+    "lic_activar": "Activar licencia",
+    "lic_activada": "Licencia activada. Ya podés usar las búsquedas reales.",
+    "lic_ayuda": "La clave llega por correo con la compra. Se pega una sola vez y queda guardada en esta computadora.",
+    "lic_owner_nota": "Esta copia es la edición del dueño: sin clave y sin vencimiento."
   },
   "aviso": {
     "sintetico": "Datos de demostración: las empresas y las personas de esta lista son sintéticas, generadas para probar el flujo. Cambiá el origen de datos a «Leer mi sitio real» o «Investigación con IA» para trabajar con información real.",

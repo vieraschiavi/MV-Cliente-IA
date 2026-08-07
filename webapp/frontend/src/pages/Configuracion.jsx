@@ -1,12 +1,80 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   api, esNativo, getBase, getClaveIA, getEndpointIA, getOwner, getProveedorIA,
-  getLinkedIn, getSmtp, getX, setBase, setClaveIA, setEndpointIA, setLinkedIn,
-  setOwner, setProveedorIA, setSmtp, setToken, setX,
+  activarLicencia, getLicencia, getLinkedIn, getSmtp, getX, setBase, setClaveIA,
+  setEndpointIA, setLinkedIn, setOwner, setProveedorIA, setSmtp, setToken, setX,
 } from "../api.js";
 import { SelectorIdioma } from "../App.jsx";
 import { Aviso } from "../componentes/Comunes.jsx";
 import { t } from "../i18n/index.js";
+
+/**
+ * Licencia del programa instalado. En la web no se muestra: ahí el límite es
+ * el cupo gratis, que ya tiene su propio cartel en Explorar.
+ */
+function FormLicencia() {
+  const [lic, setLic] = useState(null);
+  const [clave, setClave] = useState("");
+  const [aviso, setAviso] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => { getLicencia().then(setLic); }, []);
+  if (!lic || !lic.aplica) return null;
+
+  const activar = async (e) => {
+    e.preventDefault();
+    setError(""); setAviso("");
+    try {
+      const r = await activarLicencia(clave.trim());
+      setLic({ aplica: true, ...r });
+      setClave("");
+      setAviso(t("config.lic_activada"));
+      setTimeout(() => setAviso(""), 3000);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const EDICION = { demo: t("config.lic_demo"), cliente: t("config.lic_cliente"),
+                    owner: t("config.lic_owner") };
+  return (
+    <form className="card" style={{ maxWidth: 620, marginBottom: 14 }} onSubmit={activar}>
+      <h3>{t("config.lic")}</h3>
+      <p style={{ margin: "0 0 10px", fontSize: 14 }}>
+        <b style={{ color: lic.activa ? "var(--green-deep)" : "var(--amber)" }}>
+          {lic.activa ? "✔" : "⚠️"} {EDICION[lic.edicion] || lic.edicion}
+        </b>
+        {lic.dias_restantes > 0 ? (
+          <span className="apagado">
+            {" "}· {t("config.lic_dias", { n: lic.dias_restantes })}
+          </span>
+        ) : null}
+        {lic.email ? <span className="apagado"> · {lic.email}</span> : null}
+      </p>
+      {lic.motivo ? <Aviso>{lic.motivo}</Aviso> : null}
+
+      {/* La edición owner no tiene nada que activar. */}
+      {lic.edicion === "owner" ? (
+        <p className="nota" style={{ marginBottom: 0 }}>{t("config.lic_owner_nota")}</p>
+      ) : (
+        <>
+          <div className="campo crece" style={{ margin: "10px 0" }}>
+            <label htmlFor="lic-clave">{t("config.lic_clave")}</label>
+            <input id="lic-clave" type="text" value={clave} autoCapitalize="none"
+                   autoCorrect="off" placeholder="eyJlbWFpbCI6…"
+                   onChange={(e) => setClave(e.target.value)} />
+          </div>
+          <button className="btn" type="submit" disabled={!clave.trim()}>
+            {t("config.lic_activar")}
+          </button>
+          <p className="nota">{t("config.lic_ayuda")}</p>
+        </>
+      )}
+      {aviso ? <p className="nota" style={{ color: "var(--green-deep)" }}>{aviso}</p> : null}
+      {error ? <p className="error-note">{error}</p> : null}
+    </form>
+  );
+}
 
 function FormSmtp() {
   const guardado = getSmtp() || {};
@@ -289,6 +357,7 @@ export default function Configuracion({ onSalir }) {
         ) : null}
       </form>
 
+      <FormLicencia />
       <FormSmtp />
       <FormLinkedIn />
       <FormX />

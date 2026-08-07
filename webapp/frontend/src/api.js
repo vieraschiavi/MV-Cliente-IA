@@ -165,6 +165,19 @@ export function borrarEnvios() {
   localStorage.removeItem(KEY_ENVIOS);
 }
 
+// Estado de la licencia del programa instalado. En la web devuelve
+// {aplica:false}: ahí manda el cupo gratis, no una licencia.
+export async function getLicencia() {
+  try {
+    return await api("/api/licencia");
+  } catch {
+    return { aplica: false, edicion: "?" };
+  }
+}
+export function activarLicencia(clave) {
+  return api("/api/licencia", { metodo: "POST", cuerpo: { clave } });
+}
+
 export function getOwner() {
   return localStorage.getItem(KEY_OWNER) || "";
 }

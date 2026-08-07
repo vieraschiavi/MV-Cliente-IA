@@ -100,25 +100,42 @@ jobs:
           $v = python -c "import cliente_ia,sys;sys.stdout.write(cliente_ia.__version__)"
           "MVVER=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
-      - name: Construir instalador y edición portable (NSIS + ZIP)
-        # Dos artefactos: el instalador NSIS clásico, y un ZIP portable que se
-        # descomprime en el disco que el usuario elija (D:\, un pendrive) y se
-        # ejecuta directo — sin instalador y sin archivos temporales en C:,
-        # que es donde el NSIS puede chocar con el antivirus o un C: lleno.
+      - name: Construir las tres ediciones (NSIS + ZIP portable)
+        # El MISMO programa tres veces; lo único que cambia es el sello
+        # `edicion.json` que se hornea al lado del ejecutable:
+        #
+        #   demo    → 14 días de prueba, la que se ofrece en la landing
+        #   cliente → pide la clave de licencia; es la que recibe quien paga
+        #   owner   → sin clave ni vencimiento; sólo se publica en el repo
+        #             privado, nunca en la Release pública
+        #
+        # Construir tres veces en vez de parchear un binario después: un .exe
+        # tocado a posteriori rompe la firma y lo marca cualquier antivirus.
         shell: pwsh
         run: |
           cd electron
           npm pkg set version=${{ steps.ver.outputs.MVVER }}
           npm install
-          npx electron-builder --win --publish never
-          if (-Not (Test-Path "dist_installer/MVClienteIA_Setup.exe")) {
-            Write-Error "No se generó el instalador Electron"; exit 1
+          foreach ($ed in "demo", "cliente", "owner") {
+            Write-Host "=== Edición $ed ==="
+            # El sello va DENTRO del backend empaquetado, al lado del .exe de
+            # PyInstaller, que es donde `licencia._ruta_sello()` lo busca.
+            "{""edicion"": ""$ed""}" | Out-File -Encoding utf8 -NoNewline `
+              "../dist/MVClienteIA/edicion.json"
+            npx electron-builder --win --publish never
+            if (-Not (Test-Path "dist_installer/MVClienteIA_Setup.exe")) {
+              Write-Error "No se generó el instalador de la edición $ed"; exit 1
+            }
+            if (-Not (Test-Path "dist_installer/MVClienteIA_Portable.zip")) {
+              Write-Error "No se generó el ZIP portable de la edición $ed"; exit 1
+            }
+            $sufijo = if ($ed -eq "cliente") { "" } else { "_$ed" }
+            Copy-Item "dist_installer/MVClienteIA_Setup.exe" `
+                      "../dist/MVClienteIA_Setup$sufijo.exe"
+            Copy-Item "dist_installer/MVClienteIA_Portable.zip" `
+                      "../dist/MVClienteIA_Portable$sufijo.zip"
+            Remove-Item "dist_installer/*" -Recurse -Force
           }
-          if (-Not (Test-Path "dist_installer/MVClienteIA_Portable.zip")) {
-            Write-Error "No se generó el ZIP portable"; exit 1
-          }
-          Copy-Item "dist_installer/MVClienteIA_Setup.exe" ../dist/
-          Copy-Item "dist_installer/MVClienteIA_Portable.zip" ../dist/
         env:
           # Sin firma de código por ahora: no fallar buscando certificado. La
           # landing avisa del cartel de SmartScreen y publica el SHA-256.
@@ -127,13 +144,17 @@ jobs:
       - name: Calcular SHA-256 (verificación de integridad de las descargas)
         shell: pwsh
         run: |
-          foreach ($f in "MVClienteIA_Setup.exe", "MVClienteIA_Portable.zip") {
+          $archivos = @(
+            "MVClienteIA_Setup.exe",        "MVClienteIA_Portable.zip",
+            "MVClienteIA_Setup_demo.exe",   "MVClienteIA_Portable_demo.zip",
+            "MVClienteIA_Setup_owner.exe",  "MVClienteIA_Portable_owner.zip")
+          foreach ($f in $archivos) {
             $h = (Get-FileHash "dist/$f" -Algorithm SHA256).Hash.ToLower()
             "$h  $f" | Out-File -Encoding ascii "dist/$f.sha256"
             Write-Host "SHA-256 ${f}: $h"
           }
 
-      - name: Dejar los SHA-256 en instalador/ (constancia versionada)
+      - name: Dejar los SHA-256 en INSTALADOR/ (constancia versionada)
         # Nunca puede bloquear la publicación del instalador: los hashes son
         # un extra, la Release es lo que baja el comprador.
         continue-on-error: true
@@ -143,12 +164,11 @@ jobs:
         # el archivo que bajó un comprador es EXACTAMENTE el que compiló CI.
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path instalador | Out-Null
-          Copy-Item dist/MVClienteIA_Setup.exe.sha256 instalador/ -Force
-          Copy-Item dist/MVClienteIA_Portable.zip.sha256 instalador/ -Force
+          New-Item -ItemType Directory -Force -Path INSTALADOR | Out-Null
+          Copy-Item dist/*.sha256 INSTALADOR/ -Force
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add instalador/*.sha256
+          git add INSTALADOR/*.sha256
           if (git diff --cached --quiet) {
             Write-Host "Los hashes no cambiaron"
           } else {
@@ -157,29 +177,58 @@ jobs:
             git push origin HEAD:${{ github.ref_name }}
           }
 
-      - name: Publicar en la Release (canal de descarga de la landing)
-        # Si la Release del tag todavía no existe la crea; si existe (la crea
-        # el primer workflow que llega — la primera vez ganó el del APK y este
-        # paso perdió la carrera con "already_exists"), le agrega los archivos.
+      - name: Publicar en la Release (canal de descarga de los clientes)
+        # Acá va SÓLO lo que baja un comprador: la demo y la edición cliente.
+        # La edición owner NO se publica en la Release — se sube aparte, y su
+        # candado es que el repositorio sea privado.
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.ver.outputs.MVVER }}
           name: MV Cliente IA v${{ steps.ver.outputs.MVVER }}
           body: >
             App de escritorio para Windows (Electron + React, no requiere
-            Python ni dependencias). Dos formas de usarla —
-            `MVClienteIA_Setup.exe`: instalador con asistente (es/pt/en),
-            elección de carpeta, accesos directos y desinstalador en
-            "Agregar o quitar programas", sin permisos de administrador.
-            `MVClienteIA_Portable.zip`: descomprimir en el disco que quieras
-            (D:\, un pendrive) y ejecutar `MVClienteIA.exe` — sin instalador
-            ni archivos temporales en C:; corridas y exports quedan en la
-            carpeta `datos` al lado de la app. Si el instalador falla
-            escribiendo en Temp, suele ser el antivirus o falta de espacio
-            en C: — usá la portable. Cada `.sha256` permite verificar la
-            integridad de la descarga.
+            Python ni dependencias). **Probala**: `MVClienteIA_Setup_demo.exe`,
+            14 días con todo abierto y sin clave. **Comprada**:
+            `MVClienteIA_Setup.exe`, que pide una vez la clave de licencia que
+            llega con la compra. Las dos instalan igual — asistente en
+            es/pt/en, elección de carpeta, acceso directo en el Escritorio y en
+            el Menú Inicio, y desinstalador en "Agregar o quitar programas",
+            sin permisos de administrador. Cada una trae además su
+            `_Portable.zip`: se descomprime en el disco que quieras (D:\, un
+            pendrive) y se ejecuta `MVClienteIA.exe` — sin instalador ni
+            archivos temporales en C:. Si el instalador falla escribiendo en
+            Temp, suele ser el antivirus o falta de espacio en C:; usá la
+            portable. Cada `.sha256` permite verificar la integridad de la
+            descarga.
           files: |
             dist/MVClienteIA_Setup.exe
             dist/MVClienteIA_Setup.exe.sha256
             dist/MVClienteIA_Portable.zip
+            dist/MVClienteIA_Portable.zip.sha256
+            dist/MVClienteIA_Setup_demo.exe
+            dist/MVClienteIA_Setup_demo.exe.sha256
+            dist/MVClienteIA_Portable_demo.zip
+            dist/MVClienteIA_Portable_demo.zip.sha256
+
+      - name: Publicar la edición owner (sólo para el dueño)
+        # En una Release APARTE, marcada como prerelease para que no aparezca
+        # como "latest" ni la agarre ningún enlace de la landing. Lo único que
+        # la protege es que el repositorio sea privado: si el repo se hace
+        # público, ESTA release hay que borrarla primero.
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: owner-v${{ steps.ver.outputs.MVVER }}
+          name: "[OWNER] MV Cliente IA v${{ steps.ver.outputs.MVVER }}"
+          prerelease: true
+          body: >
+            Edición **owner**: idéntica a la versión completa, sin clave de
+            licencia y sin vencimiento. No la baja ningún cliente — este
+            repositorio es privado y la Release está marcada como prerelease
+            para que no la tome el canal `latest`. Si alguna vez el repo se
+            hace público, borrar esta Release ANTES.
+          files: |
+            dist/MVClienteIA_Setup_owner.exe
+            dist/MVClienteIA_Setup_owner.exe.sha256
+            dist/MVClienteIA_Portable_owner.zip
+            dist/MVClienteIA_Portable_owner.zip.sha256
             dist/MVClienteIA_Portable.zip.sha256

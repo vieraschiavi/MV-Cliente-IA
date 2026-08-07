@@ -46,6 +46,7 @@ escribe los correos — Uruguay → LATAM → mundo, en es/pt/en.
 | 22 | «Automatizar flujo»: 1 click envía todo y llega comprobante | ✅ | correos por SMTP + post real en X + mensajes de LinkedIn por el proveedor del usuario + cola manual honesta (IG/TikTok) + comprobante HTML a la casilla; tests del lote, del 502 y del tachado de secretos |
 | 23 | LinkedIn automatizado de verdad (como los bots que le llegan al dueño) | ✅ | `cliente_ia/redes.py`: LinkedIn NO tiene API pública de mensajes, así que se integra el proveedor de sesión que el usuario contrata (Unipile), resolviendo el perfil `/in/…` a su identificador. El riesgo de restricción de cuenta se avisa ANTES de pegar la clave |
 | 25 | Recuadro con presentador en los reels (como los reels de referencia) | ✅ | `marketing/presentador/{es,pt,en}.mp4`: el clip se compone sobre todas las escenas y avanza entre cortes; la tarjeta de la captura se achica sola para dejarle lugar. Sin clip, el reel sale como antes |
+| 26 | Carpeta `INSTALADOR/` + tres ediciones (demo / cliente / owner) | ✅ | `cliente_ia/licencia.py` con clave firmada HMAC-SHA256; demo de 14 días que se vence sola; owner sin clave, en Release aparte marcada prerelease; 15 tests, incluido «una clave firmada con otro secreto no pasa» |
 | 24 | Dashboard de métricas por red y por publicación | ✅ | pestaña Métricas: correos enviados/intentados, mensajes de LinkedIn, posts de X con impresiones/likes/respuestas/reposts en vivo desde la API de X; historial en el dispositivo (el web es serverless y no tiene disco) |
 
 ## Automatización del repositorio
@@ -114,7 +115,11 @@ porque **cambia de dónde despliega Vercel** (ver abajo).
    resuelve en Settings → Billing → Spending limit, o esperando el recálculo
    (6-12 h). No es un problema del código: la última corrida real dejó el
    motor en verde.
-8. **Estructura de ramas (decisión, no código)** — el repo tiene una sola rama
+8. **`MVCLIENTE_LICENCIA_SECRETO`** — el secreto con el que firmás las claves
+   de tus compradores. Ponelo como secret del repositorio para que el CI lo
+   hornee, y guardalo: si lo perdés, las claves ya emitidas dejan de validar.
+   Emitir una: `python3 -m cliente_ia.licencia emitir --email X --meses 12`.
+9. **Estructura de ramas (decisión, no código)** — el repo tiene una sola rama
    y es la que Vercel publica. Para que el merge automático tenga sentido hay
    que volver al flujo `main` + ramas de trabajo con PR, y eso implica
    revisar qué rama tiene Vercel como «Production Branch» antes de cambiar la

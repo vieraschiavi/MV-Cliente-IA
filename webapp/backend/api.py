@@ -65,6 +65,7 @@ from cliente_ia import (
     almacen,
     exportar,
     geo,
+    licencia,
     modelos,
     pipeline,
     proveedores,
@@ -677,6 +678,31 @@ def automatizar_flujo(entrada: AutomatizarIn):
     return comp
 
 
+class LicenciaIn(BaseModel):
+    clave: str = Field(min_length=8, max_length=400)
+
+
+@app.get("/api/licencia")
+def ver_licencia():
+    """Qué edición es esta copia y si su licencia está activa. La web
+    (serverless) no tiene licencia: ahí manda el cupo gratis."""
+    if SIN_ESTADO:
+        return {"aplica": False, "edicion": "web"}
+    return {"aplica": True, **licencia.estado().a_dict()}
+
+
+@app.post("/api/licencia", dependencies=[Depends(requiere_auth)])
+def activar_licencia(entrada: LicenciaIn):
+    """Guarda la clave que el comprador recibió. La firma se verifica contra
+    el secreto del dueño: el programa NO puede fabricar claves."""
+    if SIN_ESTADO:
+        raise HTTPException(400, "La web no usa licencias: usa el cupo gratis.")
+    r = licencia.guardar_clave(entrada.clave)
+    if not r["ok"]:
+        raise HTTPException(422, r["motivo"])
+    return {"ok": True, **licencia.estado().a_dict()}
+
+
 @app.get("/api/geo")
 def catalogo_geo(pais: str = "", idioma: str = "es"):
     """Las tres olas vistas desde el país del cliente, más el catálogo mundial
@@ -816,6 +842,14 @@ def crear_corrida(entrada: CorridaIn, request: Request, stream: int = 0):
         raise HTTPException(422, f"Mercado inválido: {entrada.mercado}")
     if entrada.proveedor_ia not in ("claude", "openai", "gemini", "copilot"):
         raise HTTPException(422, f"Proveedor de IA inválido: {entrada.proveedor_ia}")
+
+    # Programa instalado (no serverless): manda la LICENCIA, no el cupo. La
+    # demo sintética queda libre siempre — es la vidriera y no consume nada.
+    if not SIN_ESTADO and entrada.modo != "demo":
+        lic = licencia.estado()
+        if not lic.activa:
+            raise HTTPException(402, lic.motivo or
+                                "La licencia de este programa no está activa.")
 
     if SIN_ESTADO:
         # Con clave pegada en la interfaz el modo IA corre igual: la clave

@@ -235,7 +235,17 @@
     "li_dsn": "Provider DSN",
     "li_key": "API Key",
     "li_cuenta": "Connected account ID",
-    "li_guardado": "LinkedIn provider saved in this browser."
+    "li_guardado": "LinkedIn provider saved in this browser.",
+    "lic": "Program licence",
+    "lic_demo": "Trial (demo)",
+    "lic_cliente": "Purchased licence",
+    "lic_owner": "Owner edition",
+    "lic_dias": "{{n}} days left",
+    "lic_clave": "Licence key",
+    "lic_activar": "Activate licence",
+    "lic_activada": "Licence activated. Real searches are unlocked.",
+    "lic_ayuda": "The key arrives by email with your purchase. Paste it once and it stays saved on this computer.",
+    "lic_owner_nota": "This copy is the owner edition: no key, no expiry."
   },
   "aviso": {
     "sintetico": "Demo data: the companies and people in this list are synthetic, generated to exercise the flow. Switch the data source to “Read my real website” or “AI research” to work with real information.",
