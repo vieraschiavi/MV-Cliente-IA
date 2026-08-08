@@ -107,26 +107,29 @@ jobs:
         #   demo    → 14 días de prueba, la que se ofrece en la landing
         #   cliente → pide la clave de licencia; es la que recibe quien paga
         #
-        # Construir tres veces en vez de parchear un binario después: un .exe
-        # tocado a posteriori rompe la firma y lo marca cualquier antivirus.
+        # Se construye dos veces en vez de parchear un binario después: un
+        # .exe tocado a posteriori rompe la firma y lo marca cualquier
+        # antivirus.
         shell: pwsh
         run: |
           cd electron
           npm pkg set version=${{ steps.ver.outputs.MVVER }}
           npm install
-          # Los minutos de Windows facturan al doble y construir tres veces
-          # los triplica. En un push normal se arma sólo la edición cliente;
-          # las tres salen cuando se lanza a mano o se etiqueta una versión,
-          # que es cuando de verdad se publican descargas.
-          $todas = ($env:GITHUB_EVENT_NAME -eq "workflow_dispatch") -or `
-                   ($env:GITHUB_REF -like "refs/tags/*")
+          # Las DOS, siempre. Antes en un push normal se armaba sólo `cliente`
+          # para ahorrar minutos de Windows, pero la landing enlaza a
+          # `MVClienteIA_Setup_demo.exe` por /releases/latest/download: si un
+          # push publica una Release sin la demo, el botón de descarga de la
+          # web tira 404 hasta que alguien se acuerde de lanzar el build a
+          # mano. El repositorio es público y los minutos ya no se facturan,
+          # así que no queda ni la excusa del costo.
+          #
           # La edición `owner` NO está en la lista a propósito: lleva el
           # permiso adentro del .exe y este repositorio es PÚBLICO, así que
           # publicarla sería regalar la versión completa. El dueño usa la
           # edición `cliente` con una clave a su nombre — mismo resultado, y
           # revocable. Si el repo vuelve a ser privado, agregar "owner" acá y
           # el paso de publicación de más abajo se vuelve a habilitar solo.
-          $ediciones = if ($todas) { @("demo", "cliente") } else { @("cliente") }
+          $ediciones = @("demo", "cliente")
           Write-Host "Ediciones a construir: $($ediciones -join ', ')"
           foreach ($ed in $ediciones) {
             Write-Host "=== Edición $ed ==="
@@ -158,9 +161,8 @@ jobs:
       - name: Calcular SHA-256 (verificación de integridad de las descargas)
         shell: pwsh
         run: |
-          # Se hashea lo que EXISTE: en un push normal sólo salió la edición
-          # cliente, y pedirle el hash a un archivo que no está corta el build
-          # por nada.
+          # Se hashea lo que EXISTE, no una lista fija: pedirle el hash a un
+          # archivo que no está corta el build por nada.
           Get-ChildItem "dist/MVClienteIA_*.exe", "dist/MVClienteIA_*.zip" |
             ForEach-Object {
               $h = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
@@ -199,8 +201,6 @@ jobs:
         with:
           tag_name: v${{ steps.ver.outputs.MVVER }}
           name: MV Cliente IA v${{ steps.ver.outputs.MVVER }}
-          # En un push normal sólo existe la edición cliente; los demás
-          # archivos de la lista simplemente no se suben.
           fail_on_unmatched_files: false
           body: >
             App de escritorio para Windows (Electron + React, no requiere
@@ -273,4 +273,3 @@ jobs:
             dist/MVClienteIA_Setup_owner.exe.sha256
             dist/MVClienteIA_Portable_owner.zip
             dist/MVClienteIA_Portable_owner.zip.sha256
-            dist/MVClienteIA_Portable.zip.sha256
