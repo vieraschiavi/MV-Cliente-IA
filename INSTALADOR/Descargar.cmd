@@ -21,11 +21,22 @@ if "%EDICION%"=="" set "EDICION=demo"
 
 if /i "%EDICION%"=="demo"    set "ARCHIVO=MVClienteIA_Setup_demo.exe"
 if /i "%EDICION%"=="cliente" set "ARCHIVO=MVClienteIA_Setup.exe"
-if /i "%EDICION%"=="owner"   set "ARCHIVO=MVClienteIA_Setup_owner.exe"
+
+REM La edicion owner ya no se construye ni se publica: lleva el permiso
+REM adentro del .exe y este repositorio es PUBLICO. Se avisa en vez de
+REM mandar a autenticarse con gh contra una Release que no existe.
+if /i "%EDICION%"=="owner" (
+  echo   La edicion owner no se publica: este repositorio es publico y ese
+  echo   .exe abre sin clave y sin vencimiento.
+  echo   En su lugar usa la edicion cliente con una clave a tu nombre:
+  echo       Descargar.cmd cliente
+  pause
+  exit /b 1
+)
 
 if not defined ARCHIVO (
   echo Edicion desconocida: %EDICION%
-  echo Uso:  Descargar.cmd [demo^|cliente^|owner]
+  echo Uso:  Descargar.cmd [demo^|cliente]
   pause
   exit /b 1
 )
@@ -35,29 +46,12 @@ echo   MV Cliente IA — edicion %EDICION%
 echo   Archivo: %ARCHIVO%
 echo.
 
-REM La edicion owner vive en su propia Release (prerelease) y el repo es
-REM privado, asi que hace falta estar autenticado con gh.
-if /i "%EDICION%"=="owner" goto :owner
-
 set "URL=https://github.com/%REPO%/releases/latest/download/%ARCHIVO%"
 echo   Bajando de %URL%
 powershell -NoProfile -Command ^
   "$ProgressPreference='SilentlyContinue';" ^
   "try { Invoke-WebRequest -Uri '%URL%' -OutFile '%~dp0%ARCHIVO%' -UseBasicParsing }" ^
   "catch { Write-Host ''; Write-Host '  No se pudo bajar: ' $_.Exception.Message; exit 1 }"
-if errorlevel 1 goto :error
-goto :verificar
-
-:owner
-where gh >nul 2>&1
-if errorlevel 1 (
-  echo   La edicion owner esta en una Release privada.
-  echo   Instala GitHub CLI ^(https://cli.github.com^) y corre:  gh auth login
-  pause
-  exit /b 1
-)
-echo   Bajando la Release privada con gh...
-gh release download --repo %REPO% --pattern "%ARCHIVO%" --dir "%~dp0" --clobber
 if errorlevel 1 goto :error
 
 :verificar
