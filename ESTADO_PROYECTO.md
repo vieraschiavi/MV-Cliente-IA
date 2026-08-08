@@ -64,7 +64,24 @@ dejó de correr **sin avisar**: quince commits seguidos sin linter ni tests del
 lado del servidor. Ahora no tiene filtro de rama — un filtro que nombra una
 rama que puede desaparecer es un interruptor de apagado silencioso.
 
-**⚠️ La cuenta de GitHub está en el tope de su cuota (2026-08-07).** Al
+**El repositorio pasó a ser PÚBLICO (2026-08-08).** Tres consecuencias:
+
+1. **Las descargas de los clientes ya funcionan.** Los enlaces
+   `releases/latest/download/…` que usa la landing dejaron de dar 404 a quien
+   no tiene sesión de GitHub — era el bloqueo que impedía vender.
+2. **GitHub Actions es gratis e ilimitado** en repos públicos con runners
+   estándar. La cuota que tenía frenados todos los workflows deja de aplicar.
+3. **La edición `owner` se desactivó.** Lleva el permiso adentro del `.exe` y
+   lo único que la protegía era que el repo fuera privado. El dueño usa la
+   edición `cliente` con una clave a su nombre por 600 meses: mismo resultado
+   y, a diferencia de un binario que abre solo, revocable.
+
+Revisión de seguridad al abrir el repo: sin secretos en el árbol ni en el
+historial (se buscaron los patrones de MercadoPago, Anthropic, OpenAI, Google
+y GitHub), sin archivos `.env` ni claves versionadas, y `datos/` —donde viven
+las corridas con contactos— está en `.gitignore`, así que nunca se publicó.
+
+**⚠️ La cuenta de GitHub estuvo en el tope de su cuota (2026-08-07).** Al
 arreglar el disparador, el CI corrió por primera vez en cinco días y dio dos
 datos:
 

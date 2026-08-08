@@ -100,14 +100,12 @@ jobs:
           $v = python -c "import cliente_ia,sys;sys.stdout.write(cliente_ia.__version__)"
           "MVVER=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
-      - name: Construir las tres ediciones (NSIS + ZIP portable)
-        # El MISMO programa tres veces; lo único que cambia es el sello
-        # `edicion.json` que se hornea al lado del ejecutable:
+      - name: Construir las ediciones (NSIS + ZIP portable)
+        # El MISMO programa; lo único que cambia es el sello `edicion.json`
+        # que se hornea al lado del ejecutable:
         #
         #   demo    → 14 días de prueba, la que se ofrece en la landing
         #   cliente → pide la clave de licencia; es la que recibe quien paga
-        #   owner   → sin clave ni vencimiento; sólo se publica en el repo
-        #             privado, nunca en la Release pública
         #
         # Construir tres veces en vez de parchear un binario después: un .exe
         # tocado a posteriori rompe la firma y lo marca cualquier antivirus.
@@ -122,7 +120,13 @@ jobs:
           # que es cuando de verdad se publican descargas.
           $todas = ($env:GITHUB_EVENT_NAME -eq "workflow_dispatch") -or `
                    ($env:GITHUB_REF -like "refs/tags/*")
-          $ediciones = if ($todas) { @("demo", "cliente", "owner") } else { @("cliente") }
+          # La edición `owner` NO está en la lista a propósito: lleva el
+          # permiso adentro del .exe y este repositorio es PÚBLICO, así que
+          # publicarla sería regalar la versión completa. El dueño usa la
+          # edición `cliente` con una clave a su nombre — mismo resultado, y
+          # revocable. Si el repo vuelve a ser privado, agregar "owner" acá y
+          # el paso de publicación de más abajo se vuelve a habilitar solo.
+          $ediciones = if ($todas) { @("demo", "cliente") } else { @("cliente") }
           Write-Host "Ediciones a construir: $($ediciones -join ', ')"
           foreach ($ed in $ediciones) {
             Write-Host "=== Edición $ed ==="
@@ -224,10 +228,10 @@ jobs:
             dist/MVClienteIA_Portable_demo.zip.sha256
 
       - name: Comprobar que el repositorio siga siendo privado
-        # Lo ÚNICO que protege a la edición owner es que este repo sea
-        # privado: el permiso viaja adentro del .exe. Si alguien lo hace
-        # público, publicar la owner sería regalar la versión completa — así
-        # que acá se corta antes, en vez de descubrirlo cuando ya se bajó.
+        # Red de seguridad de la edición owner. Hoy no se construye (el repo es
+        # público), así que este paso se saltea por el hashFiles. Queda para el
+        # día que alguien la vuelva a habilitar: si el repo no es privado,
+        # corta acá en vez de que se descubra cuando ya se la bajaron.
         id: visibilidad
         if: hashFiles('dist/MVClienteIA_Setup_owner.exe') != ''
         shell: pwsh

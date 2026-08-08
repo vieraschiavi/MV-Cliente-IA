@@ -20,7 +20,7 @@ hornea al construir; el código es idéntico.
 |---|---|---|
 | **demo** | cualquiera, desde la landing | 14 días con todo abierto, sin clave. Vencida, queda el modo demo sintético (la vidriera) y las búsquedas reales piden licencia |
 | **cliente** | quien pagó | Pide **una vez** la clave de licencia que llegó con la compra. Con clave válida, sin límite hasta la fecha de vencimiento de la clave |
-| **owner** | **sólo el dueño**, desde este repositorio | Sin clave y sin vencimiento. No se publica en la Release pública |
+| **owner** | *no se publica* — ver abajo | Sin clave y sin vencimiento. **Desactivada**: este repositorio es público |
 
 ### Bajarlas
 
@@ -31,7 +31,6 @@ mismo y abre el instalador.
 ```
 Descargar.cmd            → demo (por defecto)
 Descargar.cmd cliente    → la versión comprada
-Descargar.cmd owner      → la del dueño (necesita GitHub CLI autenticado)
 ```
 
 **A mano**, desde la Release:
@@ -40,7 +39,7 @@ Descargar.cmd owner      → la del dueño (necesita GitHub CLI autenticado)
 |---|---|
 | demo | `releases/latest/download/MVClienteIA_Setup_demo.exe` |
 | cliente | `releases/latest/download/MVClienteIA_Setup.exe` |
-| owner | Release aparte `owner-vX.Y.Z`, marcada como prerelease |
+
 
 Cada una trae además su `_Portable.zip`: se descomprime en el disco que quieras
 (`D:\`, un pendrive) y se ejecuta `MVClienteIA.exe` — sin instalador y sin
@@ -100,22 +99,26 @@ aviso.
 
 ---
 
-## ⚠️ La edición owner
+## La edición owner está desactivada (y así conviene)
 
-Lleva el permiso **adentro del archivo**. Lo único que la protege es que **este
-repositorio es privado**. Si ese `.exe` se filtra, quien lo tenga tiene la
-edición completa para siempre.
+La edición `owner` lleva el permiso **adentro del archivo**: abre sin clave y
+sin vencimiento. Lo único que podía protegerla era que el repositorio fuera
+privado — y **este repositorio ahora es público**, así que publicarla sería
+poner la versión completa a disposición de cualquiera.
 
-**Esto ya está protegido automáticamente:** antes de publicar la Release
-`owner-v*`, el workflow consulta la visibilidad del repositorio y **corta el
-build con un error si no es `private`**. No hace falta acordarse.
+**Qué usa el dueño en su lugar:** la edición `cliente` con una clave a su
+nombre por muchos años. Es el mismo resultado práctico y además es
+**revocable**, cosa que un `.exe` que abre solo no es:
 
-La edición owner además **no se construye en cada push**: sale sólo cuando
-lanzás el workflow a mano o etiquetás una versión.
+```bash
+MVCLIENTE_LICENCIA_SECRETO="tu-secreto" \
+  python3 -m cliente_ia.licencia emitir --email vieraschiavi@gmail.com --meses 600
+```
 
-Si preferís no tener ese riesgo, la alternativa es no compilar la edición owner
-y usar la `cliente` con una clave que emitas a tu nombre por 50 años: mismo
-resultado práctico, y sin un binario que abra solo.
+Quedan dos redes de seguridad en el workflow por si el repo alguna vez vuelve
+a ser privado y se la quiere rehabilitar: la edición está fuera de la lista de
+build, y el paso de publicación comprueba la visibilidad del repositorio y
+corta si no es `private`.
 
 ---
 
