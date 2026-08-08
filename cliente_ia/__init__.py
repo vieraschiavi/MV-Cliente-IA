@@ -22,5 +22,5 @@ En modo demo los decisores son personas sintéticas y quedan marcadas como
 tales en cada registro (`sintetico=True`) y en la interfaz.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 __all__ = ["__version__"]

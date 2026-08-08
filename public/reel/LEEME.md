@@ -20,6 +20,11 @@ El sitio los publica en `/reel/<idioma>/reel.mp4` para poder enlazarlos o
 bajarlos desde cualquier lado, pero la landing no los muestra: son material
 para redes, no para la página.
 
+**Con tu cara en un recuadro**: dejá un clip tuyo en `marketing/presentador/`
+(ver el LEEME de esa carpeta) y todos los reels lo llevan abajo, como los reels
+que funcionan en Instagram. Sin clip salen igual que ahora — no se inventa una
+cara.
+
 Los produce `python3 -m marketing.generar_reel`: levanta el backend, corre la
 corrida demo, captura la app en su layout de teléfono (el mismo del APK) y
 pone la locución neural de cada idioma. Igual que la landing, los banners y el

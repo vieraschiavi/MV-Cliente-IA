@@ -27,8 +27,12 @@ SITIO = "https://mvclienteia.com"
 # última versión, así la landing no se toca en cada release. Junto a cada
 # archivo viaja su .sha256 para verificar la integridad de la descarga.
 DESCARGAS = "https://github.com/vieraschiavi/MV-Cliente-IA/releases/latest/download"
-URL_EXE = f"{DESCARGAS}/MVClienteIA_Setup.exe"
-URL_ZIP = f"{DESCARGAS}/MVClienteIA_Portable.zip"
+# Se enlaza la edición DEMO (14 días con todo abierto, sin clave). La otra
+# —`MVClienteIA_Setup.exe`, sin sufijo— pide la clave de licencia al abrir: se
+# la manda el dueño a quien compra, no se ofrece acá. Enlazarla en la landing
+# haría que un visitante instale un programa que no puede usar.
+URL_EXE = f"{DESCARGAS}/MVClienteIA_Setup_demo.exe"
+URL_ZIP = f"{DESCARGAS}/MVClienteIA_Portable_demo.zip"
 URL_APK = f"{DESCARGAS}/MVClienteIA.apk"
 # Sentinela: en render() se reemplaza por la ruta relativa a /app/.
 APP = "@APP@"
@@ -81,9 +85,11 @@ TEXTOS: dict[str, dict] = {
             ("PC · Windows", "Instalador propio con desinstalador en «Agregar o quitar "
              "programas», sin permisos de administrador. El motor corre en tu máquina: "
              "los datos no salen.",
-             "Descargar para Windows", URL_EXE,
-             "Instalador sin firma de código: si SmartScreen avisa, «Más información → "
-             "Ejecutar de todas formas». El SHA-256 está publicado junto a la descarga.",
+             "Descargar la prueba de 14 días", URL_EXE,
+             "Catorce días con todo abierto y sin poner ninguna clave. Después seguís "
+             "con la demo sintética, y la licencia se compra desde Precios. Instalador "
+             "sin firma de código: si SmartScreen avisa, «Más información → Ejecutar de "
+             "todas formas». El SHA-256 está publicado junto a la descarga.",
              "Versión portable (ZIP)", URL_ZIP,
              "100% en el disco que elijas: descomprimí el ZIP donde quieras (D:\\, un "
              "pendrive), ejecutá MVClienteIA.exe y listo — sin instalador, sin archivos "
@@ -167,9 +173,11 @@ TEXTOS: dict[str, dict] = {
             ("PC · Windows", "Instalador próprio com desinstalador em «Adicionar ou remover "
              "programas», sem permissões de administrador. O motor roda na sua máquina: "
              "os dados não saem.",
-             "Baixar para Windows", URL_EXE,
-             "Instalador sem assinatura de código: se o SmartScreen avisar, «Mais "
-             "informações → Executar assim mesmo». O SHA-256 está publicado junto ao download.",
+             "Baixar o teste de 14 dias", URL_EXE,
+             "Catorze dias com tudo aberto e sem colocar nenhuma chave. Depois você "
+             "continua com a demo sintética, e a licença se compra em Preços. Instalador "
+             "sem assinatura de código: se o SmartScreen avisar, «Mais informações → "
+             "Executar assim mesmo». O SHA-256 está publicado junto ao download.",
              "Versão portátil (ZIP)", URL_ZIP,
              "100% no disco que você escolher: descompacte o ZIP onde quiser (D:\\, um "
              "pendrive), execute MVClienteIA.exe e pronto — sem instalador, sem arquivos "
@@ -253,8 +261,10 @@ TEXTOS: dict[str, dict] = {
             ("PC · Windows", "Its own installer with an uninstaller in \"Add or remove "
              "programs\", no admin rights needed. The engine runs on your machine; data "
              "stays put.",
-             "Download for Windows", URL_EXE,
-             "The installer isn't code-signed: if SmartScreen warns you, \"More info → "
+             "Download the 14-day trial", URL_EXE,
+             "Fourteen days with everything unlocked and no key to enter. After that you "
+             "keep the synthetic demo, and the licence is bought from Pricing. The "
+             "installer isn't code-signed: if SmartScreen warns you, \"More info → "
              "Run anyway\". The SHA-256 is published next to the download.",
              "Portable version (ZIP)", URL_ZIP,
              "100% on the drive you choose: unzip it anywhere (D:\\, a USB stick), run "
