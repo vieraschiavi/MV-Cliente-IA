@@ -91,6 +91,28 @@ def test_el_lanzador_que_invoca_el_bat_existe():
         f"MVClienteIA.bat invoca {m.group(1)}, que no existe en el repo"
 
 
+@pytest.mark.parametrize(
+    "guion", sorted((RAIZ / "packaging").glob("*.py")), ids=lambda g: g.name)
+def test_los_scripts_de_windows_no_usan_caracteres_que_la_consola_no_sabe(guion):
+    """La consola de Windows escribe en cp1252, no en UTF-8. Un carácter
+    fuera de esa página —un `✓` en un print, por ejemplo— revienta con
+    UnicodeEncodeError y se lleva puesto el paso entero del CI.
+
+    Ya pasó: un `✓` decorativo en `armar_bat.py` tumbó el armado del ZIP.
+    Los acentos y la mayoría de los signos del español sí entran en cp1252;
+    lo que no entra son los adornos tipográficos."""
+    problemas = {}
+    for i, linea in enumerate(guion.read_text(encoding="utf-8").splitlines(), 1):
+        for c in linea:
+            try:
+                c.encode("cp1252")
+            except UnicodeEncodeError:
+                problemas.setdefault(f"{c!r} (U+{ord(c):04X})", []).append(i)
+    assert not problemas, (
+        f"{guion.name} usa caracteres que la consola de Windows no sabe "
+        f"escribir: {problemas}")
+
+
 @pytest.mark.parametrize("nombre", NOMBRES)
 def test_ninguna_pausa_queda_sin_escape(nombre):
     """Un `pause` suelto cuelga la verificación de Windows PARA SIEMPRE en vez

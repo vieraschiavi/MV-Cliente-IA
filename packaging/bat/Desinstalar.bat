@@ -11,7 +11,11 @@ setlocal EnableExtensions
 cd /d "%~dp0"
 
 set "ORIGEN=%~dp0"
+REM La misma carpeta de datos que elige MVClienteIA.bat. Si no se respetara
+REM MVCLIENTE_HOME, el desinstalador limpiaria una carpeta y el programa
+REM habria estado usando otra: quedarian las librerias tiradas.
 set "DATOS=%LOCALAPPDATA%\MVClienteIA"
+if defined MVCLIENTE_HOME set "DATOS=%MVCLIENTE_HOME%"
 set "CLAVE=HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\MVClienteIA"
 
 echo.

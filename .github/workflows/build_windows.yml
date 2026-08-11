@@ -298,6 +298,13 @@ jobs:
           if (-Not (Test-Path "$destino\MV Cliente IA.exe")) {
             Write-Error "El instalador no dejó el ejecutable en $destino"; exit 1
           }
+          # `runAfterFinish` deja la app abierta después de instalar. Si queda
+          # viva, su motor ocupa un puerto y el desinstalador no puede borrar
+          # los archivos que tiene tomados.
+          Start-Sleep -Seconds 5
+          Get-Process -Name "MV Cliente IA","MVClienteIA" -ErrorAction SilentlyContinue |
+            Stop-Process -Force -ErrorAction SilentlyContinue
+          Start-Sleep -Seconds 3
           $desinst = Get-ChildItem $destino -Filter "Uninstall*.exe" | Select-Object -First 1
           if (-Not $desinst) { Write-Error "El instalador no dejó desinstalador"; exit 1 }
           Write-Host "OK: instalado en $destino con $($desinst.Name)"
@@ -315,9 +322,18 @@ jobs:
           if ($ok -ne 0) { Write-Error "El programa instalado no pasó la prueba de humo"; exit 1 }
 
           Start-Process $desinst.FullName -ArgumentList "/S" -Wait
-          Start-Sleep -Seconds 5
-          if (Test-Path "$destino\MV Cliente IA.exe") {
-            Write-Error "El desinstalador dejó el ejecutable en su lugar"; exit 1
+          # El desinstalador de NSIS se copia al temporal y sigue borrando
+          # después de que el proceso original terminó: mirar enseguida da un
+          # falso negativo.
+          $borrado = $false
+          foreach ($i in 1..12) {
+            Start-Sleep -Seconds 5
+            if (-Not (Test-Path "$destino\MV Cliente IA.exe")) { $borrado = $true; break }
+          }
+          if (-Not $borrado) {
+            Write-Error "El desinstalador dejó el ejecutable en su lugar tras 60s"
+            Get-ChildItem $destino -ErrorAction SilentlyContinue | Select-Object -First 20 Name
+            exit 1
           }
           Write-Host "OK: instaló, corrió el producto entero y desinstaló limpio"
 

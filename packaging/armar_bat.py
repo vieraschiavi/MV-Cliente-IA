@@ -225,7 +225,10 @@ def armar(edicion: str, versiones: list[str], salida: Path,
     shutil.rmtree(trabajo)
 
     mb = zip_final.stat().st_size / 1_048_576
-    print(f"  ✓ {zip_final.name}  ({mb:.1f} MB · {ruedas} ruedas offline)")
+    # Sin caracteres fuera de cp1252: este script corre en Windows y ahí la
+    # consola usa esa página de códigos. Un visto decorativo (U+2713) en este
+    # print tumbaba el armado entero con UnicodeEncodeError.
+    print(f"  OK {zip_final.name}  ({mb:.1f} MB · {ruedas} ruedas offline)")
     return zip_final
 
 
