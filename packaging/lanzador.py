@@ -23,6 +23,25 @@ else:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 
+def asegurar_salidas() -> None:
+    """Que el motor no dependa de tener una consola para arrancar.
+
+    PyInstaller en modo ventana (`console=False`, que es como se compila este
+    ejecutable) deja `sys.stdout` y `sys.stderr` en None cuando nadie le dio
+    una consola ni una tubería. uvicorn arma su logging con
+    `sys.stdout.isatty()`, así que revienta con AttributeError ANTES de
+    escuchar: el proceso arranca, muere en silencio y la ventana se queda
+    esperando un motor que nunca va a contestar.
+
+    Pasa al abrir el .exe directamente. Bajo Electron no se nota porque
+    Electron lo lanza con tuberías y ahí los streams existen — por eso esto
+    no se veía: el único camino probado era el de Electron.
+    """
+    for nombre in ("stdout", "stderr"):
+        if getattr(sys, nombre, None) is None:
+            setattr(sys, nombre, open(os.devnull, "w", encoding="utf-8"))
+
+
 def _resolver_puerto(pedido: int | None, host: str) -> int:
     """
     Con `--puerto` explícito (es lo que manda Electron) se respeta tal cual:
@@ -53,6 +72,7 @@ def _resolver_puerto(pedido: int | None, host: str) -> int:
 
 
 def main() -> int:
+    asegurar_salidas()
     ap = argparse.ArgumentParser(description="Motor de MV Cliente IA")
     ap.add_argument("--puerto", type=int, default=None)
     ap.add_argument("--host", default="127.0.0.1")

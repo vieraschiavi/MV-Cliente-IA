@@ -102,14 +102,22 @@ jobs:
         shell: pwsh
         run: |
           $env:MVCLIENTE_DIR_DATOS = "$env:RUNNER_TEMP\datos-motor"
+          # Sin redirigir la salida a propósito: así es como lo abre alguien
+          # que hace doble click, y es justo el caso en el que PyInstaller deja
+          # sys.stdout en None. Si se redirigiera, el bug quedaría tapado.
           $p = Start-Process "dist\MVClienteIA\MVClienteIA.exe" `
                  -ArgumentList "--puerto","8812" -PassThru -WindowStyle Hidden
           try {
             python packaging/humo.py --url http://127.0.0.1:8812 --edicion demo --prospectos 50
-            if ($LASTEXITCODE -ne 0) { Write-Error "El motor empaquetado no pasó la prueba de humo"; exit 1 }
+            $ok = $LASTEXITCODE
           } finally {
-            if (-Not $p.HasExited) { Stop-Process -Id $p.Id -Force }
+            if ($p.HasExited) {
+              Write-Host "El motor se murió solo. Código de salida: $($p.ExitCode)"
+            } else {
+              Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+            }
           }
+          if ($ok -ne 0) { Write-Error "El motor empaquetado no pasó la prueba de humo"; exit 1 }
 
       - name: Leer versión del paquete
         id: ver

@@ -40,6 +40,26 @@ PUERTO_DEFAULT = 8810
 ESPERA_DEFAULT = 60.0
 
 
+def asegurar_salidas() -> None:
+    """Que el motor no dependa de tener una consola para arrancar.
+
+    Sin consola, `sys.stdout` es None y uvicorn revienta armando su logging
+    (`sys.stdout.isatty()`) antes de escuchar: el proceso muere en silencio y
+    el navegador se queda contra un puerto vacío. `MVClienteIA.bat` llama a
+    `python.exe`, que sí trae consola, pero un acceso directo hecho a mano con
+    `pythonw.exe` no — y ahí el programa no abriría nunca.
+
+    Está repetido en `lanzador.py` (el que empaqueta PyInstaller) a propósito:
+    ese archivo no viaja adentro del ZIP de la edición BAT, así que importarlo
+    de ahí rompería el paquete del cliente.
+    """
+    import os
+
+    for nombre in ("stdout", "stderr"):
+        if getattr(sys, nombre, None) is None:
+            setattr(sys, nombre, open(os.devnull, "w", encoding="utf-8"))
+
+
 def version_soportada(version: tuple[int, ...] = ()) -> bool:
     return tuple(version or sys.version_info[:2]) >= VERSION_MINIMA
 
@@ -141,6 +161,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--diagnostico", action="store_true",
                     help="arranca, comprueba que el motor conteste y sale")
     args = ap.parse_args(argv)
+    asegurar_salidas()
 
     if not version_soportada():
         print(texto_version_vieja(), file=sys.stderr)
