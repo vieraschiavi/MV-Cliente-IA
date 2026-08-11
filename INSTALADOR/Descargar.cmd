@@ -19,8 +19,12 @@ set "REPO=vieraschiavi/MV-Cliente-IA"
 set "EDICION=%~1"
 if "%EDICION%"=="" set "EDICION=demo"
 
-if /i "%EDICION%"=="demo"    set "ARCHIVO=MVClienteIA_Setup_demo.exe"
-if /i "%EDICION%"=="cliente" set "ARCHIVO=MVClienteIA_Setup.exe"
+REM Dos vias para lo mismo: el instalador .exe de siempre, y la edicion BAT
+REM para las empresas donde no se pueden abrir programas descargados.
+if /i "%EDICION%"=="demo"        set "ARCHIVO=MVClienteIA_Setup_demo.exe"
+if /i "%EDICION%"=="cliente"     set "ARCHIVO=MVClienteIA_Setup.exe"
+if /i "%EDICION%"=="bat"         set "ARCHIVO=MVClienteIA_BAT_demo.zip"
+if /i "%EDICION%"=="bat-cliente" set "ARCHIVO=MVClienteIA_BAT_cliente.zip"
 
 REM La edicion owner ya no se construye ni se publica: lleva el permiso
 REM adentro del .exe y este repositorio es PUBLICO. Se avisa en vez de
@@ -36,13 +40,18 @@ if /i "%EDICION%"=="owner" (
 
 if not defined ARCHIVO (
   echo Edicion desconocida: %EDICION%
-  echo Uso:  Descargar.cmd [demo^|cliente]
+  echo.
+  echo Uso:
+  echo   Descargar.cmd              instalador .exe, prueba de 14 dias
+  echo   Descargar.cmd cliente      instalador .exe, version comprada
+  echo   Descargar.cmd bat          SIN .exe, prueba de 14 dias
+  echo   Descargar.cmd bat-cliente  SIN .exe, version comprada
   pause
   exit /b 1
 )
 
 echo.
-echo   MV Cliente IA — edicion %EDICION%
+echo   MV Cliente IA - edicion %EDICION%
 echo   Archivo: %ARCHIVO%
 echo.
 
@@ -70,8 +79,24 @@ if errorlevel 1 goto :error
 :abrir
 echo.
 echo   Listo: %~dp0%ARCHIVO%
+REM La edicion BAT es un ZIP, no un instalador: ejecutarlo abriria el visor
+REM de archivos comprimidos y el usuario se quedaria mirando una carpeta
+REM dentro del ZIP, que en Windows no se puede correr. Se descomprime y se
+REM abre la carpeta de verdad.
+if /i "%ARCHIVO:~-4%"==".zip" goto :descomprimir
 echo   Abriendo el instalador...
 start "" "%~dp0%ARCHIVO%"
+exit /b 0
+
+:descomprimir
+echo   Descomprimiendo...
+powershell -NoProfile -Command ^
+  "Expand-Archive -Path '%~dp0%ARCHIVO%' -DestinationPath '%~dp0' -Force"
+if errorlevel 1 goto :error
+echo.
+echo   Listo. Se abre la carpeta: hace doble click en MVClienteIA.bat
+echo   Si lo queres dejar instalado con acceso directo, corre Instalar.bat
+start "" "%~dp0MVClienteIA"
 exit /b 0
 
 :error

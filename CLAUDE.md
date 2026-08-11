@@ -25,6 +25,8 @@ diseño de **MV Kobra AI**: se le pasa la URL de un producto y recorre seis fase
 | Backend | `python3 -m uvicorn webapp.backend.api:app --port 8810` |
 | Build web | `npm run build:web` |
 | APK | `npm run apk:debug` (necesita `ANDROID_HOME`) |
+| Edición BAT | `python3 packaging/armar_bat.py --edicion demo --vendor 3.11,3.12,3.13` |
+| **Humo (motor vivo)** | `python3 packaging/humo.py --url http://127.0.0.1:8810 --edicion demo` |
 | Landing | `python3 -m marketing.generar_landing` |
 | Banners | `python3 -m marketing.generar_banners` |
 | Video demo (16:9) | `python3 -m marketing.generar_video` |
@@ -61,6 +63,21 @@ diseño de **MV Kobra AI**: se le pasa la URL de un producto y recorre seis fase
    personas. Está documentado en `proveedores/llm.py` y es a propósito.
 7. **Determinismo del modo demo.** La semilla sale del dominio. Si dejás de ser
    determinista, se cae medio `tests/test_pipeline.py`.
+8. **Dos formas de correr, UNA sola interfaz.** El programa se entrega con
+   instalador `.exe` (Electron) y como edición BAT (`.bat` + el navegador,
+   para las empresas que bloquean ejecutables). Las dos sirven la **misma**
+   app React desde el mismo `webapp/frontend/dist`. Nunca escribas una segunda
+   interfaz —Streamlit ni ninguna— para la edición BAT: se desincroniza a la
+   semana y hay que mantener dos productos. Y no le pongas un `venv`: copia
+   `python.exe` a una carpeta del usuario, que es justo lo que AppLocker
+   prohíbe ejecutar en las máquinas donde esta edición existe para funcionar
+   (por eso `pip --target`). Está explicado en `packaging/bat/MVClienteIA.bat`.
+9. **Un `.bat` no se prueba leyéndolo.** `tests/test_edicion_bat.py` atrapa lo
+   que se puede desde Linux (etiquetas inexistentes, acentos, CRLF, `pause`
+   sin escape), pero que el programa ARRANQUE lo verifica el CI en una Windows
+   de verdad: corre el `.bat`, instala sin internet desde `vendor/`, hace las
+   seis fases por HTTP (`packaging/humo.py`), instala y desinstala. Si tocás
+   empaquetado, mirá que esos pasos sigan en verde antes de publicar.
 
 ## Convenciones
 - Español en el dominio y en los nombres de módulo, igual que MV Kobra AI.

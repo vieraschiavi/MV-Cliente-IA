@@ -93,6 +93,24 @@ jobs:
           }
           Write-Host "Bundle OK"
 
+      - name: Probar que el motor empaquetado ARRANQUE y sirva el producto
+        # Que el .exe exista no quiere decir que corra. El error clásico de
+        # PyInstaller es un import que resuelve por nombre en runtime y que el
+        # análisis estático no vio: el bundle se arma perfecto y revienta al
+        # abrirlo en la máquina del comprador. Acá se levanta de verdad y se
+        # le corren las seis fases por HTTP.
+        shell: pwsh
+        run: |
+          $env:MVCLIENTE_DIR_DATOS = "$env:RUNNER_TEMP\datos-motor"
+          $p = Start-Process "dist\MVClienteIA\MVClienteIA.exe" `
+                 -ArgumentList "--puerto","8812" -PassThru -WindowStyle Hidden
+          try {
+            python packaging/humo.py --url http://127.0.0.1:8812 --edicion demo --prospectos 50
+            if ($LASTEXITCODE -ne 0) { Write-Error "El motor empaquetado no pasó la prueba de humo"; exit 1 }
+          } finally {
+            if (-Not $p.HasExited) { Stop-Process -Id $p.Id -Force }
+          }
+
       - name: Leer versión del paquete
         id: ver
         shell: pwsh
@@ -158,6 +176,143 @@ jobs:
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           GITHUB_REF: ${{ github.ref }}
 
+      - name: Armar la edición BAT (la que abre sin ningún .exe)
+        # Mismo código y mismo build de React que el instalador: el ZIP se
+        # arma del mismo árbol, no de una copia paralela. Las ruedas de
+        # vendor/ son las que permiten instalarlo en una máquina sin salida
+        # a PyPI, que es la mitad del motivo por el que esta edición existe.
+        shell: pwsh
+        run: |
+          foreach ($ed in @("demo", "cliente")) {
+            python packaging/armar_bat.py --edicion $ed --vendor 3.11,3.12,3.13
+            if ($LASTEXITCODE -ne 0) { Write-Error "Falló el armado BAT de $ed"; exit 1 }
+          }
+
+      - name: Probar la edición BAT como la usa un cliente
+        # El .bat se corre DE VERDAD, con un Python recién creado y vacío para
+        # que tenga que instalar las dependencias desde vendor/ igual que en
+        # la máquina del comprador. Si se usara el Python del runner —que ya
+        # tiene fastapi— el camino sin internet no se probaría nunca y se
+        # publicaría un ZIP que falla en el primer cliente sin PyPI.
+        shell: pwsh
+        run: |
+          $raiz = "$env:RUNNER_TEMP\bat"
+          Expand-Archive dist\MVClienteIA_BAT_demo.zip -DestinationPath $raiz -Force
+          $prog = Join-Path $raiz "MVClienteIA"
+
+          python -m venv "$env:RUNNER_TEMP\limpio"
+          $limpio = "$env:RUNNER_TEMP\limpio\Scripts\python.exe"
+          & $limpio -c "import fastapi" 2>$null
+          if ($LASTEXITCODE -eq 0) { Write-Error "El Python de prueba no está limpio"; exit 1 }
+
+          # Un .cmd envoltorio en vez de pelear con el escapado de comillas
+          # entre PowerShell y cmd.exe, que es donde se rompen estas cosas.
+          @"
+          @echo off
+          set "MVCLIENTE_PYTHON=$limpio"
+          set "MVCLIENTE_SIN_PAUSA=1"
+          set "MVCLIENTE_HOME=$env:RUNNER_TEMP\datos-bat"
+          cd /d "$prog"
+          call MVClienteIA.bat --puerto 8811 --no-abrir
+          "@ | Set-Content -Encoding ASCII "$env:RUNNER_TEMP\correr.cmd"
+
+          $p = Start-Process cmd -ArgumentList "/c","$env:RUNNER_TEMP\correr.cmd" `
+                 -PassThru -WindowStyle Hidden `
+                 -RedirectStandardOutput "$env:RUNNER_TEMP\bat.log" `
+                 -RedirectStandardError  "$env:RUNNER_TEMP\bat.err"
+          try {
+            python packaging/humo.py --url http://127.0.0.1:8811 --edicion demo --prospectos 50
+            $ok = $LASTEXITCODE
+          } finally {
+            Write-Host "--- salida del .bat ---"
+            if (Test-Path "$env:RUNNER_TEMP\bat.log") { Get-Content "$env:RUNNER_TEMP\bat.log" }
+            if (Test-Path "$env:RUNNER_TEMP\bat.err") { Get-Content "$env:RUNNER_TEMP\bat.err" }
+            Get-CimInstance Win32_Process -Filter "Name='python.exe'" |
+              Where-Object { $_.CommandLine -like "*lanzador_escritorio*" } |
+              ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+            if (-Not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+          }
+          if ($ok -ne 0) { Write-Error "La edición BAT no pasó la prueba de humo"; exit 1 }
+
+          # Que haya usado vendor/ y no internet es el punto de todo esto.
+          $log = Get-Content "$env:RUNNER_TEMP\bat.log" -Raw
+          if ($log -notmatch "instalando desde vendor") {
+            Write-Error "El .bat no instaló desde vendor\: el modo sin internet no quedó probado"
+            exit 1
+          }
+          Write-Host "OK: instaló sin internet desde vendor\ y sirvió el producto entero"
+
+      - name: Probar Instalar.bat y Desinstalar.bat de verdad
+        # Accesos directos, Menú Inicio y "Agregar o quitar programas": se
+        # crean, se comprueban y se sacan. Es lo que el usuario pidió que
+        # funcione, y no hay forma de saberlo sin hacerlo en una Windows.
+        shell: pwsh
+        run: |
+          $prog = "$env:RUNNER_TEMP\bat\MVClienteIA"
+          $env:MVCLIENTE_SIN_PAUSA = "1"
+          $clave = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\MVClienteIA"
+
+          & cmd /c "`"$prog\Instalar.bat`""
+          if ($LASTEXITCODE -ne 0) { Write-Error "Instalar.bat devolvió $LASTEXITCODE"; exit 1 }
+
+          $esc  = Join-Path ([Environment]::GetFolderPath('Desktop')) 'MV Cliente IA.lnk'
+          $menu = Join-Path ([Environment]::GetFolderPath('Programs')) 'MV Cliente IA'
+          foreach ($ruta in @($esc, (Join-Path $menu 'MV Cliente IA.lnk'),
+                              (Join-Path $menu 'Desinstalar MV Cliente IA.lnk'))) {
+            if (-Not (Test-Path $ruta)) { Write-Error "No se creó $ruta"; exit 1 }
+          }
+          if (-Not (Test-Path $clave)) { Write-Error "No quedó en Agregar o quitar programas"; exit 1 }
+          $reg = Get-ItemProperty $clave
+          if ($reg.DisplayName -ne "MV Cliente IA") { Write-Error "DisplayName mal: $($reg.DisplayName)"; exit 1 }
+          if (-Not $reg.UninstallString) { Write-Error "Sin UninstallString: no se puede desinstalar"; exit 1 }
+          # El acceso directo tiene que apuntar a algo que exista.
+          $ws = New-Object -ComObject WScript.Shell
+          $destino = $ws.CreateShortcut($esc).TargetPath
+          if (-Not (Test-Path $destino)) { Write-Error "El acceso directo apunta a $destino, que no existe"; exit 1 }
+          Write-Host "OK: escritorio + menú inicio + agregar/quitar programas, y el acceso directo abre $destino"
+
+          & cmd /c "`"$prog\Desinstalar.bat`""
+          if ($LASTEXITCODE -ne 0) { Write-Error "Desinstalar.bat devolvió $LASTEXITCODE"; exit 1 }
+          foreach ($ruta in @($esc, $menu, $clave)) {
+            if (Test-Path $ruta) { Write-Error "Quedó sin borrar: $ruta"; exit 1 }
+          }
+          Write-Host "OK: desinstaló y no dejó nada colgado"
+
+      - name: Probar el instalador NSIS en silencio
+        # Instala, comprueba que deje lo que promete y desinstala. Si el
+        # desinstalador no anda, se descubre acá y no en la máquina de un
+        # cliente que ya no puede sacarlo.
+        shell: pwsh
+        run: |
+          $destino = "$env:RUNNER_TEMP\nsis"
+          Start-Process "dist\MVClienteIA_Setup_demo.exe" `
+            -ArgumentList "/S","/D=$destino" -Wait
+          if (-Not (Test-Path "$destino\MV Cliente IA.exe")) {
+            Write-Error "El instalador no dejó el ejecutable en $destino"; exit 1
+          }
+          $desinst = Get-ChildItem $destino -Filter "Uninstall*.exe" | Select-Object -First 1
+          if (-Not $desinst) { Write-Error "El instalador no dejó desinstalador"; exit 1 }
+          Write-Host "OK: instalado en $destino con $($desinst.Name)"
+
+          # El motor que quedó instalado tiene que servir el producto.
+          $env:MVCLIENTE_DIR_DATOS = "$env:RUNNER_TEMP\datos-nsis"
+          $p = Start-Process "$destino\resources\backend\MVClienteIA.exe" `
+                 -ArgumentList "--puerto","8813" -PassThru -WindowStyle Hidden
+          try {
+            python packaging/humo.py --url http://127.0.0.1:8813 --edicion demo --prospectos 50
+            $ok = $LASTEXITCODE
+          } finally {
+            if (-Not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+          }
+          if ($ok -ne 0) { Write-Error "El programa instalado no pasó la prueba de humo"; exit 1 }
+
+          Start-Process $desinst.FullName -ArgumentList "/S" -Wait
+          Start-Sleep -Seconds 5
+          if (Test-Path "$destino\MV Cliente IA.exe") {
+            Write-Error "El desinstalador dejó el ejecutable en su lugar"; exit 1
+          }
+          Write-Host "OK: instaló, corrió el producto entero y desinstaló limpio"
+
       - name: Calcular SHA-256 (verificación de integridad de las descargas)
         shell: pwsh
         run: |
@@ -203,20 +358,35 @@ jobs:
           name: MV Cliente IA v${{ steps.ver.outputs.MVVER }}
           fail_on_unmatched_files: false
           body: >
-            App de escritorio para Windows (Electron + React, no requiere
-            Python ni dependencias). **Probala**: `MVClienteIA_Setup_demo.exe`,
-            14 días con todo abierto y sin clave. **Comprada**:
-            `MVClienteIA_Setup.exe`, que pide una vez la clave de licencia que
-            llega con la compra. Las dos instalan igual — asistente en
-            es/pt/en, elección de carpeta, acceso directo en el Escritorio y en
-            el Menú Inicio, y desinstalador en "Agregar o quitar programas",
-            sin permisos de administrador. Cada una trae además su
-            `_Portable.zip`: se descomprime en el disco que quieras (D:\, un
-            pendrive) y se ejecuta `MVClienteIA.exe` — sin instalador ni
-            archivos temporales en C:. Si el instalador falla escribiendo en
-            Temp, suele ser el antivirus o falta de espacio en C:; usá la
-            portable. Cada `.sha256` permite verificar la integridad de la
-            descarga.
+            App de escritorio para Windows en dos formas, para que siempre
+            haya una que se pueda abrir.
+
+
+            **Con instalador (.exe)** — Electron + React, no necesita Python
+            ni instalar nada más. `MVClienteIA_Setup_demo.exe` son 14 días con
+            todo abierto y sin clave; `MVClienteIA_Setup.exe` es la comprada y
+            pide una vez la clave de licencia. Las dos instalan igual:
+            asistente en es/pt/en, elección de carpeta, acceso directo en el
+            Escritorio y en el Menú Inicio, y desinstalador en "Agregar o
+            quitar programas", sin permisos de administrador. Cada una trae
+            además su `_Portable.zip`, que se descomprime en el disco que
+            quieras (D:\, un pendrive) y se ejecuta sin instalador.
+
+
+            **Sin ningún .exe (BAT)** — `MVClienteIA_BAT_demo.zip` y
+            `MVClienteIA_BAT_cliente.zip`, para las empresas donde no se
+            pueden abrir programas descargados. Es el MISMO producto con la
+            misma interfaz: se descomprime, se hace doble click en
+            `MVClienteIA.bat` y se abre en el navegador. Usa el Python que ya
+            está en la máquina (3.11 o más nuevo) y trae las dependencias
+            adentro, así que instala sin internet. `Instalar.bat` deja el
+            acceso directo, el Menú Inicio y el desinstalador igual que el
+            `.exe`.
+
+
+            Cada `.sha256` permite verificar la integridad de la descarga.
+            Todo lo publicado acá se instaló, se corrió y se desinstaló en una
+            máquina Windows antes de subirse.
           files: |
             dist/MVClienteIA_Setup.exe
             dist/MVClienteIA_Setup.exe.sha256
@@ -226,6 +396,10 @@ jobs:
             dist/MVClienteIA_Setup_demo.exe.sha256
             dist/MVClienteIA_Portable_demo.zip
             dist/MVClienteIA_Portable_demo.zip.sha256
+            dist/MVClienteIA_BAT_demo.zip
+            dist/MVClienteIA_BAT_demo.zip.sha256
+            dist/MVClienteIA_BAT_cliente.zip
+            dist/MVClienteIA_BAT_cliente.zip.sha256
 
       - name: Comprobar que el repositorio siga siendo privado
         # Red de seguridad de la edición owner. Hoy no se construye (el repo es

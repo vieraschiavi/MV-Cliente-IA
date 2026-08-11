@@ -33,6 +33,10 @@ DESCARGAS = "https://github.com/vieraschiavi/MV-Cliente-IA/releases/latest/downl
 # haría que un visitante instale un programa que no puede usar.
 URL_EXE = f"{DESCARGAS}/MVClienteIA_Setup_demo.exe"
 URL_ZIP = f"{DESCARGAS}/MVClienteIA_Portable_demo.zip"
+# La edición sin ningún .exe, para las empresas que no dejan abrir programas
+# descargados. Mismo producto y misma interfaz: la abre un .bat usando el
+# Python que ya está en la máquina.
+URL_BAT = f"{DESCARGAS}/MVClienteIA_BAT_demo.zip"
 URL_APK = f"{DESCARGAS}/MVClienteIA.apk"
 # Sentinela: en render() se reemplaza por la ruta relativa a /app/.
 APP = "@APP@"
@@ -93,7 +97,13 @@ TEXTOS: dict[str, dict] = {
              "Versión portable (ZIP)", URL_ZIP,
              "100% en el disco que elijas: descomprimí el ZIP donde quieras (D:\\, un "
              "pendrive), ejecutá MVClienteIA.exe y listo — sin instalador, sin archivos "
-             "temporales en C:, con corridas y exports guardados en la misma carpeta."),
+             "temporales en C:, con corridas y exports guardados en la misma carpeta.",
+             "Versión sin .exe (BAT)", URL_BAT,
+             "Si en tu empresa no dejan abrir programas descargados: el mismo producto y "
+             "la misma interfaz, pero lo abre un .bat en tu navegador usando el Python "
+             "que ya tenés (3.11 o más nuevo). Trae las dependencias adentro, así que "
+             "instala sin internet, e Instalar.bat te deja el acceso directo y el "
+             "desinstalador igual que el instalador común."),
             ("Android · APK", "La lista y los correos en el celular, apuntando a tu servidor "
              "(Configuración → Dirección del servidor).",
              "Descargar el APK", URL_APK,
@@ -181,7 +191,13 @@ TEXTOS: dict[str, dict] = {
              "Versão portátil (ZIP)", URL_ZIP,
              "100% no disco que você escolher: descompacte o ZIP onde quiser (D:\\, um "
              "pendrive), execute MVClienteIA.exe e pronto — sem instalador, sem arquivos "
-             "temporários em C:, com buscas e exports salvos na mesma pasta."),
+             "temporários em C:, com buscas e exports salvos na mesma pasta.",
+             "Versão sem .exe (BAT)", URL_BAT,
+             "Se na sua empresa não deixam abrir programas baixados: o mesmo produto e a "
+             "mesma interface, mas quem abre é um .bat, no seu navegador, usando o Python "
+             "que você já tem (3.11 ou mais novo). Traz as dependências dentro, então "
+             "instala sem internet, e o Instalar.bat deixa o atalho e o desinstalador "
+             "igual ao instalador comum."),
             ("Android · APK", "A lista e os e-mails no celular, apontando para o seu servidor "
              "(Configuração → Endereço do servidor).",
              "Baixar o APK", URL_APK,
@@ -269,7 +285,13 @@ TEXTOS: dict[str, dict] = {
              "Portable version (ZIP)", URL_ZIP,
              "100% on the drive you choose: unzip it anywhere (D:\\, a USB stick), run "
              "MVClienteIA.exe and that's it — no installer, no temp files on C:, with "
-             "searches and exports stored in that same folder."),
+             "searches and exports stored in that same folder.",
+             "No-.exe version (BAT)", URL_BAT,
+             "For companies that don't allow running downloaded programs: the same "
+             "product and the same interface, but a .bat opens it in your browser using "
+             "the Python you already have (3.11 or newer). It ships its dependencies "
+             "inside, so it installs with no internet, and Instalar.bat leaves you the "
+             "shortcut and the uninstaller just like the regular installer."),
             ("Android · APK", "The list and the emails on your phone, pointing at your "
              "server (Settings → Server address).",
              "Download the APK", URL_APK,
@@ -439,9 +461,10 @@ def render(idioma: str) -> str:
         else:
             enlace = f'<a class="btn btn-o" href="{href}" rel="noreferrer">⬇ {_esc(cta)}</a>'
         cuerpo = f'{enlace}<small>{_esc(nota)}</small>'
-        # Descarga secundaria opcional (la edición portable de Windows).
-        if extra:
-            cta2, href2, nota2 = extra
+        # Descargas secundarias, de a tres datos (texto, enlace, nota): la
+        # edición portable y la edición BAT, que no trae ningún .exe.
+        for i in range(0, len(extra), 3):
+            cta2, href2, nota2 = extra[i:i + 3]
             cuerpo += (f'<a class="btn btn-o" href="{href2}" rel="noreferrer">⬇ {_esc(cta2)}</a>'
                        f'<small>{_esc(nota2)}</small>')
         return f'<article class="d"><b>{_esc(n)}</b><p>{_esc(d)}</p>{cuerpo}</article>'
