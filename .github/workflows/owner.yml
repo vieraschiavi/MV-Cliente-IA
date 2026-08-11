@@ -10,6 +10,11 @@ name: Instalador OWNER (no se publica)
 #
 # Para armarla: pestaña Actions → "Instalador OWNER" → Run workflow. Cuando
 # termina, el .exe queda en "Artifacts", abajo del todo en la página del run.
+#
+# OJO en repo público: el artifact lo puede bajar cualquiera con cuenta de
+# GitHub mientras dure la retención (acá 1 día). Bajalo, y después borrá el
+# run (··· → Delete workflow run) para que no quede a mano de nadie más.
+# Sale de v1.2.0 (mismo motor probado, con el sello owner horneado).
 on:
   workflow_dispatch: {}
   # Tocar este archivo también la construye: es la única forma de dispararla
