@@ -49,11 +49,18 @@ class ProveedorEncadenado(Proveedor):
     del sitio y el demo completa el resto sin que las fases se enteren.
     """
 
-    def __init__(self, *proveedores: Proveedor):
+    def __init__(self, *proveedores: Proveedor, decisivo: Proveedor | None = None):
         if not proveedores:
             raise ValueError("Hace falta al menos un proveedor")
         self.proveedores = proveedores
         self.nombre = "+".join(p.nombre for p in proveedores)
+        # El proveedor DECISIVO es el que el usuario pidió por nombre (la IA):
+        # en las fases que implementa, su palabra es final. Si falla, la fase
+        # falla — caer al demo convertía "Investigación con IA" en datos
+        # sintéticos sin que el usuario lo pidiera, con un aviso que nadie
+        # lee al lado de seis competidores inventados. Lo que NO implementa
+        # (decisores, a propósito: nunca personas) sigue cayendo al resto.
+        self.decisivo = decisivo
         # Fallos que la cadena absorbió cayendo al siguiente proveedor. El
         # pipeline los copia a `corrida.avisos`: una corrida "con IA" que en
         # silencio terminó en datos sintéticos parece rota — hay que decir
@@ -78,14 +85,20 @@ class ProveedorEncadenado(Proveedor):
             except NotImplementedError:
                 continue
             except Exception as e:                      # noqa: BLE001
-                ultimo_error = e                        # se prueba el siguiente
                 # El mensaje va al usuario: proveedor + fase + motivo, corto.
                 self.errores.append(f"{p.nombre} · {metodo}: {str(e)[:300]}")
+                if p is self.decisivo:
+                    raise                               # sin red: el usuario pidió ESTE
+                ultimo_error = e                        # se prueba el siguiente
                 continue
             alguno_respondio = True
             if r:
                 return r
             vacio_valido = r                            # se sigue por si otro trae más
+            if p is self.decisivo:
+                # La IA contestó "no hay" y eso es una respuesta, no un hueco
+                # que el demo deba rellenar con datos de otros países.
+                return r
         if alguno_respondio:
             return vacio_valido
         if ultimo_error is not None:

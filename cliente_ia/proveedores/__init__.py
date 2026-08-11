@@ -51,7 +51,12 @@ def construir(modo: str = "demo", idioma_base: str = "es",
                        proveedor=proveedor_ia if clave_ia else "claude",
                        endpoint=endpoint_ia, mercado=mercado,
                        pais_base=pais_base)
-    return ProveedorEncadenado(web, llm, demo)
+    # `decisivo`: el usuario pidió IA por nombre. Si la IA falla en una fase
+    # que implementa, la corrida falla con el motivo a la vista — no se
+    # rellena con datos sintéticos. El demo queda en la cadena SÓLO para lo
+    # que el LLM no hace a propósito (decisores: organizaciones sí, personas
+    # jamás — regla 6).
+    return ProveedorEncadenado(web, llm, demo, decisivo=llm)
 
 
 def modo_efectivo(modo: str, clave_ia: str = "") -> str:

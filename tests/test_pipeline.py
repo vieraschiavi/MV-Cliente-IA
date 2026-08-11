@@ -237,11 +237,13 @@ def test_proveedor_ia_elige_la_api_y_firma_los_avisos(monkeypatch):
     assert p.nombre == "copilot"
 
 
-def test_una_corrida_con_clave_openai_falsa_termina_con_aviso(monkeypatch):
-    """Camino completo con proveedor no-Claude: la llamada REST falla (clave
-    falsa, sin red), la cadena absorbe el error, la corrida termina con demo y
-    el aviso nombra a openai — nunca la URL ni la clave. La fase web también
-    se anula: el test no puede depender de que haya internet."""
+def test_una_corrida_con_clave_openai_falsa_FALLA_y_lo_dice(monkeypatch):
+    """Camino completo con proveedor no-Claude y clave falsa. Antes la cadena
+    absorbía el error y la corrida "terminaba bien" rellena de datos demo —
+    un usuario real pidió IA de su país y recibió sintético de cualquier
+    lado, con el aviso perdido abajo de todo. Ahora el modo IA es estricto:
+    la corrida FALLA, el error nombra a openai, y ni la URL ni la clave
+    aparecen por ningún lado."""
     from cliente_ia.proveedores import llm as mod_llm
     from cliente_ia.proveedores import web as mod_web
 
@@ -255,9 +257,12 @@ def test_una_corrida_con_clave_openai_falsa_termina_con_aviso(monkeypatch):
     monkeypatch.setattr(mod_web.ProveedorWeb, "investigar", _sin_web)
     c = pipeline.ejecutar("mvkobranzaia.com", modo="llm", limite_prospectos=10,
                           clave_ia="sk-falsa", proveedor_ia="openai")
-    assert c.estado == "listo"          # la demo cubre lo que la IA no pudo
-    assert any("openai" in a for a in c.avisos)
+    assert c.estado == "error"          # pidió IA: sin IA no hay corrida
+    assert "openai" in (c.error or "")
+    assert "sk-falsa" not in (c.error or "")
     assert not any("sk-falsa" in a for a in c.avisos)
+    # Y no quedó ningún dato sintético haciéndose pasar por resultado de IA.
+    assert not c.competidores and not c.prospectos
 
 
 def test_empresa_real_no_lleva_persona_ni_correo_inventado():

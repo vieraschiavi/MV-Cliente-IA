@@ -171,6 +171,21 @@ def ejecutar(dominio: str,
         # --- Fase 2 · explorar la competencia ---------------------------
         with _fase(corrida, "competencia", avisar) as paso:
             corrida.competidores = proveedor.competencia(corrida.empresa)
+            # El mismo recorte de mercado que campañas y prospectos, que acá
+            # faltaba: con «sólo Uruguay» elegido aparecían competidores de
+            # Brasil y EE.UU. como si nada. Si el recorte no deja ninguno se
+            # muestran todos CON aviso — seis de afuera diciéndolo es más
+            # útil que una fase en cero sin explicación.
+            if mercado != "todos" and corrida.competidores:
+                dentro = [c for c in corrida.competidores if c.pais and
+                          geo.nivel_de(c.pais, corrida.pais_base) == mercado]
+                if dentro:
+                    corrida.competidores = dentro
+                else:
+                    corrida.avisos.append(
+                        "Ningún competidor conocido tiene base en el mercado "
+                        f"elegido ({_nombre_mercado(mercado, corrida)}); se "
+                        "muestran los de todos lados.")
             paso.items = len(corrida.competidores)
             paso.detalle = ", ".join(c.dominio for c in corrida.competidores[:3])
 
@@ -323,6 +338,17 @@ def _redactar_todos(corrida: Corrida, limite: int, firma: str,
                     d, prospecto, corrida.empresa,
                     campanas.get(prospecto.campana_id), firma, cfg_enlaces))
     return emails
+
+
+def _nombre_mercado(mercado: str, corrida: Corrida) -> str:
+    """El recorte elegido, con nombre y apellido para el aviso: «Uruguay»
+    dice más que «local»."""
+    if mercado == geo.NIVEL_LOCAL:
+        return geo.nombre_pais(corrida.pais_base, corrida.idioma_ui)
+    if mercado == geo.NIVEL_REGIONAL:
+        return geo.nombre_region(geo.region_de(corrida.pais_base),
+                                 corrida.idioma_ui)
+    return "resto del mundo"
 
 
 def _detalle_olas(corrida: Corrida) -> str:

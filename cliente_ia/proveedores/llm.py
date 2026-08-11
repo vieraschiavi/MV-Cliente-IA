@@ -48,11 +48,36 @@ MODELOS_IA = {
     "gemini": lambda: os.getenv("MVCLIENTE_MODELO_GEMINI", "gemini-2.5-flash"),
     "copilot": lambda: os.getenv("MVCLIENTE_MODELO_COPILOT", ""),
 }
-TIMEOUT = 90
+# 180 y no 90: una corrida real desde la app de PC murió con TimeoutError en
+# la fase de competencia a los 90 segundos clavados — los modelos con
+# razonamiento tardan eso y más con un prompt grande. Pisable por entorno
+# para las redes lentas de verdad.
+TIMEOUT = int(os.getenv("MVCLIENTE_TIMEOUT_IA", "180"))
 
 
 class ErrorLLM(RuntimeError):
     pass
+
+
+def _es_timeout(e: BaseException | None) -> bool:
+    """Recorre la cadena de causas buscando un timeout. Un 401 o un JSON
+    malformado no merecen reintento; un timeout sí.
+
+    Además de los tipos de la biblioteca estándar se mira el NOMBRE del tipo:
+    el SDK de anthropic lanza APITimeoutError envolviendo httpx.ReadTimeout,
+    y ninguno de los dos hereda de TimeoutError."""
+    import urllib.error
+
+    visto = 0
+    while e is not None and visto < 6:
+        if isinstance(e, TimeoutError) or "timeout" in type(e).__name__.lower():
+            return True
+        if isinstance(e, urllib.error.URLError) and \
+                isinstance(getattr(e, "reason", None), TimeoutError):
+            return True
+        e = e.__cause__
+        visto += 1
+    return False
 
 
 def hay_clave() -> bool:
@@ -147,6 +172,24 @@ class ProveedorLLM(Proveedor):
                            f"{type(e).__name__}") from e
 
     def _pedir(self, prompt: str, max_tokens: int = 8000) -> str:
+        """Una llamada al modelo, con UN reintento si lo que falló fue un
+        timeout. Antes un timeout suelto tiraba la fase — y con el modo IA
+        estricto, la corrida entera que el usuario esperó varios minutos.
+        Los errores de verdad (clave mala, respuesta truncada) no se
+        reintentan: repetirlos da lo mismo y duplica la espera."""
+        try:
+            return self._pedir_una_vez(prompt, max_tokens)
+        except Exception as e:                           # noqa: BLE001
+            # Exception y no sólo ErrorLLM: el timeout del SDK de anthropic
+            # sale crudo (APITimeoutError), sin pasar por _post_json.
+            if not _es_timeout(e):
+                raise
+            self.notas.append(
+                f"{self.proveedor} no respondió en {TIMEOUT}s; se reintentó "
+                "una vez")
+            return self._pedir_una_vez(prompt, max_tokens)
+
+    def _pedir_una_vez(self, prompt: str, max_tokens: int = 8000) -> str:
         if self.proveedor == "openai" or self.proveedor == "copilot":
             if self.proveedor == "openai":
                 url = "https://api.openai.com/v1/chat/completions"
