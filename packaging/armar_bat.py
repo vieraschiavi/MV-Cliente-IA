@@ -124,7 +124,7 @@ def _ignorar(_carpeta: str, nombres: list[str]) -> set[str]:
     return {n for n in nombres if n == "__pycache__" or n.endswith((".pyc", ".pyo"))}
 
 
-def copiar_arbol(destino: Path) -> None:
+def copiar_arbol(destino: Path, frontend: Path | None = None) -> None:
     for rel in ARBOL:
         origen = RAIZ / rel
         fin = destino / rel
@@ -134,12 +134,15 @@ def copiar_arbol(destino: Path) -> None:
         else:
             shutil.copy2(origen, fin)
 
-    dist = RAIZ / "webapp" / "frontend" / "dist"
+    # `frontend` se puede apuntar a otro lado (`--frontend`) para que los tests
+    # armen el ZIP sin depender de que alguien haya corrido npm: el portón de
+    # CI es sólo Python y ahí `webapp/frontend/dist` no existe.
+    dist = frontend or (RAIZ / "webapp" / "frontend" / "dist")
     if not (dist / "index.html").exists():
         raise SystemExit(
-            "Falta el build de React (webapp/frontend/dist). Corré "
-            "`npm run build:web` antes de armar la edición BAT: sin eso el "
-            "programa levanta el motor y sirve un 404 en blanco.")
+            f"Falta el build de React ({dist}). Corré `npm run build:web` "
+            "antes de armar la edición BAT: sin eso el programa levanta el "
+            "motor y sirve un 404 en blanco.")
     shutil.copytree(dist, destino / "webapp" / "frontend" / "dist",
                     dirs_exist_ok=True)
 
@@ -187,7 +190,8 @@ def bajar_ruedas(destino: Path, versiones: list[str]) -> int:
     return len(list(vendor.glob("*.whl")))
 
 
-def armar(edicion: str, versiones: list[str], salida: Path) -> Path:
+def armar(edicion: str, versiones: list[str], salida: Path,
+          frontend: Path | None = None) -> Path:
     if edicion not in EDICIONES:
         raise SystemExit(f"Edición desconocida: {edicion} (son {EDICIONES})")
 
@@ -197,7 +201,7 @@ def armar(edicion: str, versiones: list[str], salida: Path) -> Path:
     raiz = trabajo / CARPETA
     raiz.mkdir(parents=True)
 
-    copiar_arbol(raiz)
+    copiar_arbol(raiz, frontend)
     (raiz / "requirements.txt").write_text(REQUISITOS, encoding="utf-8")
     escribir_bats(raiz, edicion)
     escribir_sello(raiz, edicion)
@@ -233,12 +237,16 @@ def main(argv: list[str] | None = None) -> int:
                     help="versiones de Python para las ruedas offline, "
                          "ej. 3.11,3.12,3.13 (vacío = sin vendor)")
     ap.add_argument("--salida", default=str(RAIZ / "dist"))
+    ap.add_argument("--frontend", default="",
+                    help="build de React a empaquetar (por defecto "
+                         "webapp/frontend/dist); lo usan los tests")
     args = ap.parse_args(argv)
 
     versiones = [v.strip() for v in args.vendor.split(",") if v.strip()]
     ediciones = list(EDICIONES) if args.edicion == "todas" else [args.edicion]
+    frontend = Path(args.frontend) if args.frontend else None
     for ed in ediciones:
-        armar(ed, versiones, Path(args.salida))
+        armar(ed, versiones, Path(args.salida), frontend)
     return 0
 
 

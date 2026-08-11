@@ -118,13 +118,44 @@ def test_ninguna_pregunta_queda_sin_escape(nombre):
 # ---------------------------------------------------------------------------
 # El ZIP armado
 # ---------------------------------------------------------------------------
+def _frontend_de_prueba(tmp_path: Path) -> Path:
+    """Un build de React mínimo, para no depender de que alguien haya corrido
+    npm. El portón de CI es sólo Python: ahí `webapp/frontend/dist` no existe,
+    y estos tests son sobre el EMPAQUETADO, no sobre el frontend. Que el build
+    real entre y se sirva lo comprueba `packaging/humo.py` contra un motor
+    vivo, en Linux y en la Windows del CI."""
+    dist = tmp_path / "dist-falso"
+    (dist / "assets").mkdir(parents=True)
+    (dist / "index.html").write_text(
+        '<!DOCTYPE html><html><body><div id="root"></div>'
+        '<script src="./assets/index-000.js"></script></body></html>',
+        encoding="utf-8")
+    (dist / "assets" / "index-000.js").write_text("// prueba", encoding="utf-8")
+    return dist
+
+
 def _armar(tmp_path: Path, edicion: str) -> Path:
     r = subprocess.run(
         [sys.executable, str(RAIZ / "packaging" / "armar_bat.py"),
-         "--edicion", edicion, "--salida", str(tmp_path)],
+         "--edicion", edicion, "--salida", str(tmp_path),
+         "--frontend", str(_frontend_de_prueba(tmp_path))],
         capture_output=True, text=True)
     assert r.returncode == 0, f"armar_bat falló:\n{r.stdout}\n{r.stderr}"
     return tmp_path / f"MVClienteIA_BAT_{edicion}.zip"
+
+
+def test_se_niega_a_armar_sin_el_build_de_react(tmp_path):
+    """Un ZIP sin el build levanta el motor y sirve un 404 en blanco: el
+    usuario ve una pestaña rota y cree que el programa no anda. Tiene que
+    fallar al armarlo, no al abrirlo."""
+    r = subprocess.run(
+        [sys.executable, str(RAIZ / "packaging" / "armar_bat.py"),
+         "--edicion", "demo", "--salida", str(tmp_path),
+         "--frontend", str(tmp_path / "no-existe")],
+        capture_output=True, text=True)
+    assert r.returncode != 0, "armó el ZIP sin el build de React"
+    assert "build de React" in (r.stdout + r.stderr)
+    assert not list(tmp_path.glob("*.zip")), "dejó un ZIP a medio armar"
 
 
 @pytest.mark.parametrize("edicion", ["demo", "cliente", "owner"])
