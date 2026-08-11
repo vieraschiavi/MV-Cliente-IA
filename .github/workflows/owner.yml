@@ -1,0 +1,176 @@
+name: Instalador OWNER (no se publica)
+
+# Compila la edición `owner` de Windows: el mismo programa, pero abre sin
+# clave y sin vencimiento.
+#
+# NO va a la Release ni a la landing. Queda como artifact del propio run, que
+# hay que estar identificado en GitHub para bajar. La edición owner lleva el
+# permiso ADENTRO del archivo: publicarla en la Release sería regalar la
+# versión completa a cualquiera que entre a la página de descargas.
+#
+# Para armarla: pestaña Actions → "Instalador OWNER" → Run workflow. Cuando
+# termina, el .exe queda en "Artifacts", abajo del todo en la página del run.
+on:
+  workflow_dispatch: {}
+  # Tocar este archivo también la construye: es la única forma de dispararla
+  # desde una sesión que no puede usar workflow_dispatch por permisos.
+  push:
+    paths:
+      - ".github/workflows/owner.yml"
+
+permissions:
+  contents: read              # sólo lee: acá no se publica nada
+
+concurrency:
+  group: build-owner-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller==6.11.1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Compilar la app React
+        run: |
+          cd webapp/frontend
+          npm ci
+          npm run build
+
+      - name: Construir el motor (PyInstaller)
+        run: pyinstaller packaging/mvclienteia.spec --noconfirm --clean
+
+      - name: Hornear el sello owner
+        # Es lo ÚNICO que distingue a esta edición de la que se publica: el
+        # ejecutable es idéntico. Va al lado del motor, que es donde lo busca
+        # `licencia._ruta_sello()` cuando el programa corre congelado.
+        shell: pwsh
+        run: |
+          @{edicion='owner'} | ConvertTo-Json -Compress |
+            Set-Content -LiteralPath "dist/MVClienteIA/edicion.json" `
+                        -Encoding ascii -NoNewline
+          Get-Content "dist/MVClienteIA/edicion.json"
+
+      - name: Probar que abra sin clave y sin vencimiento
+        # Antes de entregar nada: se levanta el motor de verdad y se le corren
+        # las seis fases por HTTP. `--edicion owner` además exige que la
+        # licencia esté activa y que no tenga fecha de vencimiento.
+        shell: pwsh
+        run: |
+          $env:MVCLIENTE_DIR_DATOS = "$env:RUNNER_TEMP\datos-owner"
+          $p = Start-Process "dist\MVClienteIA\MVClienteIA.exe" `
+                 -ArgumentList "--puerto","8814" -PassThru -WindowStyle Hidden
+          try {
+            python packaging/humo.py --url http://127.0.0.1:8814 --edicion owner --prospectos 50
+            $ok = $LASTEXITCODE
+          } finally {
+            if ($p.HasExited) {
+              Write-Host "El motor se murió solo. Código de salida: $($p.ExitCode)"
+            } else {
+              Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+            }
+          }
+          if ($ok -ne 0) { Write-Error "La edición owner no pasó la prueba de humo"; exit 1 }
+
+      - name: Leer versión del paquete
+        id: ver
+        shell: pwsh
+        run: |
+          $v = python -c "import cliente_ia,sys;sys.stdout.write(cliente_ia.__version__)"
+          "MVVER=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Empaquetar (NSIS + portable)
+        shell: pwsh
+        run: |
+          cd electron
+          npm pkg set version=${{ steps.ver.outputs.MVVER }}
+          npm install
+          npx electron-builder --win --publish never
+          if (-Not (Test-Path "dist_installer/MVClienteIA_Setup.exe")) {
+            Write-Error "No se generó el instalador owner"; exit 1
+          }
+          Copy-Item "dist_installer/MVClienteIA_Setup.exe" `
+                    "../dist/MVClienteIA_Setup_owner.exe"
+          Copy-Item "dist_installer/MVClienteIA_Portable.zip" `
+                    "../dist/MVClienteIA_Portable_owner.zip"
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: Comprobar que el instalador owner instale y abra sin clave
+        # El sello viaja adentro del instalador; si electron-builder no lo
+        # empaquetara, saldría un .exe que pide licencia igual. Se instala en
+        # silencio y se le corre la prueba de humo al programa YA INSTALADO.
+        shell: pwsh
+        run: |
+          $destino = "$env:RUNNER_TEMP\owner-instalado"
+          Start-Process "dist\MVClienteIA_Setup_owner.exe" `
+            -ArgumentList "/S","/D=$destino" -Wait
+          Start-Sleep -Seconds 5
+          Get-Process -Name "MV Cliente IA","MVClienteIA" -ErrorAction SilentlyContinue |
+            Stop-Process -Force -ErrorAction SilentlyContinue
+          Start-Sleep -Seconds 3
+          if (-Not (Test-Path "$destino\resources\backend\edicion.json")) {
+            Write-Error "El instalador no llevó el sello adentro"; exit 1
+          }
+          Get-Content "$destino\resources\backend\edicion.json"
+
+          $env:MVCLIENTE_DIR_DATOS = "$env:RUNNER_TEMP\datos-owner-inst"
+          $p = Start-Process "$destino\resources\backend\MVClienteIA.exe" `
+                 -ArgumentList "--puerto","8815" -PassThru -WindowStyle Hidden
+          try {
+            python packaging/humo.py --url http://127.0.0.1:8815 --edicion owner --prospectos 50
+            $ok = $LASTEXITCODE
+          } finally {
+            if (-Not $p.HasExited) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+          }
+          if ($ok -ne 0) { Write-Error "El owner instalado no pasó la prueba de humo"; exit 1 }
+          Write-Host "OK: instalado, abre sin clave y sin vencimiento"
+
+      - name: SHA-256
+        shell: pwsh
+        run: |
+          Get-ChildItem "dist/MVClienteIA_*_owner.*" | ForEach-Object {
+            $h = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+            "$h  $($_.Name)" | Out-File -Encoding ascii "$($_.FullName).sha256"
+            Write-Host "SHA-256 $($_.Name): $h"
+          }
+
+      # Dos artifacts separados a propósito: el instalador solo pesa la mitad
+      # que el conjunto, y es lo único que hace falta bajar para instalarlo.
+      - name: Subir el instalador owner
+        uses: actions/upload-artifact@v4
+        with:
+          name: MVClienteIA_Setup_owner
+          path: |
+            dist/MVClienteIA_Setup_owner.exe
+            dist/MVClienteIA_Setup_owner.exe.sha256
+          retention-days: 1
+          compression-level: 0     # ya está comprimido; comprimir de nuevo no baja nada
+
+      - name: Subir la portable owner
+        uses: actions/upload-artifact@v4
+        with:
+          name: MVClienteIA_Portable_owner
+          path: |
+            dist/MVClienteIA_Portable_owner.zip
+            dist/MVClienteIA_Portable_owner.zip.sha256
+          retention-days: 1
+          compression-level: 0

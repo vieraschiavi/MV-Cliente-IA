@@ -116,6 +116,12 @@ def comprobar_licencia(base: str, esperada: str = "") -> dict:
         raise Fallo(f"la edición demo tendría que abrir sin clave: {d}")
     if esperada == "cliente" and d.get("activa"):
         raise Fallo("la edición cliente abrió sin clave de licencia")
+    if esperada == "owner":
+        if not d.get("activa"):
+            raise Fallo(f"la edición owner tendría que abrir sin clave: {d}")
+        if d.get("vence"):
+            raise Fallo(f"la edición owner no tendría que vencer nunca, "
+                        f"y vence el {d['vence']}")
     return d
 
 
