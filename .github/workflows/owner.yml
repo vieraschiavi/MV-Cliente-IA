@@ -129,14 +129,26 @@ jobs:
           $destino = "$env:RUNNER_TEMP\owner-instalado"
           Start-Process "dist\MVClienteIA_Setup_owner.exe" `
             -ArgumentList "/S","/D=$destino" -Wait
-          Start-Sleep -Seconds 5
-          Get-Process -Name "MV Cliente IA","MVClienteIA" -ErrorAction SilentlyContinue |
-            Stop-Process -Force -ErrorAction SilentlyContinue
-          Start-Sleep -Seconds 3
-          if (-Not (Test-Path "$destino\resources\backend\edicion.json")) {
-            Write-Error "El instalador no llevó el sello adentro"; exit 1
+          # `runAfterFinish` lanza la app al terminar de instalar y el Setup.exe
+          # puede volver del -Wait mientras NSIS todavía vuelca archivos: mirar
+          # el sello enseguida da un falso "no está". Se mata la app y se
+          # espera hasta 30s a que el sello aparezca (poll, no un sleep fijo).
+          $sello = "$destino\resources\backend\edicion.json"
+          $visto = $false
+          foreach ($i in 1..15) {
+            Get-Process -Name "MV Cliente IA","MVClienteIA" -ErrorAction SilentlyContinue |
+              Stop-Process -Force -ErrorAction SilentlyContinue
+            if (Test-Path $sello) { $visto = $true; break }
+            Start-Sleep -Seconds 2
           }
-          Get-Content "$destino\resources\backend\edicion.json"
+          if (-Not $visto) {
+            Write-Error "El instalador no llevó el sello adentro (tras 30s)"
+            if (Test-Path "$destino\resources\backend") {
+              Get-ChildItem "$destino\resources\backend" | Select-Object -First 20 Name
+            } else { Write-Host "no existe $destino\resources\backend" }
+            exit 1
+          }
+          Get-Content $sello
 
           $env:MVCLIENTE_DIR_DATOS = "$env:RUNNER_TEMP\datos-owner-inst"
           $p = Start-Process "$destino\resources\backend\MVClienteIA.exe" `
