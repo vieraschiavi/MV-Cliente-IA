@@ -198,31 +198,36 @@ def armar(edicion: str, versiones: list[str], salida: Path,
     trabajo = salida / f"_bat_{edicion}"
     if trabajo.exists():
         shutil.rmtree(trabajo)
-    raiz = trabajo / CARPETA
-    raiz.mkdir(parents=True)
+    # try/finally: si `bajar_ruedas` (pip download) o el zip fallan, no dejar
+    # el árbol de trabajo con las ruedas a medio bajar tirado en dist/.
+    try:
+        raiz = trabajo / CARPETA
+        raiz.mkdir(parents=True)
 
-    copiar_arbol(raiz, frontend)
-    (raiz / "requirements.txt").write_text(REQUISITOS, encoding="utf-8")
-    escribir_bats(raiz, edicion)
-    escribir_sello(raiz, edicion)
+        copiar_arbol(raiz, frontend)
+        (raiz / "requirements.txt").write_text(REQUISITOS, encoding="utf-8")
+        escribir_bats(raiz, edicion)
+        escribir_sello(raiz, edicion)
 
-    ruedas = bajar_ruedas(raiz, versiones) if versiones else 0
-    (raiz / "LEEME.txt").write_text(
-        LEEME.format(version=__version__, edicion=edicion,
-                     subrayado="-" * (8 + len(edicion)),
-                     explicacion=EXPLICACION[edicion],
-                     vendor=CON_VENDOR if ruedas else SIN_VENDOR),
-        encoding="utf-8")
+        ruedas = bajar_ruedas(raiz, versiones) if versiones else 0
+        (raiz / "LEEME.txt").write_text(
+            LEEME.format(version=__version__, edicion=edicion,
+                         subrayado="-" * (8 + len(edicion)),
+                         explicacion=EXPLICACION[edicion],
+                         vendor=CON_VENDOR if ruedas else SIN_VENDOR),
+            encoding="utf-8")
 
-    salida.mkdir(parents=True, exist_ok=True)
-    zip_final = salida / f"MVClienteIA_BAT_{edicion}.zip"
-    if zip_final.exists():
-        zip_final.unlink()
-    with zipfile.ZipFile(zip_final, "w", zipfile.ZIP_DEFLATED) as z:
-        for archivo in sorted(trabajo.rglob("*")):
-            if archivo.is_file():
-                z.write(archivo, archivo.relative_to(trabajo).as_posix())
-    shutil.rmtree(trabajo)
+        salida.mkdir(parents=True, exist_ok=True)
+        zip_final = salida / f"MVClienteIA_BAT_{edicion}.zip"
+        if zip_final.exists():
+            zip_final.unlink()
+        with zipfile.ZipFile(zip_final, "w", zipfile.ZIP_DEFLATED) as z:
+            for archivo in sorted(trabajo.rglob("*")):
+                if archivo.is_file():
+                    z.write(archivo, archivo.relative_to(trabajo).as_posix())
+    finally:
+        if trabajo.exists():
+            shutil.rmtree(trabajo)
 
     mb = zip_final.stat().st_size / 1_048_576
     # Sin caracteres fuera de cp1252: este script corre en Windows y ahí la

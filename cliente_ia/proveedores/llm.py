@@ -84,6 +84,33 @@ def hay_clave() -> bool:
     return bool(os.getenv("ANTHROPIC_API_KEY"))
 
 
+def _a_int(valor, defecto: int = 0) -> int:
+    """Un entero de lo que el modelo haya devuelto, sin tumbar la corrida.
+
+    El resto de los campos del JSON del modelo se sanean con `str(...).strip()`,
+    pero `empleados` se pasaba por un `int()` crudo: un valor tan común como
+    "500+", "~300" o "N/A" lanzaba ValueError, y como el LLM es el proveedor
+    decisivo eso descartaba las 60 empresas y hacía fallar la corrida entera.
+    Acá se toman los dígitos que haya y si no hay, el defecto."""
+    if isinstance(valor, bool):                 # True/False no son cantidades
+        return defecto
+    if isinstance(valor, (int, float)):
+        return int(valor)
+    digitos = re.sub(r"[^\d]", "", str(valor or ""))
+    return int(digitos) if digitos else defecto
+
+
+def _a_float(valor, defecto: float = 0.0) -> float:
+    """Un float de lo que el modelo haya devuelto. Igual que `_a_int`: un
+    "solapamiento": "high" no puede hacer fallar toda la fase de competencia."""
+    if isinstance(valor, bool):
+        return defecto
+    if isinstance(valor, (int, float)):
+        return float(valor)
+    m = re.search(r"-?\d+(?:[.,]\d+)?", str(valor or ""))
+    return float(m.group().replace(",", ".")) if m else defecto
+
+
 def _json_del_texto(texto: str):
     """El modelo a veces envuelve el JSON en ```json … ```. Se limpia y se parsea."""
     t = texto.strip()
@@ -449,7 +476,7 @@ class ProveedorLLM(Proveedor):
                 nombre=str(c.get("nombre", "")).strip(),
                 posicionamiento=str(c.get("posicionamiento", "")).strip(),
                 pais=str(c.get("pais", "")).strip().upper()[:2],
-                solapamiento=max(0.0, min(1.0, float(c.get("solapamiento", 0.5) or 0))),
+                solapamiento=max(0.0, min(1.0, _a_float(c.get("solapamiento"), 0.5))),
                 fuente=self.nombre,
             ))
         # Con filtro local/LATAM, si la primera pasada no trajo NINGUNO con
@@ -519,7 +546,7 @@ class ProveedorLLM(Proveedor):
                 nombre=str(c.get("nombre", "")).strip(),
                 posicionamiento=str(c.get("posicionamiento", "")).strip(),
                 pais=cod,
-                solapamiento=max(0.0, min(1.0, float(c.get("solapamiento", 0.5) or 0))),
+                solapamiento=max(0.0, min(1.0, _a_float(c.get("solapamiento"), 0.5))),
                 fuente=self.nombre,
             ))
         return salida
@@ -695,7 +722,7 @@ class ProveedorLLM(Proveedor):
                     sector=str(p.get("sector") or campana.sector).strip(),
                     pais=cod,
                     ciudad=str(p.get("ciudad", "")).strip(),
-                    empleados=int(p.get("empleados") or 0),
+                    empleados=_a_int(p.get("empleados")),
                     descripcion=str(p.get("descripcion", "")).strip(),
                     senales=[str(s) for s in (p.get("senales") or [])][:5],
                     campana_id=campana.id,

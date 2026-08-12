@@ -90,6 +90,34 @@ def test_exportaciones(cliente):
     assert len(xlsx.content) > 5000
 
 
+def test_export_directo_con_cuerpo_invalido_da_422_no_500(cliente):
+    """POST /api/exportar/csv con una corrida reconstruida de tipos malos:
+    antes reventaba en round(score) fuera de toda validación → 500. Ahora 422."""
+    corrida_mala = {
+        "id": "abc123", "dominio": "ejemplo.com", "estado": "listo",
+        "prospectos": [{"id": "p1", "nombre": "X", "dominio": "x.com",
+                        "score": "no-es-numero", "senales": "no-es-lista"}],
+    }
+    r = cliente.post("/api/exportar/csv", json=corrida_mala)
+    assert r.status_code == 422, f"esperaba 422, dio {r.status_code}"
+    assert r.status_code != 500
+
+
+def test_el_nombre_de_descarga_no_deja_inyectar_en_el_header(cliente):
+    """Un dominio con comillas/CRLF no puede colarse crudo en
+    Content-Disposition."""
+    corrida = {"id": "zz99", "dominio": 'evil"\r\nX-Injected: 1', "estado": "listo",
+               "prospectos": [], "decisores": [], "emails": []}
+    r = cliente.post("/api/exportar/csv", json=corrida)
+    assert r.status_code == 200
+    cd = r.headers["content-disposition"]
+    # La propiedad de seguridad: ni CR ni LF (romperían el header en dos) ni
+    # una comilla que cierre el filename="..." antes de tiempo. Que la palabra
+    # "X-Injected" sobreviva como texto del nombre es inofensivo.
+    assert "\r" not in cd and "\n" not in cd
+    assert cd.count('"') == 2                      # sólo las que abren y cierran
+
+
 def test_listar_y_borrar(cliente):
     cid = cliente.post("/api/corridas", json={"dominio": "ejemplo.com.uy",
                                               "modo": "demo", "prospectos": 10}).json()["id"]

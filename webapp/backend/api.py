@@ -896,8 +896,14 @@ def crear_corrida(entrada: CorridaIn, request: Request, stream: int = 0):
                     "(PC + Android, sin límite y con tus claves) se compra "
                     "desde la sección Precios de la portada.")
             usadas += 1
-            _cupo_por_ip[_ip_de(request)] = usadas
-            if len(_cupo_por_email) < 50000:             # tope, por las dudas
+            # Los dos dicts con el MISMO tope: la IP sale de X-Forwarded-For,
+            # que el cliente controla, así que sin cota un atacante inflaba
+            # _cupo_por_ip con IPs al azar hasta comerse la memoria. El de
+            # correo ya tenía tope; el de IP no — quedaba la asimetría.
+            ip = _ip_de(request)
+            if ip in _cupo_por_ip or len(_cupo_por_ip) < 50000:
+                _cupo_por_ip[ip] = usadas
+            if correo in _cupo_por_email or len(_cupo_por_email) < 50000:
                 _cupo_por_email[correo] = usadas
 
         if stream:
@@ -994,13 +1000,33 @@ def _cargar_o_404(corrida_id: str) -> Corrida:
     return corrida
 
 
+def _nombre_descarga(corrida: Corrida, ext: str) -> str:
+    """Nombre de archivo seguro para el header Content-Disposition. El dominio
+    llega de la corrida (entrada de red en el POST directo) y sólo se le
+    quitaba la barra: comillas o CR/LF colaban parámetros o rompían el header.
+    Acá se deja sólo lo alfanumérico, punto y guiones."""
+    base = f"{corrida.dominio}_{corrida.id}"
+    limpio = re.sub(r"[^A-Za-z0-9._-]", "_", base).strip("._") or "corrida"
+    return f"{limpio[:100]}.{ext}"
+
+
+def _csv_o_422(corrida: Corrida) -> str:
+    """El CSV, o 422 si la corrida (reconstruida de un cuerpo no confiable)
+    tiene tipos que rompen la serialización. `a_csv` hace `round(score)` y
+    `join(senales)` fuera de toda validación: un score="abc" daba 500."""
+    try:
+        return exportar.a_csv(corrida)
+    except (TypeError, ValueError, KeyError, AttributeError) as e:
+        raise HTTPException(422, f"Corrida inválida para exportar: {e}") from e
+
+
 @app.get("/api/corridas/{corrida_id}/csv", dependencies=[Depends(requiere_auth)])
 def exportar_csv(corrida_id: str):
     corrida = _cargar_o_404(corrida_id)
-    nombre = f"{corrida.dominio}_{corrida.id}.csv".replace("/", "_")
     return PlainTextResponse(
-        exportar.a_csv(corrida), media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="{nombre}"'})
+        _csv_o_422(corrida), media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition":
+                 f'attachment; filename="{_nombre_descarga(corrida, "csv")}"'})
 
 
 @app.get("/api/corridas/{corrida_id}/xlsx", dependencies=[Depends(requiere_auth)])
@@ -1014,6 +1040,9 @@ def _respuesta_xlsx(corrida: Corrida):
         destino = exportar.guardar_xlsx(corrida)
     except RuntimeError as e:
         raise HTTPException(501, str(e)) from e
+    except (TypeError, ValueError, KeyError, AttributeError) as e:
+        # Cuerpo reconstruido con tipos inválidos: 422, no 500.
+        raise HTTPException(422, f"Corrida inválida para exportar: {e}") from e
     return FileResponse(destino, filename=destino.name,
                         media_type="application/vnd.openxmlformats-officedocument."
                                    "spreadsheetml.sheet")
@@ -1034,10 +1063,10 @@ def _desde_cuerpo(datos: dict) -> Corrida:
 @app.post("/api/exportar/csv", dependencies=[Depends(requiere_auth)])
 def exportar_csv_directo(corrida: dict):
     c = _desde_cuerpo(corrida)
-    nombre = f"{c.dominio}_{c.id}.csv".replace("/", "_")
     return PlainTextResponse(
-        exportar.a_csv(c), media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="{nombre}"'})
+        _csv_o_422(c), media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition":
+                 f'attachment; filename="{_nombre_descarga(c, "csv")}"'})
 
 
 @app.post("/api/exportar/xlsx", dependencies=[Depends(requiere_auth)])

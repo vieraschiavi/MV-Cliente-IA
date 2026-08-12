@@ -97,14 +97,23 @@ def _ruta_sello() -> os.PathLike | None:
     return None
 
 
+# La variable de entorno NUNCA puede otorgar `owner`: si pudiera, cualquier
+# usuario de una copia instalada se ascendería a la versión completa con un
+# `set MVCLIENTE_EDICION=owner`, más fácil todavía que editar un JSON —
+# justo el vector que el sello horneado existe para cerrar. `owner` sale
+# SÓLO de un sello, que sólo el build hornea. La variable queda como comodidad
+# de desarrollo para las copias sin sello, y sólo para bajar a demo/cliente.
+_EDICIONES_POR_ENTORNO = ("demo", "cliente")
+
+
 def edicion() -> str:
-    """La edición de ESTA copia. Sin sello ni variable: `demo`, que es el
-    default seguro — nunca abrir de más por un archivo que falta."""
-    de_entorno = (os.getenv("MVCLIENTE_EDICION") or "").strip().lower()
-    if de_entorno in EDICIONES:
-        return de_entorno
+    """La edición de ESTA copia. El sello horneado es la AUTORIDAD: toda
+    edición que se distribuye (demo/cliente/owner) lo lleva. Sin sello ni
+    variable: `demo`, el default seguro — nunca abrir de más por lo que falta."""
     ruta = _ruta_sello()
     if ruta:
+        # Con sello, manda el sello y NO se mira el entorno: un instalado no
+        # se auto-asciende con una variable. Sello ilegible → demo (cerrado).
         try:
             with open(ruta, encoding="utf-8") as f:
                 marcada = str(json.load(f).get("edicion", "")).strip().lower()
@@ -112,6 +121,12 @@ def edicion() -> str:
                 return marcada
         except (OSError, ValueError):
             pass
+        return "demo"
+    # Sin sello (checkout de fuente, dev): el entorno puede fijar demo/cliente,
+    # jamás owner.
+    de_entorno = (os.getenv("MVCLIENTE_EDICION") or "").strip().lower()
+    if de_entorno in _EDICIONES_POR_ENTORNO:
+        return de_entorno
     return "demo"
 
 

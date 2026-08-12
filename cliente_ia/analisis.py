@@ -90,7 +90,7 @@ def cualitativo(llm, empresa: dict, competidores: list[dict],
     """Le pide al modelo el análisis de éxito/mercado/FODA basado en el texto
     real del sitio y los competidores YA identificados en la corrida. `llm`
     es un ProveedorLLM ya construido (con la clave del usuario)."""
-    from .proveedores.llm import ErrorLLM, _json_del_texto
+    from .proveedores.llm import ErrorLLM, _a_int, _json_del_texto
 
     cod = str(empresa.get("pais") or "UY")
     pais = geo.nombre_pais(cod, idioma)
@@ -137,7 +137,9 @@ def cualitativo(llm, empresa: dict, competidores: list[dict],
 
     mp = datos.get("mercado_potencial") or {}
     return {
-        "probabilidad_exito": max(0, min(100, int(datos.get("probabilidad_exito") or 0))),
+        # `_a_int` y no `int()`: el modelo suele contestar "85%" o "high", y un
+        # int() crudo tiraba ValueError que escapaba como 500 en /api/analisis.
+        "probabilidad_exito": max(0, min(100, _a_int(datos.get("probabilidad_exito")))),
         "veredicto": str(datos.get("veredicto", "")).strip(),
         "mercado_potencial": {
             "local": str(mp.get("local", "")).strip(),

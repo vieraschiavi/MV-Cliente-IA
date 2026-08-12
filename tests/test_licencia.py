@@ -57,12 +57,37 @@ def test_un_sello_con_basura_no_asciende_a_nadie(tmp_path, monkeypatch):
 # ---------------------------------------------------------------------------
 # Owner
 # ---------------------------------------------------------------------------
-def test_owner_no_pide_clave_ni_vence(monkeypatch):
-    monkeypatch.setenv("MVCLIENTE_EDICION", "owner")
+def _sello(tmp_path, monkeypatch, ed):
+    sello = tmp_path / licencia.NOMBRE_SELLO
+    sello.write_text(json.dumps({"edicion": ed}), encoding="utf-8")
+    monkeypatch.setattr(licencia, "_ruta_sello", lambda: sello)
+
+
+def test_owner_no_pide_clave_ni_vence(tmp_path, monkeypatch):
+    _sello(tmp_path, monkeypatch, "owner")       # owner viene del sello, no del env
     e = licencia.estado()
     assert e.edicion == "owner"
     assert e.activa is True
     assert e.vence == "" and e.dias_restantes == -1
+
+
+def test_la_variable_de_entorno_NO_puede_ascender_a_owner(monkeypatch):
+    """La escalada de privilegios que cierra el fix: un usuario de una copia
+    sin sello no se convierte en owner poniendo la variable. Owner sale sólo
+    de un sello horneado."""
+    monkeypatch.setattr(licencia, "_ruta_sello", lambda: None)
+    monkeypatch.setenv("MVCLIENTE_EDICION", "owner")
+    assert licencia.edicion() == "demo"          # NO owner
+    e = licencia.estado()
+    assert e.edicion == "demo"
+
+
+def test_el_sello_le_gana_a_la_variable_de_entorno(tmp_path, monkeypatch):
+    """Aunque la variable diga owner, un instalado con sello demo SIGUE demo:
+    el sello es la autoridad y no se lo pisa desde el entorno."""
+    _sello(tmp_path, monkeypatch, "demo")
+    monkeypatch.setenv("MVCLIENTE_EDICION", "owner")
+    assert licencia.edicion() == "demo"
 
 
 # ---------------------------------------------------------------------------
