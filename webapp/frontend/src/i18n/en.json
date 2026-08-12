@@ -62,6 +62,7 @@
     "cupo_restante": "Free web tier: {{quedan}} of {{total}} real searches left (the demo doesn't count).",
     "cupo_agotado": "The {{total}} free real web searches are used up. The demo stays free.",
     "cupo_comprar": "Buy the full program →",
+    "cupo_clave_propia": "You're using your own AI key: no search limit and no email needed.",
     "pais": "Your country",
     "pais_auto": "Detect it from my site",
     "mercado_regional": "{{region}} only"

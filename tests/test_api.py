@@ -317,6 +317,40 @@ def test_cupo_gratis_de_la_web(monkeypatch):
     assert lineas and lineas[-1]["estado"] == "listo"
 
 
+def test_clave_de_ia_propia_no_gasta_cupo_ni_pide_correo(monkeypatch):
+    """Si el usuario pega su propia clave de IA, el costo lo paga en su
+    propia cuenta — no el servidor — así que la búsqueda no descuenta cupo
+    ni exige correo, ni siquiera cuando ya se agotó el cupo gratis."""
+    from cliente_ia import modelos
+    from webapp.backend import api
+
+    monkeypatch.setattr(api, "SIN_ESTADO", True)
+    monkeypatch.setattr(api, "CUPO_GRATIS", 1)
+    api._cupo_por_ip.clear()
+    api._cupo_por_email.clear()
+
+    monkeypatch.setattr(api.pipeline, "ejecutar",
+                        lambda dominio, **kw: modelos.Corrida(
+                            id="fake02", dominio=dominio, estado="listo"))
+
+    cliente = TestClient(api.app)
+    con_clave = {"dominio": "mvkobranzaia.com", "modo": "llm", "prospectos": 5,
+                 "clave_ia": "sk-ant-lo-que-sea"}
+
+    # Sin correo, y las veces que haga falta: la clave propia no cuenta.
+    for _ in range(3):
+        assert cliente.post("/api/corridas", json=con_clave).status_code == 200
+    assert cliente.get("/api/cupo").json()["usadas"] == 0
+
+    # La misma búsqueda real SIN clave propia sí gasta el cupo gratis de
+    # siempre (acá con modo "web", que no exige clave para arrancar).
+    sin_clave = {**con_clave, "modo": "web", "clave_ia": "",
+                "email": "alguien@empresa.com"}
+    assert cliente.post("/api/corridas", json=sin_clave).status_code == 200
+    r = cliente.post("/api/corridas", json=sin_clave)
+    assert r.status_code == 402
+
+
 def test_corrida_de_mil_prospectos(cliente):
     """El selector va en tramos hasta 1000: la API tiene que aceptarlo y el
     demo entregarlo entero (con 12 intentos de nombre único llegaba a 996)."""

@@ -62,6 +62,7 @@
     "cupo_restante": "Web grátis: restam {{quedan}} de {{total}} buscas reais (a demo não desconta).",
     "cupo_agotado": "As {{total}} buscas reais grátis da web acabaram. A demo continua livre.",
     "cupo_comprar": "Comprar o programa completo →",
+    "cupo_clave_propia": "Você está usando sua própria chave de IA: sem limite de buscas e sem e-mail.",
     "pais": "Seu país",
     "pais_auto": "Detectar pelo meu site",
     "mercado_regional": "Só {{region}}"

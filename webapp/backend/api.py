@@ -876,10 +876,13 @@ def crear_corrida(entrada: CorridaIn, request: Request, stream: int = 0):
                 "en el servidor. Mientras tanto usá «demo» o «leer mi sitio».")
 
         # Cupo gratis de la web: sólo las búsquedas reales lo gastan, y piden
-        # un correo válido (el del dueño no descuenta).
+        # un correo válido (el del dueño no descuenta). Con clave propia
+        # pegada, el costo de la IA lo paga el usuario en su propia cuenta —
+        # no el servidor — así que tampoco descuenta cupo ni pide correo.
         usadas = 0
         correo = entrada.email.strip().lower()
-        cuenta = entrada.modo != "demo" and not _es_owner(request)
+        cuenta = (entrada.modo != "demo" and not _es_owner(request)
+                  and not entrada.clave_ia)
         if cuenta:
             if not _EMAIL_RE.match(correo):
                 raise HTTPException(422,

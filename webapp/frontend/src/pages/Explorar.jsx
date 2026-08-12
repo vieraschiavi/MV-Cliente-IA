@@ -94,6 +94,11 @@ export default function Explorar() {
   // si el usuario pegó la suya en Configuración: en ese caso la clave viaja
   // con la corrida. Antes de la respuesta de salud se muestra, como siempre.
   const hayLLM = !salud || Boolean(salud.modos?.includes("llm")) || Boolean(getClaveIA());
+  // Con clave propia pegada, el costo de la IA lo paga el usuario en su
+  // propia cuenta: el servidor no cobra cupo ni pide correo por esa corrida
+  // (webapp/backend/api.py:crear_corrida). La interfaz refleja lo mismo para
+  // no pedir de más ni mostrar un aviso de límite que no aplica.
+  const propiaClave = form.modo === "llm" && Boolean(getClaveIA());
   // Si el servidor no ofrece IA y el modo elegido era «llm», se baja a «web»
   // en vez de dejar el select apuntando a una opción que ya no existe.
   useEffect(() => {
@@ -261,8 +266,9 @@ export default function Explorar() {
           </select>
         </div>
         {/* Las búsquedas reales gratis de la web piden un correo válido:
-            cuenta el cupo por correo además de por navegador/IP. */}
-        {cupo?.pide_email && form.modo !== "demo" ? (
+            cuenta el cupo por correo además de por navegador/IP. Con clave
+            propia no hay cupo que cuidar, así que tampoco hace falta. */}
+        {cupo?.pide_email && form.modo !== "demo" && !propiaClave ? (
           <div className="campo crece">
             <label htmlFor="email-cupo">{t("explorar.email")}</label>
             <input id="email-cupo" type="email" value={email} required
@@ -319,8 +325,11 @@ export default function Explorar() {
       {salud && !hayLLM ? <p className="nota">{t("explorar.modo_llm_falta")}</p> : null}
 
       {/* Aviso del cupo gratis de la web: cuántas búsquedas reales quedan y
-          qué pasa cuando se terminan. El dueño no lo ve. */}
-      {cupo?.aplica && !cupo.owner ? (
+          qué pasa cuando se terminan. El dueño no lo ve, y con clave propia
+          tampoco aplica — la corrida no gasta cupo del servidor. */}
+      {propiaClave ? (
+        <p className="nota">{t("explorar.cupo_clave_propia")}</p>
+      ) : cupo?.aplica && !cupo.owner ? (
         cupo.usadas >= cupo.gratis ? (
           <p className="nota">
             {t("explorar.cupo_agotado", { total: cupo.gratis })}{" "}
