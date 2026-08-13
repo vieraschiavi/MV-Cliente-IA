@@ -45,6 +45,12 @@ hornea al construir; el código es idéntico.
 | **cliente** | quien pagó | Pide **una vez** la clave de licencia que llegó con la compra. Con clave válida, sin límite hasta la fecha de vencimiento de la clave |
 | **owner** | *sólo vos* — ver `OWNER/` | Sin clave y sin vencimiento. Nunca se publica: este repositorio es público |
 
+> **¿En el celular?** El APK y las otras dos formas de usarlo en el teléfono
+> —desde el navegador, o «agregar a pantalla de inicio», sin instalar nada—
+> están en [`android/COMO-INSTALAR.md`](../android/COMO-INSTALAR.md). El APK
+> no lleva el motor adentro: hereda la edición del servidor al que apunta, así
+> que no necesita conversor a edición dueño.
+
 ### Cómo está ordenada esta carpeta
 
 Sigue el esquema de **MV Agendate IA**: separar lo que baja quien compra de lo

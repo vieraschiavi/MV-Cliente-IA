@@ -119,6 +119,29 @@ jobs:
         id: ver
         run: echo "MVVER=$(python3 -c 'import cliente_ia,sys;sys.stdout.write(cliente_ia.__version__)')" >> "$GITHUB_OUTPUT"
 
+      - name: Dejar el SHA-256 en INSTALADOR/CLIENTE/ (constancia versionada)
+        # Mismo criterio que los instaladores de Windows: el binario no se
+        # versiona (pesa), pero su hash sí — 89 bytes que dejan comprobar que
+        # el APK que llegó a un teléfono es EXACTAMENTE el que compiló el CI.
+        # `COMO-INSTALAR.md` manda a comparar contra esto.
+        continue-on-error: true
+        env:
+          MVVER: ${{ steps.ver.outputs.MVVER }}
+          RAMA: ${{ github.ref_name }}
+        run: |
+          mkdir -p INSTALADOR/CLIENTE
+          cp MVClienteIA.apk.sha256 INSTALADOR/CLIENTE/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add INSTALADOR/CLIENTE/MVClienteIA.apk.sha256
+          if git diff --cached --quiet; then
+            echo "El hash del APK no cambió"
+          else
+            git commit -m "CI: SHA-256 del APK $MVVER"
+            git pull --rebase --autostash origin "$RAMA"
+            git push origin "HEAD:$RAMA"
+          fi
+
       - name: Publicar en la Release (canal de descarga de la landing)
         uses: softprops/action-gh-release@v2
         with:
