@@ -326,6 +326,61 @@ jobs:
           }
           if ($ok -ne 0) { Write-Error "El programa instalado no pasó la prueba de humo"; exit 1 }
 
+          # --- El conversor a edición dueño -------------------------------
+          # Lo que se prueba acá es que ENCUENTRE la instalación solo: se lo
+          # corre desde una carpeta que no tiene nada que ver con $destino
+          # (el de MV Agendate IA hay que copiarlo adentro, éste no).
+          $lejos = "$env:RUNNER_TEMP\lejos-de-la-instalacion"
+          New-Item -ItemType Directory -Force -Path $lejos | Out-Null
+          python packaging/armar_owner.py --codigo "codigo-de-prueba-del-ci" --destino $lejos
+          $conv = "$lejos\Convertir-a-edicion-dueno.bat"
+          if (-Not (Test-Path $conv)) { Write-Error "No se armó el conversor"; exit 1 }
+
+          $sello = "$destino\resources\backend\edicion.json"
+          $env:MVCLIENTE_SIN_PAUSA = "1"
+
+          # 1. Con el código EQUIVOCADO no puede tocar nada.
+          $antes = Get-Content -LiteralPath $sello -Raw
+          $env:MVCLIENTE_CODIGO_DUENO = "este-no-es-el-codigo"
+          & cmd /c "`"$conv`"" | Out-Null
+          if ((Get-Content -LiteralPath $sello -Raw) -ne $antes) {
+            Write-Error "Con el código equivocado igual escribió el sello"; exit 1
+          }
+          Write-Host "OK: con el código equivocado no tocó nada"
+
+          # 2. Con el código correcto, encuentra la instalación y la convierte.
+          $env:MVCLIENTE_CODIGO_DUENO = "codigo-de-prueba-del-ci"
+          & cmd /c "`"$conv`""
+          if ((Get-Content -LiteralPath $sello -Raw) -notmatch "owner") {
+            Write-Error "El conversor no encontró la instalación o no escribió el sello"
+            Get-Content -LiteralPath $sello
+            exit 1
+          }
+          Write-Host "OK: encontró la instalación desde $lejos y la pasó a owner"
+
+          # 3. Y el programa convertido abre sin clave y sin vencimiento.
+          $env:MVCLIENTE_DIR_DATOS = "$env:RUNNER_TEMP\datos-convertido"
+          $p2 = Start-Process "$destino\resources\backend\MVClienteIA.exe" `
+                  -ArgumentList "--puerto","8816" -PassThru -WindowStyle Hidden
+          try {
+            python packaging/humo.py --url http://127.0.0.1:8816 --edicion owner --prospectos 50
+            $ok2 = $LASTEXITCODE
+          } finally {
+            if (-Not $p2.HasExited) { Stop-Process -Id $p2.Id -Force -ErrorAction SilentlyContinue }
+          }
+          if ($ok2 -ne 0) { Write-Error "El convertido no abre como owner"; exit 1 }
+
+          # 4. Y se puede volver atrás, que es lo que hace segura la prueba.
+          $env:MVCLIENTE_REVERTIR = "s"
+          & cmd /c "`"$conv`""
+          if ((Get-Content -LiteralPath $sello -Raw) -notmatch "demo") {
+            Write-Error "No volvió a la edición que traía el instalador"
+            Get-Content -LiteralPath $sello
+            exit 1
+          }
+          Write-Host "OK: revirtió a la edición original"
+          Remove-Item Env:\MVCLIENTE_SIN_PAUSA, Env:\MVCLIENTE_CODIGO_DUENO, Env:\MVCLIENTE_REVERTIR
+
           Start-Process $desinst.FullName -ArgumentList "/S" -Wait
           # El desinstalador de NSIS se copia al temporal y sigue borrando
           # después de que el proceso original terminó: mirar enseguida da un
@@ -354,7 +409,7 @@ jobs:
               Write-Host "SHA-256 $($_.Name): $h"
             }
 
-      - name: Dejar los SHA-256 en INSTALADOR/ (constancia versionada)
+      - name: Dejar los SHA-256 en INSTALADOR/CLIENTE/ (constancia versionada)
         # Nunca puede bloquear la publicación del instalador: los hashes son
         # un extra, la Release es lo que baja el comprador.
         continue-on-error: true
@@ -369,11 +424,11 @@ jobs:
           MVVER: ${{ steps.ver.outputs.MVVER }}
           RAMA: ${{ github.ref_name }}
         run: |
-          New-Item -ItemType Directory -Force -Path INSTALADOR | Out-Null
-          Copy-Item dist/*.sha256 INSTALADOR/ -Force
+          New-Item -ItemType Directory -Force -Path INSTALADOR/CLIENTE | Out-Null
+          Copy-Item dist/*.sha256 INSTALADOR/CLIENTE/ -Force
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add INSTALADOR/*.sha256
+          git add INSTALADOR/CLIENTE/*.sha256
           if (git diff --cached --quiet) {
             Write-Host "Los hashes no cambiaron"
           } else {

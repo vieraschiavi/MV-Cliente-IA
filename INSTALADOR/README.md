@@ -43,7 +43,19 @@ hornea al construir; el código es idéntico.
 |---|---|---|
 | **demo** | cualquiera, desde la landing | 14 días con todo abierto, sin clave. Vencida, queda el modo demo sintético (la vidriera) y las búsquedas reales piden licencia |
 | **cliente** | quien pagó | Pide **una vez** la clave de licencia que llegó con la compra. Con clave válida, sin límite hasta la fecha de vencimiento de la clave |
-| **owner** | *no se publica* — ver abajo | Sin clave y sin vencimiento. **Desactivada**: este repositorio es público |
+| **owner** | *sólo vos* — ver `OWNER/` | Sin clave y sin vencimiento. Nunca se publica: este repositorio es público |
+
+### Cómo está ordenada esta carpeta
+
+Sigue el esquema de **MV Agendate IA**: separar lo que baja quien compra de lo
+que es sólo tuyo.
+
+```
+INSTALADOR/
+  Descargar.cmd        ← baja, verifica el SHA-256 y abre (doble click)
+  CLIENTE/             ← los hashes de lo que se publica en la Release
+  OWNER/               ← tuyo. NO se versiona (ver abajo)
+```
 
 ### Bajarlas
 
@@ -82,6 +94,61 @@ bloquea el NSIS o `C:` está lleno.
 
 Si no hay Python, el propio `.bat` te dice cómo instalarlo. Desde la Microsoft
 Store no hace falta ser administrador.
+
+---
+
+## OWNER/ — la edición dueño, y el conversor que la aplica
+
+La edición `owner` abre **sin clave y sin vencimiento**. Lleva el permiso
+adentro del archivo, así que en un repositorio público no puede vivir
+versionada: cualquiera que clone se llevaría el producto completo.
+
+Por eso `INSTALADOR/OWNER/` **está en `.gitignore`** y se arma en tu máquina:
+
+```bash
+python3 packaging/armar_owner.py --codigo TU-CODIGO-LARGO
+```
+
+Eso deja dos archivos:
+
+| Archivo | Qué hace |
+|---|---|
+| `Convertir-a-edicion-dueno.bat` | Pasa una copia **ya instalada** a edición dueño, sin reinstalar 95 MB |
+| `LEEME.txt` | El recordatorio de que eso es la llave maestra |
+
+### El conversor busca la instalación solo
+
+Es la diferencia con el de MV Agendate IA, que hay que **copiar a mano**
+adentro de la carpeta del programa (si no, avisa que no encontró nada). Acá el
+instalador deja **elegir la carpeta** (`allowToChangeInstallationDirectory`),
+así que asumir una ruta fija era justamente lo que fallaba. El conversor mira,
+en orden:
+
+1. El **registro de Windows** — donde el instalador anota `InstallLocation`.
+2. Las carpetas donde Windows instala por defecto (`%LOCALAPPDATA%\Programs`,
+   `Archivos de programa`).
+3. El **destino real de los accesos directos** del Escritorio y del Menú
+   Inicio (resuelve el `.lnk`).
+4. Recién por último, la carpeta desde donde se lo ejecutó.
+
+Encuentra las tres formas de entrega: el instalador `.exe` y el portable
+dejan el sello en `resources\backend\`; la edición BAT, en `packaging\`.
+
+### Pide tu código de dueño
+
+El conversor convierte **cualquier** copia instalada en la edición completa.
+Si se filtra —un chat, una captura, un pendrive— quien lo tenga destraba lo
+que vendés. Por eso pide un código: adentro del `.bat` va sólo su **SHA-256**,
+nunca el código, así que el archivo suelto no sirve para nada.
+
+Corriéndolo de nuevo ofrece **volver atrás** (guarda un `.original` de cada
+sello), así probar la edición dueño no es irreversible.
+
+> Que encuentre la instalación y convierta de verdad lo comprueba el CI en una
+> Windows real: instala, corre el conversor **desde otra carpeta**, verifica
+> que con el código equivocado no toca nada, que con el correcto el programa
+> abre como `owner`, y que la reversión funciona
+> (`.github/workflows/build_windows.yml`).
 
 ---
 

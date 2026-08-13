@@ -64,13 +64,29 @@ powershell -NoProfile -Command ^
 if errorlevel 1 goto :error
 
 :verificar
-if not exist "%~dp0%ARCHIVO%.sha256" (
-  echo   Sin .sha256 versionado para comparar; se salta la verificacion.
-  goto :abrir
+REM Los hashes viven en CLIENTE\ (esquema de MV Agendate IA: lo que baja quien
+REM compra va separado de lo del dueno). Se mira ahi y, por compatibilidad con
+REM copias viejas de esta carpeta, tambien al lado de este .cmd.
+set "HASH=%~dp0CLIENTE\%ARCHIVO%.sha256"
+if not exist "%HASH%" set "HASH=%~dp0%ARCHIVO%.sha256"
+if not exist "%HASH%" (
+  REM Antes esto seguia de largo y abria el instalador igual. Un control de
+  REM integridad que se saltea solo cuando falta su insumo no es un control:
+  REM justo cuando no se puede verificar es cuando NO hay que ejecutar.
+  echo.
+  echo   [X] No encontre el .sha256 para comprobar la descarga.
+  echo.
+  echo       El archivo quedo bajado en:
+  echo         %~dp0%ARCHIVO%
+  echo.
+  echo       No lo abro sin verificarlo. Compara el hash a mano contra el
+  echo       publicado en la Release y, si coincide, abrilo vos.
+  echo.
+  goto :error
 )
 echo   Verificando SHA-256...
 powershell -NoProfile -Command ^
-  "$esperado = (Get-Content '%~dp0%ARCHIVO%.sha256' -Raw).Split()[0].Trim().ToLower();" ^
+  "$esperado = (Get-Content '%HASH%' -Raw).Split()[0].Trim().ToLower();" ^
   "$real = (Get-FileHash '%~dp0%ARCHIVO%' -Algorithm SHA256).Hash.ToLower();" ^
   "if ($esperado -ne $real) { Write-Host ''; Write-Host '  ATENCION: el archivo NO coincide con el hash publicado.'; Write-Host ('  esperado: ' + $esperado); Write-Host ('  bajado:   ' + $real); Write-Host '  No lo ejecutes: volve a bajarlo.'; exit 1 }" ^
   "Write-Host '  SHA-256 correcto.'"

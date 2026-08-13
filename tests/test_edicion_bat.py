@@ -32,16 +32,21 @@ import lanzador_escritorio as lanzador  # noqa: E402
 
 BATS = RAIZ / "packaging" / "bat"
 NOMBRES = ["MVClienteIA.bat", "Instalar.bat", "Desinstalar.bat"]
+# El conversor a edición dueño NO viaja en el ZIP (es la llave maestra: se
+# arma aparte con `packaging/armar_owner.py`), pero es un .bat que corre en
+# Windows y se rompe por lo mismo que los otros, así que pasa por los mismos
+# controles de texto.
+NOMBRES_TEXTO = NOMBRES + ["Convertir-a-edicion-dueno.bat"]
 
 # Descargar.cmd es de la misma familia y se rompe igual, así que va al mismo
 # control de etiquetas. Vive en otra carpeta, de ahí la ruta completa.
-GUIONES = [BATS / n for n in NOMBRES] + [RAIZ / "INSTALADOR" / "Descargar.cmd"]
+GUIONES = [BATS / n for n in NOMBRES_TEXTO] + [RAIZ / "INSTALADOR" / "Descargar.cmd"]
 
 
 # ---------------------------------------------------------------------------
 # Los .bat como texto
 # ---------------------------------------------------------------------------
-@pytest.mark.parametrize("nombre", NOMBRES)
+@pytest.mark.parametrize("nombre", NOMBRES_TEXTO)
 def test_bat_es_ascii_puro(nombre):
     """Un acento en un .bat sale ilegible: la consola de Windows los
     interpreta con la página de códigos activa, que no es UTF-8."""
@@ -71,7 +76,7 @@ def test_todo_goto_tiene_etiqueta(guion):
     assert not faltan, f"{nombre} salta a etiquetas que no existen: {sorted(faltan)}"
 
 
-@pytest.mark.parametrize("nombre", NOMBRES)
+@pytest.mark.parametrize("nombre", NOMBRES_TEXTO)
 def test_bat_no_deja_marcadores_sin_reemplazar(nombre):
     """@VERSION@ y @EDICION@ los reemplaza el armador. Si aparece alguno más
     en el original y el armador no lo conoce, viajaría literal al cliente."""
@@ -113,7 +118,7 @@ def test_los_scripts_de_windows_no_usan_caracteres_que_la_consola_no_sabe(guion)
         f"escribir: {problemas}")
 
 
-@pytest.mark.parametrize("nombre", NOMBRES)
+@pytest.mark.parametrize("nombre", NOMBRES_TEXTO)
 def test_ninguna_pausa_queda_sin_escape(nombre):
     """Un `pause` suelto cuelga la verificación de Windows PARA SIEMPRE en vez
     de fallar: el job se queda en "Presione una tecla" hasta que expira a los
@@ -127,7 +132,7 @@ def test_ninguna_pausa_queda_sin_escape(nombre):
                 f"{nombre}:{i + 1} tiene un `pause` sin el escape del CI"
 
 
-@pytest.mark.parametrize("nombre", NOMBRES)
+@pytest.mark.parametrize("nombre", NOMBRES_TEXTO)
 def test_ninguna_pregunta_queda_sin_escape(nombre):
     """Lo mismo con `set /p`: sin escape se queda esperando una respuesta que
     en el CI no va a llegar nunca."""

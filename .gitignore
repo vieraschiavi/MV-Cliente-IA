@@ -50,3 +50,8 @@ Thumbs.db
 
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 graft/
+
+# La carpeta del dueño: el conversor armado ES la edición completa del
+# producto (convierte cualquier copia instalada en owner). En un repositorio
+# público no puede estar versionada — se arma con `packaging/armar_owner.py`.
+INSTALADOR/OWNER/
