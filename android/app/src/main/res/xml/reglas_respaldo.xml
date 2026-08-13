@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+. El respaldo automático copiaba el almacenamiento del WebView a
+  la nube y a `adb backup`, y ahí adentro está el localStorage con la clave
+  del modelo, la del correo y las de X y LinkedIn. Nada de esta app se
+  respalda: las claves las vuelve a pegar el usuario, que es preferible a que
+  viajen a un backup que no controla.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="file" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="file" />
+    </device-transfer>
+</data-extraction-rules>

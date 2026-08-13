@@ -3,11 +3,10 @@
   "appName": "MV Cliente IA",
   "webDir": "webapp/frontend/dist",
   "android": {
-    "allowMixedContent": true
+    "allowMixedContent": false
   },
   "server": {
-    "androidScheme": "https",
-    "cleartext": true
+    "androidScheme": "https"
   },
   "backgroundColor": "#0a1020"
 }

@@ -94,15 +94,64 @@ def modos_en_serverless() -> tuple[str, ...]:
         return ("demo", "web", "llm")
     return ("demo", "web")
 
+# Los ÚNICOS orígenes que cruzan de verdad. Electron carga
+# `http://127.0.0.1:<puerto>/` y la web se sirve desde su propio dominio: los
+# dos son mismo-origen y no pasan por CORS. El APK es el único que cruza —
+# el WebView de Capacitor tiene origen `https://localhost` (androidScheme en
+# capacitor.config.json) y le pega a un servidor que el usuario configura.
+#
+# Antes acá decía `*`, y eso convertía al programa instalado en una API
+# abierta para CUALQUIER pestaña del navegador: el motor escucha en
+# 127.0.0.1, pero una página web maliciosa corre en la misma máquina, así
+# que `fetch("http://127.0.0.1:8810/api/corridas")` le devolvía —y con
+# `*` el navegador la dejaba LEER— la investigación entera del cliente:
+# prospectos, decisores, empresas objetivo. Verificado con curl antes de
+# cambiarlo. Escuchar sólo en loopback no defiende de esto; el allowlist sí.
+ORIGENES_PERMITIDOS = [
+    "https://localhost",        # Capacitor con androidScheme "https" (el actual)
+    "http://localhost",         # Capacitor viejo / WebView sin TLS
+    "capacitor://localhost",    # iOS y algunas versiones de Android
+]
+
 app = FastAPI(title="MV Cliente IA", version=__version__)
 app.add_middleware(
     CORSMiddleware,
-    # El frontend se sirve desde el mismo origen en los tres empaquetados; en
-    # desarrollo Vite proxya /api, así que tampoco hay cruce de origen. Se deja
-    # abierto sólo para GET/POST y sin credenciales de cookie.
-    allow_origins=["*"], allow_credentials=False,
+    allow_origins=ORIGENES_PERMITIDOS, allow_credentials=False,
     allow_methods=["GET", "POST", "DELETE"], allow_headers=["*"],
 )
+
+# Los mismos encabezados de seguridad que `vercel.json` le pone a la web,
+# pero puestos acá para que también los tenga el programa INSTALADO: ahí no
+# hay Vercel delante, es este uvicorn sirviendo el HTML, y hasta ahora salía
+# sin ninguno. Importa porque la pantalla de Correos previsualiza en un
+# iframe HTML que redactó un modelo, y las fichas muestran texto traído de
+# sitios ajenos: si algo de eso trae un <script>, el CSP es lo que lo frena.
+#
+# `unsafe-inline` en style y script no es un descuido: Vite emite el módulo
+# con un pequeño inline y los componentes usan `style=`. Es el mismo CSP que
+# ya corre en producción hace meses, así que no rompe nada conocido.
+_CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; "
+        "font-src 'self' data:; media-src 'self'; connect-src 'self'; "
+        "object-src 'none'; base-uri 'self'; form-action 'self'; "
+        "frame-ancestors 'self'")
+_SEGURIDAD = {
+    "Content-Security-Policy": _CSP,
+    "X-Content-Type-Options": "nosniff",
+    # Redundante con `frame-ancestors`, pero los WebView viejos de Android
+    # entienden éste y no el CSP.
+    "X-Frame-Options": "SAMEORIGIN",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "geolocation=(), camera=(), microphone=(), payment=(), usb=()",
+}
+
+
+@app.middleware("http")
+async def encabezados_de_seguridad(request: Request, call_next):
+    respuesta = await call_next(request)
+    for clave, valor in _SEGURIDAD.items():
+        respuesta.headers.setdefault(clave, valor)
+    return respuesta
 
 _ejecutor = ThreadPoolExecutor(max_workers=MAX_CORRIDAS_PARALELAS,
                               thread_name_prefix="autogtm")

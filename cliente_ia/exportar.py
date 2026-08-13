@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import csv
 import io
+import re
 from pathlib import Path
 
 from . import rutas
@@ -25,8 +26,31 @@ COLUMNAS = [
 ]
 
 
+# Excel y Google Sheets tratan la celda como FÓRMULA si arranca con alguno de
+# estos. El texto de las celdas no lo escribe quien descarga: sale del <title>
+# y los <h1> de sitios ajenos (fase 1 y el rastreo de contactos) y del JSON
+# del modelo. Un sitio que el cliente investigue puede llamarse
+# `=cmd|'/c calc'!A0` y Excel lo ejecuta al abrir el archivo — y este export
+# existe justamente para abrirse en el CRM del cliente.
+_ARRANQUES_PELIGROSOS = ("=", "+", "-", "@", "\t", "\r", "\n")
+
+
+def _sanear_celda(valor):
+    """Antepone un apóstrofo a lo que Excel interpretaría como fórmula. El
+    apóstrofo no se ve en la celda: le dice a Excel «esto es texto».
+
+    Sólo toca strings: los números (score, empleados, prioridad) viajan como
+    int/float y un negativo legítimo no se rompe."""
+    if isinstance(valor, str) and valor[:1] in _ARRANQUES_PELIGROSOS:
+        return "'" + valor
+    return valor
+
+
 def filas(corrida: Corrida) -> list[dict]:
-    """Una fila por decisor, con su correo si la fase 6 lo escribió."""
+    """Una fila por decisor, con su correo si la fase 6 lo escribió.
+
+    Los valores salen ya saneados contra inyección de fórmulas: es el único
+    lugar por el que pasan tanto el CSV como el XLSX."""
     prospectos = {p.id: p for p in corrida.prospectos}
     emails = {e.decisor_id: e for e in corrida.emails}
     campanas = {c.id: c for c in corrida.campanas}
@@ -65,7 +89,24 @@ def filas(corrida: Corrida) -> list[dict]:
             "campana": c.nombre if c else p.campana_id,
             "sintetico": "sí" if (d.sintetico or p.sintetico) else "no",
         })
-    return salida
+    return [{k: _sanear_celda(v) for k, v in fila.items()} for fila in salida]
+
+
+def _destino(corrida: Corrida, ext: str) -> Path:
+    """La ruta del archivo a escribir, con el id validado igual que en
+    `almacen.ruta_de` y el dominio saneado.
+
+    Hace falta porque `POST /api/exportar/{csv,xlsx}` reconstruye la corrida
+    desde el cuerpo del pedido: con `id="../../../pwned"` el nombre de
+    archivo se escapaba del directorio de exports y el XLSX terminaba en
+    cualquier ruta escribible por el proceso."""
+    if not corrida.id or not re.fullmatch(r"[A-Za-z0-9_-]{1,64}", corrida.id):
+        raise ValueError(f"id de corrida inválido: {corrida.id!r}")
+    # El dominio SÍ se limpia en vez de rechazarse: es texto que escribe el
+    # usuario y un punto o una barra de más no son un ataque, sólo un nombre
+    # de archivo feo. El id, que es generado, es el que se valida duro.
+    dominio = re.sub(r"[^A-Za-z0-9._-]", "_", corrida.dominio or "")[:80].strip("._") or "corrida"
+    return rutas.dir_exports() / f"{dominio}_{corrida.id}{ext}"
 
 
 def a_csv(corrida: Corrida) -> str:
@@ -77,7 +118,7 @@ def a_csv(corrida: Corrida) -> str:
 
 
 def guardar_csv(corrida: Corrida, destino: Path | None = None) -> Path:
-    destino = destino or (rutas.dir_exports() / f"{corrida.dominio}_{corrida.id}.csv")
+    destino = destino or _destino(corrida, ".csv")
     destino.parent.mkdir(parents=True, exist_ok=True)
     # utf-8-sig: sin el BOM, Excel en Windows abre los acentos rotos.
     destino.write_text(a_csv(corrida), encoding="utf-8-sig")
@@ -91,7 +132,7 @@ def guardar_xlsx(corrida: Corrida, destino: Path | None = None) -> Path:
     except ImportError as e:                                # pragma: no cover
         raise RuntimeError("Falta openpyxl (pip install openpyxl)") from e
 
-    destino = destino or (rutas.dir_exports() / f"{corrida.dominio}_{corrida.id}.xlsx")
+    destino = destino or _destino(corrida, ".xlsx")
     destino.parent.mkdir(parents=True, exist_ok=True)
 
     wb = Workbook()
@@ -117,10 +158,11 @@ def guardar_xlsx(corrida: Corrida, destino: Path | None = None) -> Path:
 
     resumen = wb.create_sheet("Resumen")
     r = corrida.resumen()
-    resumen.append(["Dominio", corrida.dominio])
-    resumen.append(["Corrida", corrida.id])
-    resumen.append(["Modo", corrida.modo])
-    resumen.append(["Estado", corrida.estado])
+    # Estos no pasan por `filas()`, así que se sanean acá uno por uno.
+    resumen.append(["Dominio", _sanear_celda(corrida.dominio)])
+    resumen.append(["Corrida", _sanear_celda(corrida.id)])
+    resumen.append(["Modo", _sanear_celda(corrida.modo)])
+    resumen.append(["Estado", _sanear_celda(corrida.estado)])
     resumen.append([])
     resumen.append(["Prospectos por ola", ""])
     for nivel, valor in r["prospectos_por_nivel"].items():

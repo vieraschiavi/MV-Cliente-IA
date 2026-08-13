@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { fmtScore } from "../api.js";
+import { fmtScore, urlSegura } from "../api.js";
 import { etiquetasOla, Ola, Tabla, Vacio } from "../componentes/Comunes.jsx";
 import { getCorridaId, useCorrida } from "../estado.js";
 import { t } from "../i18n/index.js";
@@ -30,8 +30,8 @@ export default function Prospectos() {
         const enlaces = [
           c.email ? <a key="m" href={`mailto:${c.email}`} title={c.email}>✉ {c.email}</a> : null,
           c.telefono ? <a key="t" href={`tel:${c.telefono}`}>☎ {c.telefono}</a> : null,
-          c.linkedin ? <a key="l" href={c.linkedin} target="_blank" rel="noreferrer">LinkedIn</a> : null,
-          c.instagram ? <a key="i" href={c.instagram} target="_blank" rel="noreferrer">Instagram</a> : null,
+          c.linkedin ? <a key="l" href={urlSegura(c.linkedin)} target="_blank" rel="noreferrer">LinkedIn</a> : null,
+          c.instagram ? <a key="i" href={urlSegura(c.instagram)} target="_blank" rel="noreferrer">Instagram</a> : null,
         ].filter(Boolean);
         return enlaces.length
           ? <span style={{ display: "inline-flex", gap: 10, flexWrap: "wrap", whiteSpace: "normal" }}>{enlaces}</span>

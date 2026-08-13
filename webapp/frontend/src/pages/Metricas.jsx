@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { api, borrarEnvios, fmtNum, getEnvios, getX } from "../api.js";
+import { api, borrarEnvios, fmtNum, getEnvios, getX, urlSegura } from "../api.js";
 import { Aviso, Vacio } from "../componentes/Comunes.jsx";
 import { getIdioma, t } from "../i18n/index.js";
 
@@ -162,7 +162,7 @@ export default function Metricas() {
                     <tr key={e.x.id}>
                       <td>{fecha(e.fecha)}</td>
                       <td style={{ whiteSpace: "normal", maxWidth: 320 }}>
-                        <a href={e.x.url} target="_blank" rel="noreferrer">
+                        <a href={urlSegura(e.x.url)} target="_blank" rel="noreferrer">
                           {e.x.texto || e.x.url}
                         </a>
                         {m && !m.ok ? (
@@ -214,7 +214,7 @@ export default function Metricas() {
                 <td>
                   {e.x
                     ? (e.x.ok
-                        ? <a href={e.x.url} target="_blank" rel="noreferrer">✔</a>
+                        ? <a href={urlSegura(e.x.url)} target="_blank" rel="noreferrer">✔</a>
                         : "✘")
                     : <span className="apagado">—</span>}
                 </td>

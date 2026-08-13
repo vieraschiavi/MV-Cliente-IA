@@ -137,9 +137,14 @@ jobs:
         # .exe tocado a posteriori rompe la firma y lo marca cualquier
         # antivirus.
         shell: pwsh
+        env:
+          # Por `env:` y no interpolado en el `run:`: `${{ }}` se expande como
+          # TEXTO antes de que exista el shell, así que un valor con comillas o
+          # `;` se ejecutaría como comando en el runner que publica.
+          MVVER: ${{ steps.ver.outputs.MVVER }}
         run: |
           cd electron
-          npm pkg set version=${{ steps.ver.outputs.MVVER }}
+          npm pkg set version=$env:MVVER
           npm install
           # Las DOS, siempre. Antes en un push normal se armaba sólo `cliente`
           # para ahorrar minutos de Windows, pero la landing enlaza a
@@ -358,6 +363,11 @@ jobs:
         # archivo), pero sus hashes sí: son 89 bytes y permiten comprobar que
         # el archivo que bajó un comprador es EXACTAMENTE el que compiló CI.
         shell: pwsh
+        env:
+          # Igual que arriba: el nombre de rama y la versión llegan por
+          # entorno, no interpolados dentro del `run:`.
+          MVVER: ${{ steps.ver.outputs.MVVER }}
+          RAMA: ${{ github.ref_name }}
         run: |
           New-Item -ItemType Directory -Force -Path INSTALADOR | Out-Null
           Copy-Item dist/*.sha256 INSTALADOR/ -Force
@@ -367,9 +377,9 @@ jobs:
           if (git diff --cached --quiet) {
             Write-Host "Los hashes no cambiaron"
           } else {
-            git commit -m "CI: SHA-256 del build ${{ steps.ver.outputs.MVVER }}"
-            git pull --rebase --autostash origin ${{ github.ref_name }}
-            git push origin HEAD:${{ github.ref_name }}
+            git commit -m "CI: SHA-256 del build $env:MVVER"
+            git pull --rebase --autostash origin $env:RAMA
+            git push origin "HEAD:$env:RAMA"
           }
 
       - name: Publicar en la Release (canal de descarga de los clientes)

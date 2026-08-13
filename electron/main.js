@@ -336,9 +336,42 @@ async function arrancar(intento = 0) {
   Menu.setApplicationMenu(menuNativo(url));
   // Los enlaces externos (un sitio de prospecto) van al navegador del sistema,
   // no reemplazan la ventana de la app.
+  //
+  // El esquema se valida ANTES de entregarle nada a `shell.openExternal`, que
+  // es el manejador de URIs de Windows: con una URL cruda, un `file://` a un
+  // recurso de red o un `ms-msdt:`/`search-ms:` dejaban de ser un enlace roto
+  // y pasaban a ser ejecución. Y estas URLs no son nuestras — el video y la
+  // landing los escribe quien lanza la corrida, y los perfiles salen de
+  // rastrear sitios ajenos.
   ventana.webContents.setWindowOpenHandler(({ url: destino }) => {
-    shell.openExternal(destino);
+    try {
+      const protocolo = new URL(destino).protocol;
+      if (protocolo === "https:" || protocolo === "http:") shell.openExternal(destino);
+      else log(`enlace externo bloqueado (esquema ${protocolo})`);
+    } catch {
+      log("enlace externo bloqueado (no es una URL)");
+    }
     return { action: "deny" };
+  });
+  // La ventana no tiene barra de direcciones: si algo lograra navegarla a otro
+  // origen, el usuario vería una página ajena con el marco de "MV Cliente IA"
+  // — el escenario ideal para pedirle la clave de licencia o la del correo.
+  // Sólo se navega dentro del propio motor.
+  ventana.webContents.on("will-navigate", (evento, destino) => {
+    try {
+      if (new URL(destino).origin !== new URL(url).origin) {
+        evento.preventDefault();
+        log(`navegación bloqueada hacia ${new URL(destino).origin}`);
+      }
+    } catch {
+      evento.preventDefault();
+    }
+  });
+  // Electron concede los permisos que le pidan si nadie contesta. La app no
+  // usa cámara, micrófono ni ubicación: se niegan todos, en bloque.
+  ventana.webContents.session.setPermissionRequestHandler((_wc, permiso, responder) => {
+    log(`permiso denegado: ${permiso}`);
+    responder(false);
   });
   // La ventana real recién se muestra cuando la app ya está pintada: se pasa
   // del splash directo al tablero, sin un parpadeo en blanco.

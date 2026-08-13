@@ -253,6 +253,30 @@ export function setIdioma(i) {
   localStorage.setItem(KEY_IDIOMA, i);
 }
 
+/**
+ * La URL si se puede navegar a ella sin peligro; `undefined` si no.
+ *
+ * Todo lo que termina en un `href` de la app viene de afuera: el video y la
+ * landing los escribe quien lanza la corrida, y LinkedIn/Instagram/teléfono
+ * salen de rastrear sitios ajenos. React NO frena `javascript:` en un href
+ * (avisa por consola y lo deja pasar), así que un `javascript:fetch(...)`
+ * ahí se ejecuta con el origen de la app y se lleva el localStorage —
+ * claves de SMTP, del modelo, de X y de LinkedIn.
+ *
+ * Un `href` sin valor hace que React no emita el atributo: el enlace queda
+ * muerto, que es exactamente lo que se busca.
+ */
+export function urlSegura(u) {
+  if (!u || typeof u !== "string") return undefined;
+  try {
+    // `new URL` con base resuelve también las relativas sin romperse.
+    const p = new URL(u, window.location.origin).protocol;
+    return ["http:", "https:", "mailto:", "tel:"].includes(p) ? u : undefined;
+  } catch {
+    return undefined;                       // ni siquiera es una URL
+  }
+}
+
 export class ErrorApi extends Error {
   constructor(mensaje, status) {
     super(mensaje);

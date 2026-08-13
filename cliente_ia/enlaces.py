@@ -19,6 +19,7 @@ campaña, qué idioma y qué empresa trajeron la visita.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from urllib.parse import quote, urlencode
 
@@ -41,6 +42,26 @@ def _normalizar_sitio(dominio_o_url: str) -> str:
     if not d.startswith(("http://", "https://")):
         d = "https://" + d
     return d
+
+
+def _url_navegable(u: str) -> str:
+    """La URL si es http/https; cadena vacía si no.
+
+    El video y el banner los escribe quien lanza la corrida, y de ahí van
+    derecho al `href` del correo HTML y de la pantalla de Correos. `escape()`
+    de la redacción tapa las comillas pero no el ESQUEMA: un
+    `javascript:fetch(...)` pasaba entero hasta el enlace. Un enlace de
+    correo sólo puede ser http o https —ningún cliente de correo abre otra
+    cosa— así que descartar el resto no le quita nada al producto.
+    """
+    u = (u or "").strip()
+    if not u:
+        return ""
+    # `\` y espacios de control confunden a los parsers de URL de algunos
+    # navegadores: si algo así llega, no es un enlace legítimo.
+    if any(c in u for c in "\\\r\n\t") or not re.match(r"(?i)^https?://[^\s/]", u):
+        return ""
+    return u
 
 
 @dataclass
@@ -128,10 +149,15 @@ def desde_dict(d: dict | None, dominio: str = "") -> Enlaces:
     """Reconstruye la configuración; sin datos, la deriva del dominio."""
     if not d:
         return Enlaces.desde_dominio(dominio)
+    # Los videos y banners se filtran acá, en el borde: es el único punto por
+    # el que entran URLs escritas a mano, y de acá salen directo al `href` de
+    # cada correo.
     return Enlaces(
         sitio=_normalizar_sitio(d.get("sitio") or dominio),
-        videos={k: v for k, v in (d.get("videos") or {}).items() if v},
-        banners={k: v for k, v in (d.get("banners") or {}).items() if v},
+        videos={k: _url_navegable(v) for k, v in (d.get("videos") or {}).items()
+                if _url_navegable(v)},
+        banners={k: _url_navegable(v) for k, v in (d.get("banners") or {}).items()
+                 if _url_navegable(v)},
         video_en_landing=bool(d.get("video_en_landing")),
         utm=bool(d.get("utm", True)),
     )

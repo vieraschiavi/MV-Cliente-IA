@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { agregarEnvio, api, descargar, getEmail, getLinkedIn, getSmtp, getX } from "../api.js";
+import { agregarEnvio, api, descargar, getEmail, getLinkedIn, getSmtp, getX, urlSegura } from "../api.js";
 import { Copiar, Idioma, Vacio } from "../componentes/Comunes.jsx";
 import { getCorridaId, useCorrida } from "../estado.js";
 import { t } from "../i18n/index.js";
@@ -39,7 +39,11 @@ async function abrirLinkedIn(correo, decisor) {
   } catch {
     /* sin permiso de portapapeles se abre igual */
   }
-  window.open(decisor?.linkedin || "https://www.linkedin.com/messaging/",
+  // El perfil sale de rastrear un sitio ajeno: se valida el esquema antes de
+  // abrirlo. En la app de PC este `window.open` termina en el manejador de
+  // URIs del sistema operativo (electron/main.js), así que un `file://` o un
+  // `ms-msdt:` acá no sería sólo una pestaña rara.
+  window.open(urlSegura(decisor?.linkedin) || "https://www.linkedin.com/messaging/",
     "_blank", "noopener");
 }
 
@@ -48,12 +52,12 @@ function Enlaces({ correo }) {
   return (
     <p className="enlaces-msg">
       {correo.video_url ? (
-        <a href={correo.video_url} target="_blank" rel="noreferrer">▸ {t("correos.video")}</a>
+        <a href={urlSegura(correo.video_url)} target="_blank" rel="noreferrer">▸ {t("correos.video")}</a>
       ) : (
         <span className="apagado">{t("correos.sin_video")}</span>
       )}
       {correo.landing_url ? (
-        <a href={correo.landing_url} target="_blank" rel="noreferrer">🔗 {t("correos.web")}</a>
+        <a href={urlSegura(correo.landing_url)} target="_blank" rel="noreferrer">🔗 {t("correos.web")}</a>
       ) : null}
     </p>
   );
@@ -104,8 +108,19 @@ function Mensaje({ correo, decisor, para, setPara, enviar, estado, smtpListo }) 
         <>
           {/* El correo se previsualiza dentro de un iframe aislado: es HTML de
               cliente de correo (tablas, estilos en línea) y meterlo en el DOM
-              de la app le pisaría los estilos a las dos partes. */}
-          <iframe className="vista-html" title={correo.asunto} srcDoc={correo.cuerpo_html} />
+              de la app le pisaría los estilos a las dos partes.
+
+              `sandbox=""` (vacío, o sea TODO denegado) no es decorativo: un
+              documento cargado por `srcDoc` hereda el origen del padre, así
+              que sin esto un `<script>` que se colara en el cuerpo del correo
+              correría con acceso al localStorage de la app — donde viven la
+              clave SMTP, la del modelo y las de X y LinkedIn. El HTML del
+              correo lo redacta un modelo y lleva datos de sitios ajenos: no
+              es contenido propio. Un correo es tablas y estilos en línea
+              (Outlook no soporta más que eso), así que negar scripts no le
+              saca nada a la vista previa. */}
+          <iframe className="vista-html" sandbox="" title={correo.asunto}
+                  srcDoc={correo.cuerpo_html} />
           <div className="acciones">
             <Copiar texto={correo.cuerpo_html} etiqueta={t("correos.copiar_html")} />
             <button className="btn ghost" onClick={() => abrirHtml(correo.cuerpo_html)}>
@@ -299,7 +314,7 @@ function Automatizar({ listos, adjunto, smtp, correoDe, corrida }) {
           {comp.x ? (
             comp.x.ok
               ? <p style={{ margin: 0 }}>✔ {t("auto.listo_x")}{" "}
-                  <a href={comp.x.url} target="_blank" rel="noreferrer">{comp.x.url}</a></p>
+                  <a href={urlSegura(comp.x.url)} target="_blank" rel="noreferrer">{comp.x.url}</a></p>
               : <p className="error-note" style={{ margin: 0 }}>✘ X: {comp.x.detalle}</p>
           ) : null}
           {Object.entries(comp.manuales || {}).map(([canal, n]) => (

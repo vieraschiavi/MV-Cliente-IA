@@ -16,10 +16,32 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // La firma sale de variables de entorno (secrets del CI), nunca de un
+    // keystore versionado. Si no están, no se define la config y el build de
+    // release falla en vez de caer a la clave de debug sin avisar.
+    signingConfigs {
+        release {
+            if (System.getenv("MVCLIENTE_KEYSTORE")) {
+                storeFile file(System.getenv("MVCLIENTE_KEYSTORE"))
+                storePassword System.getenv("MVCLIENTE_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("MVCLIENTE_KEY_ALIAS")
+                keyPassword System.getenv("MVCLIENTE_KEY_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         release {
+            // Explícito aunque sea el default: el APK que se publicaba era el
+            // de DEBUG, y ahí `debuggable` es true. Con eso, cualquiera con el
+            // teléfono en la mano y adb corría `run-as` y leía el localStorage
+            // del WebView — la clave del modelo, la del correo y las de X y
+            // LinkedIn. Que esté escrito evita que se vuelva a colar.
+            debuggable false
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (System.getenv("MVCLIENTE_KEYSTORE")) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }

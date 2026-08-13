@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { fmtScore } from "../api.js";
+import { fmtScore, urlSegura } from "../api.js";
 import { etiquetasOla, Idioma, Ola, Tabla, Vacio } from "../componentes/Comunes.jsx";
 import { getCorridaId, useCorrida } from "../estado.js";
 import { t } from "../i18n/index.js";
@@ -25,7 +25,7 @@ export default function Decisores() {
       render: (d) => (d.nombre
         ? <>{d.nombre} {d.sintetico ? <span className="pill mundo">{t("decisores.sintetico")}</span> : null}</>
         : (d.linkedin
-            ? <a href={d.linkedin} target="_blank" rel="noreferrer">
+            ? <a href={urlSegura(d.linkedin)} target="_blank" rel="noreferrer">
                 {/* Con la página de la empresa conocida, el enlace lleva a
                     sus empleados ACTUALES filtrados por el cargo. */}
                 {d.linkedin.includes("/company/")
@@ -51,8 +51,8 @@ export default function Decisores() {
         }
         const canales = [
           c.telefono ? <a key="t" href={`tel:${c.telefono}`}>☎ {c.telefono}</a> : null,
-          c.linkedin ? <a key="l" href={c.linkedin} target="_blank" rel="noreferrer">LinkedIn</a> : null,
-          c.instagram ? <a key="i" href={c.instagram} target="_blank" rel="noreferrer">Instagram</a> : null,
+          c.linkedin ? <a key="l" href={urlSegura(c.linkedin)} target="_blank" rel="noreferrer">LinkedIn</a> : null,
+          c.instagram ? <a key="i" href={urlSegura(c.instagram)} target="_blank" rel="noreferrer">Instagram</a> : null,
         ].filter(Boolean);
         if (canales.length) {
           return <span style={{ display: "inline-flex", gap: 10, flexWrap: "wrap" }}>

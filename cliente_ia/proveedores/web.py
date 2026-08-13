@@ -11,8 +11,11 @@ pasa al siguiente proveedor sin romper la corrida.
 """
 from __future__ import annotations
 
+import ipaddress
 import re
+import socket
 import urllib.error
+import urllib.parse
 import urllib.request
 from html import unescape
 
@@ -24,22 +27,87 @@ from .demo import ProveedorDemo, _texto, semilla
 TIMEOUT = 12
 LARGO_MAX = 400_000          # 400 KB de HTML alcanzan de sobra para el <head> y el hero
 UA = "Mozilla/5.0 (compatible; MVClienteIA/1.0; +https://github.com/vieraschiavi/MV-Cliente-IA)"
+# Un sitio público vive en 80 o 443. Cualquier otro puerto que alguien pida
+# es, en la práctica, un escaneo de la red donde corre el motor.
+PUERTOS_PERMITIDOS = {80, 443}
 
 
 class ErrorWeb(RuntimeError):
     pass
 
 
+def _revisar_destino(url: str) -> None:
+    """Deja pasar sólo http/https hacia una IP pública.
+
+    El dominio lo elige quien usa el programa, y el motor lo va a buscar
+    desde el servidor: sin este filtro, pedir `http://127.0.0.1:8000/` o
+    `http://169.254.169.254/latest/meta-data/` hacía que el servidor leyera
+    su propia red interna —o la metadata de la nube, con sus credenciales— y
+    devolviera el contenido dentro de `empresa.resumen_sitio`. Es decir: no
+    era un SSRF ciego, el texto volvía a la pantalla.
+
+    Se resuelven TODAS las direcciones del host y basta una interna para
+    rechazar: un dominio puede apuntar a varias, y alcanzaría con que una
+    sola sea 127.0.0.1.
+    """
+    partes = urllib.parse.urlsplit(url)
+    if partes.scheme not in ("http", "https"):
+        raise ErrorWeb(f"Sólo se leen sitios http/https, no {partes.scheme!r}")
+    host = partes.hostname
+    if not host:
+        raise ErrorWeb(f"No se entiende la dirección: {url!r}")
+    puerto = partes.port or (443 if partes.scheme == "https" else 80)
+    if puerto not in PUERTOS_PERMITIDOS:
+        raise ErrorWeb(f"Puerto no permitido para leer un sitio: {puerto}")
+    try:
+        infos = socket.getaddrinfo(host, puerto, proto=socket.IPPROTO_TCP)
+    except OSError as e:
+        raise ErrorWeb(f"No se pudo resolver {host}: {e}") from e
+    for info in infos:
+        ip = ipaddress.ip_address(info[4][0])
+        if (ip.is_private or ip.is_loopback or ip.is_link_local
+                or ip.is_reserved or ip.is_multicast or ip.is_unspecified):
+            raise ErrorWeb(
+                f"{host} apunta a una dirección interna ({ip}); el motor "
+                "sólo lee sitios públicos")
+
+
+class _RedireccionesVigiladas(urllib.request.HTTPRedirectHandler):
+    """`urllib` sigue los redirects solo, así que filtrar únicamente la URL
+    inicial no alcanza: un sitio público puede contestar 302 hacia
+    `http://169.254.169.254/`. Cada salto se revisa con la misma vara."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        _revisar_destino(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+_abridor = urllib.request.build_opener(_RedireccionesVigiladas)
+
+
 def bajar(url: str, timeout: int = TIMEOUT) -> str:
+    # Un solo esquema: `http://http://127.0.0.1/` se colaba porque ya
+    # empezaba con "http://" y salteaba el forzado a https, quedando texto
+    # plano contra un servicio interno.
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
+    resto = url.split("://", 1)[1]
+    if resto.startswith(("http://", "https://")):
+        raise ErrorWeb(f"Dirección con dos esquemas: {url!r}")
+    _revisar_destino(url)
     pedido = urllib.request.Request(url, headers={"User-Agent": UA,
                                                   "Accept-Language": "es,pt,en"})
     try:
-        with urllib.request.urlopen(pedido, timeout=timeout) as r:   # noqa: S310
+        with _abridor.open(pedido, timeout=timeout) as r:            # noqa: S310
             crudo = r.read(LARGO_MAX)
             codificacion = r.headers.get_content_charset() or "utf-8"
+    except ErrorWeb:
+        raise                                    # el motivo real ya está claro
     except (urllib.error.URLError, OSError, ValueError) as e:
+        # Un redirect bloqueado sale envuelto en URLError: se desenvuelve para
+        # no perder el motivo ("apunta a una dirección interna").
+        if isinstance(getattr(e, "reason", None), ErrorWeb):
+            raise e.reason from e
         raise ErrorWeb(f"No se pudo leer {url}: {e}") from e
     return crudo.decode(codificacion, errors="replace")
 

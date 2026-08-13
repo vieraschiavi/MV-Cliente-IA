@@ -29,6 +29,36 @@ def test_salud(cliente):
     assert d["modos"] == ["demo", "web", "llm"]
 
 
+def test_ningun_sitio_ajeno_puede_leer_las_corridas(cliente):
+    """El programa instalado escucha en 127.0.0.1, pero una página web
+    maliciosa corre en la MISMA máquina: sin allowlist, un `fetch` desde
+    cualquier pestaña abierta se llevaba la investigación entera del cliente
+    (prospectos, decisores, empresas objetivo). Escuchar en loopback no
+    defiende de esto — el navegador sólo deja leer la respuesta si el
+    servidor contesta con `Access-Control-Allow-Origin`."""
+    r = cliente.get("/api/corridas", headers={"Origin": "https://sitio-malicioso.com"})
+    assert "access-control-allow-origin" not in {k.lower() for k in r.headers}
+
+    # El APK sí cruza de origen de verdad: el WebView de Capacitor es
+    # `https://localhost` y le pega a un servidor configurado por el usuario.
+    for origen in ("https://localhost", "http://localhost", "capacitor://localhost"):
+        r = cliente.get("/api/corridas", headers={"Origin": origen})
+        assert r.headers.get("access-control-allow-origin") == origen, origen
+
+
+def test_las_respuestas_llevan_los_encabezados_de_seguridad(cliente):
+    """`vercel.json` se los pone a la web, pero el programa INSTALADO no
+    tiene Vercel adelante: es este uvicorn sirviendo el HTML y salía pelado.
+    Importa porque la pantalla de Correos previsualiza HTML que redactó un
+    modelo y las fichas muestran texto traído de sitios ajenos."""
+    r = cliente.get("/api/salud")
+    assert "default-src 'self'" in r.headers["content-security-policy"]
+    assert "object-src 'none'" in r.headers["content-security-policy"]
+    assert r.headers["x-content-type-options"] == "nosniff"
+    assert r.headers["x-frame-options"] == "SAMEORIGIN"
+    assert r.headers["referrer-policy"] == "strict-origin-when-cross-origin"
+
+
 def test_catalogo_geo_devuelve_las_tres_olas_en_orden(cliente):
     d = cliente.get("/api/geo").json()
     olas = d["olas"]

@@ -67,16 +67,51 @@ jobs:
       - name: Compilar la web y sincronizar Capacitor
         run: npm run sync:android
 
-      - name: Construir el APK de debug
-        # Firmado con la clave de debug: instala directo habilitando
-        # "instalar apps desconocidas". Para Play Store haría falta una firma
-        # de release propia.
-        run: ./gradlew assembleDebug --no-daemon
+      - name: Preparar el keystore de firma
+        # El APK que se publicaba era el de DEBUG: `debuggable=true` y firmado
+        # con la clave de debug de Gradle. Cualquiera con el teléfono y adb
+        # hacía `run-as` y se llevaba el localStorage del WebView, donde viven
+        # la clave del modelo, la del correo y las de X y LinkedIn. Ahora se
+        # publica un release firmado de verdad.
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::Falta el secret ANDROID_KEYSTORE_BASE64 (y sus contraseñas)."
+            echo "Generá el keystore una vez y guardalo como secret:"
+            echo "  keytool -genkeypair -v -keystore mvclienteia.jks -keyalg RSA \\"
+            echo "          -keysize 4096 -validity 10000 -alias mvclienteia"
+            echo "  base64 -w0 mvclienteia.jks   # -> secret ANDROID_KEYSTORE_BASE64"
+            echo "Y agregá ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS y ANDROID_KEY_PASSWORD."
+            echo "GUARDÁ EL .jks: si se pierde, no se puede volver a publicar una"
+            echo "actualización sobre las instalaciones existentes."
+            exit 1
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/mvclienteia.jks"
+
+      - name: Construir el APK de release firmado
+        env:
+          MVCLIENTE_KEYSTORE: ${{ runner.temp }}/mvclienteia.jks
+          MVCLIENTE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          MVCLIENTE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          MVCLIENTE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease --no-daemon
         working-directory: android
+
+      - name: Comprobar que el APK no sea depurable
+        # El motivo entero de este cambio. Si `debuggable` volviera a colarse,
+        # esto corta antes de publicarlo, no después.
+        run: |
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          AAPT=$(find "$ANDROID_HOME/build-tools" -name aapt2 | sort | tail -1)
+          if "$AAPT" dump badging "$APK" 2>/dev/null | grep -q "application-debuggable"; then
+            echo "::error::El APK quedó marcado como depurable"; exit 1
+          fi
+          echo "OK: el APK de release no es depurable"
 
       - name: Nombrar el APK y calcular SHA-256
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk MVClienteIA.apk
+          cp android/app/build/outputs/apk/release/app-release.apk MVClienteIA.apk
           sha256sum MVClienteIA.apk > MVClienteIA.apk.sha256
           cat MVClienteIA.apk.sha256
 
