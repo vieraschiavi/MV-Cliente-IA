@@ -197,11 +197,30 @@ def test_modo_invalido_se_rechaza(cliente):
     assert r.status_code == 422
 
 
+def test_modelos_ia_trae_la_lista_del_proveedor(cliente, monkeypatch):
+    """El botón «Actualizar» de Configuración: pega en /api/ia/modelos y el
+    servidor le pregunta al proveedor con la clave del usuario."""
+    from cliente_ia.proveedores import llm as modulo_llm
+
+    monkeypatch.setattr(modulo_llm, "listar_modelos",
+                        lambda proveedor, clave: [f"{proveedor}-modelo-1",
+                                                   f"{proveedor}-modelo-2"])
+    r = cliente.post("/api/ia/modelos", json={"proveedor": "claude", "clave": "sk-x"})
+    assert r.status_code == 200
+    assert r.json() == {"modelos": ["claude-modelo-1", "claude-modelo-2"]}
+
+
+def test_modelos_ia_sin_clave_da_422_no_500(cliente):
+    r = cliente.post("/api/ia/modelos", json={"proveedor": "claude", "clave": ""})
+    assert r.status_code == 422
+    assert "clave" in r.json()["detail"].lower()
+
+
 @pytest.mark.parametrize("cuerpo", [
     {"dominio": "x"},                                    # dominio muy corto
     {"dominio": "ejemplo.com", "prospectos": 0},         # fuera de rango
     {"dominio": "ejemplo.com", "prospectos": 99999},     # fuera de rango
-    {"dominio": "ejemplo.com", "proveedor_ia": "grok"},  # proveedor desconocido
+    {"dominio": "ejemplo.com", "proveedor_ia": "bing"},  # proveedor desconocido
 ])
 def test_entrada_invalida_se_rechaza(cliente, cuerpo):
     assert cliente.post("/api/corridas", json=cuerpo).status_code == 422

@@ -10,6 +10,7 @@ clave en Configuración y elige proveedor:
 - **gemini**  → Google Gemini vía generateContent (REST).
 - **copilot** → Azure OpenAI (el Copilot "de consumo" no vende clave de API;
   la vía real es un recurso de Azure OpenAI: URL del endpoint + api-key).
+- **grok**    → API de xAI, compatible con el formato de OpenAI (REST).
 
 Es opcional: sin clave la clase no se instancia y el pipeline sigue con
 demo/web, que es el camino que corren los tests.
@@ -39,7 +40,7 @@ from .base import Proveedor
 from .demo import ProveedorDemo
 
 MODELO_DEFAULT = "claude-opus-5"
-PROVEEDORES_IA = ("claude", "openai", "gemini", "copilot")
+PROVEEDORES_IA = ("claude", "openai", "gemini", "copilot", "grok")
 # Modelos por defecto de cada proveedor, pisables por variable de entorno.
 # Copilot no lleva: en Azure el modelo lo decide el deployment del endpoint.
 MODELOS_IA = {
@@ -47,7 +48,15 @@ MODELOS_IA = {
     "openai": lambda: os.getenv("MVCLIENTE_MODELO_OPENAI", "gpt-4o"),
     "gemini": lambda: os.getenv("MVCLIENTE_MODELO_GEMINI", "gemini-2.5-flash"),
     "copilot": lambda: os.getenv("MVCLIENTE_MODELO_COPILOT", ""),
+    "grok": lambda: os.getenv("MVCLIENTE_MODELO_GROK", "grok-4"),
 }
+# Proveedores cuya lista de modelos se puede traer con un GET a su API
+# pública: el usuario pega la clave y el selector de Configuración se llena
+# solo, con los modelos que ESA clave puede usar hoy — sin tocar código acá
+# cada vez que el proveedor lanza uno nuevo. Copilot queda afuera a
+# propósito: en Azure el modelo lo fija el deployment que ya viaja en la URL
+# del endpoint, no hay lista que traer.
+PROVEEDORES_CON_LISTA_DE_MODELOS = ("claude", "openai", "gemini", "grok")
 # 180 y no 90: una corrida real desde la app de PC murió con TimeoutError en
 # la fase de competencia a los 90 segundos clavados — los modelos con
 # razonamiento tardan eso y más con un prompt grande. Pisable por entorno
@@ -137,6 +146,71 @@ def _json_del_texto(texto: str):
         raise ErrorLLM(f"El modelo no devolvió JSON válido: {e}") from e
 
 
+def listar_modelos(proveedor: str, clave: str, endpoint: str = "") -> list[str]:
+    """Los modelos que ESTA clave puede usar hoy, tal como los devuelve la
+    API pública de cada proveedor — es el botón "Actualizar" de
+    Configuración: en vez de tener la lista escrita a mano y desactualizarse
+    cada vez que el proveedor lanza un modelo nuevo, se pregunta en el
+    momento. `endpoint` no se usa (queda por simetría con el resto de las
+    llamadas): Copilot no entra a `PROVEEDORES_CON_LISTA_DE_MODELOS` porque
+    su modelo lo fija el deployment de Azure, no una clave de API sola."""
+    proveedor = (proveedor or "").lower()
+    if proveedor not in PROVEEDORES_CON_LISTA_DE_MODELOS:
+        raise ErrorLLM(f"{proveedor or 'este proveedor'} no tiene una lista "
+                       "de modelos para traer: el modelo se escribe a mano")
+    clave = (clave or "").strip()
+    if not clave:
+        raise ErrorLLM("Pegá la clave de API antes de actualizar los modelos")
+
+    if proveedor == "claude":
+        url = "https://api.anthropic.com/v1/models"
+        cabeceras = {"x-api-key": clave, "anthropic-version": "2023-06-01"}
+    elif proveedor == "openai":
+        url, cabeceras = "https://api.openai.com/v1/models", \
+            {"Authorization": f"Bearer {clave}"}
+    elif proveedor == "grok":
+        url, cabeceras = "https://api.x.ai/v1/models", \
+            {"Authorization": f"Bearer {clave}"}
+    else:                                                 # gemini
+        url = f"https://generativelanguage.googleapis.com/v1beta/models?key={clave}"
+        cabeceras = {}
+
+    peticion = urllib.request.Request(url, headers=cabeceras)
+    try:
+        with urllib.request.urlopen(peticion, timeout=TIMEOUT) as r:
+            datos = json.load(r)
+    except urllib.error.HTTPError as e:
+        detalle = ""
+        try:
+            detalle = e.read().decode()[:200]
+        except Exception:                                # noqa: BLE001
+            pass
+        detalle = detalle.replace(clave, "•••")
+        raise ErrorLLM(f"{proveedor} respondió {e.code} al pedir los "
+                       f"modelos: {detalle}") from e
+    except ErrorLLM:
+        raise
+    except Exception as e:                               # noqa: BLE001
+        raise ErrorLLM(f"No se pudo consultar los modelos de {proveedor}: "
+                       f"{type(e).__name__}") from e
+
+    if proveedor == "gemini":
+        # Gemini lista de todo (embeddings, TTS, imagen…): sólo sirven acá
+        # los que generan texto por chat.
+        nombres = [
+            m.get("name", "").removeprefix("models/")
+            for m in (datos.get("models") or [])
+            if "generateContent" in (m.get("supportedGenerationMethods") or [])
+        ]
+    else:
+        nombres = [m.get("id", "") for m in (datos.get("data") or [])]
+    nombres = sorted({n for n in nombres if n})
+    if not nombres:
+        raise ErrorLLM(f"{proveedor} no devolvió ningún modelo disponible "
+                       "para esta clave")
+    return nombres
+
+
 class ProveedorLLM(Proveedor):
     nombre = "llm"
 
@@ -217,9 +291,12 @@ class ProveedorLLM(Proveedor):
             return self._pedir_una_vez(prompt, max_tokens)
 
     def _pedir_una_vez(self, prompt: str, max_tokens: int = 8000) -> str:
-        if self.proveedor == "openai" or self.proveedor == "copilot":
+        if self.proveedor in ("openai", "copilot", "grok"):
             if self.proveedor == "openai":
                 url = "https://api.openai.com/v1/chat/completions"
+                cabeceras = {"Authorization": f"Bearer {self.clave}"}
+            elif self.proveedor == "grok":
+                url = "https://api.x.ai/v1/chat/completions"
                 cabeceras = {"Authorization": f"Bearer {self.clave}"}
             else:
                 url = self.endpoint                      # Azure: deployment en la URL

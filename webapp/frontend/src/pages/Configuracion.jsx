@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import {
-  api, esNativo, getBase, getClaveIA, getEndpointIA, getOwner, getProveedorIA,
-  activarLicencia, getLicencia, getLinkedIn, getSmtp, getX, setBase, setClaveIA,
-  setEndpointIA, setLinkedIn, setOwner, setProveedorIA, setSmtp, setToken, setX,
+  api, esNativo, getBase, getClaveIA, getEndpointIA, getModeloIA, getModelosActualizado,
+  getModelosDisponibles, getOwner, getProveedorIA, activarLicencia, getLicencia,
+  getLinkedIn, getSmtp, getX, listarModelosIA, PROVEEDORES_CON_LISTA_DE_MODELOS,
+  setBase, setClaveIA, setEndpointIA, setLinkedIn, setModeloIA, setModelosDisponibles,
+  setOwner, setProveedorIA, setSmtp, setToken, setX,
 } from "../api.js";
 import { SelectorIdioma } from "../App.jsx";
 import { Aviso } from "../componentes/Comunes.jsx";
@@ -247,11 +249,50 @@ export default function Configuracion({ onSalir }) {
   const [owner, setOwnerLocal] = useState(getOwner());
   const [proveedor, setProveedorLocal] = useState(getProveedorIA());
   const [endpoint, setEndpointLocal] = useState(getEndpointIA());
+  // El modelo puntual dentro del proveedor (regula el consumo de tokens de
+  // ESTE cliente) y la última lista que trajo el botón «Actualizar» — una
+  // caché por proveedor, para no perderla al ir y volver del selector.
+  const [modelo, setModeloLocal] = useState(getModeloIA(proveedor));
+  const [modelos, setModelosLocal] = useState(getModelosDisponibles(proveedor));
+  const [actualizadoModelos, setActualizadoModelos] = useState(getModelosActualizado(proveedor));
+  const [actualizandoModelos, setActualizandoModelos] = useState(false);
+  const [errorModelos, setErrorModelos] = useState("");
+  const hayListaModelos = PROVEEDORES_CON_LISTA_DE_MODELOS.includes(proveedor);
+
+  // Al cambiar de proveedor se muestra LO SUYO: su modelo elegido y su
+  // última lista traída, no lo que quedó puesto del proveedor anterior.
+  const elegirProveedor = (p) => {
+    setProveedorLocal(p);
+    setModeloLocal(getModeloIA(p));
+    setModelosLocal(getModelosDisponibles(p));
+    setActualizadoModelos(getModelosActualizado(p));
+    setErrorModelos("");
+  };
+
+  const actualizarModelos = async () => {
+    setErrorModelos("");
+    setActualizandoModelos(true);
+    try {
+      const r = await listarModelosIA(proveedor, clave.trim());
+      setModelosLocal(r.modelos);
+      setModelosDisponibles(proveedor, r.modelos);
+      setActualizadoModelos(new Date().toISOString());
+      // Si el modelo elegido hasta ahora ya no está en la lista nueva (o
+      // todavía no había ninguno), se cae al primero — nunca se manda al
+      // servidor un modelo que el proveedor ya no reconoce.
+      if (!r.modelos.includes(modelo)) setModeloLocal(r.modelos[0] || "");
+    } catch (err) {
+      setErrorModelos(err.message);
+    } finally {
+      setActualizandoModelos(false);
+    }
+  };
 
   // El formato de la clave delata al proveedor; mostrar el prefijo esperado
   // evita el clásico "pegué la de OpenAI con Claude elegido".
   const pistaClave = {
     claude: "sk-ant-…", openai: "sk-…", gemini: "AIza…", copilot: "········",
+    grok: "xai-…",
   }[proveedor];
 
   const guardarClave = (e) => {
@@ -259,6 +300,7 @@ export default function Configuracion({ onSalir }) {
     setClaveIA(clave);
     setProveedorIA(proveedor);
     setEndpointIA(proveedor === "copilot" ? endpoint : "");
+    setModeloIA(proveedor, modelo);
     // El código de dueño se guarda junto: viaja como encabezado y exime del
     // cupo gratis de la web (se valida en el servidor contra MVCLIENTE_OWNER).
     setOwner(owner);
@@ -310,11 +352,12 @@ export default function Configuracion({ onSalir }) {
         <div className="campo" style={{ maxWidth: 300, marginBottom: 10 }}>
           <label htmlFor="proveedor-ia">{t("config.proveedor")}</label>
           <select id="proveedor-ia" value={proveedor}
-                  onChange={(e) => setProveedorLocal(e.target.value)}>
+                  onChange={(e) => elegirProveedor(e.target.value)}>
             <option value="claude">{t("config.proveedor_claude")}</option>
             <option value="openai">{t("config.proveedor_openai")}</option>
             <option value="gemini">{t("config.proveedor_gemini")}</option>
             <option value="copilot">{t("config.proveedor_copilot")}</option>
+            <option value="grok">{t("config.proveedor_grok")}</option>
           </select>
         </div>
         <div className="campo crece" style={{ marginBottom: 10 }}>
@@ -337,6 +380,37 @@ export default function Configuracion({ onSalir }) {
             </div>
             <p className="nota" style={{ marginTop: 0 }}>{t("config.endpoint_ayuda")}</p>
           </>
+        ) : null}
+        {/* El modelo puntual: regula el consumo de tokens del cliente sin
+            tocar código — Copilot queda afuera porque en Azure el modelo lo
+            fija el deployment de la URL, no hay lista que traer. */}
+        {hayListaModelos ? (
+          <div className="campo crece" style={{ marginBottom: 10 }}>
+            <label htmlFor="modelo-ia">{t("config.modelo")}</label>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <select id="modelo-ia" value={modelo} style={{ flex: "1 1 220px" }}
+                      onChange={(e) => setModeloLocal(e.target.value)}>
+                <option value="">{t("config.modelo_default")}</option>
+                {modelos.map((m) => <option key={m} value={m}>{m}</option>)}
+              </select>
+              <button className="btn ghost" type="button" onClick={actualizarModelos}
+                      disabled={actualizandoModelos || !clave.trim()}>
+                {actualizandoModelos ? t("config.modelo_actualizando") : t("config.modelo_actualizar")}
+              </button>
+            </div>
+            <p className="nota" style={{ marginTop: 6 }}>
+              {modelos.length ? (
+                <>
+                  {t("config.modelo_ayuda", { n: modelos.length })}
+                  {actualizadoModelos ? (
+                    <> {t("config.modelo_actualizado",
+                        { fecha: new Date(actualizadoModelos).toLocaleDateString() })}</>
+                  ) : null}
+                </>
+              ) : t("config.modelo_sin_lista")}
+            </p>
+            {errorModelos ? <p className="error-note">{errorModelos}</p> : null}
+          </div>
         ) : null}
         <p className="nota" style={{ marginTop: 0 }}>{t("config.clave_ayuda")}</p>
         <div className="campo crece" style={{ margin: "12px 0 6px" }}>

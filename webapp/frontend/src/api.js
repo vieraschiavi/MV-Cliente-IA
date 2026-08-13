@@ -15,6 +15,12 @@ const KEY_BASE = "mvcliente_base";
 const KEY_CLAVE_IA = "mvcliente_clave_ia";
 const KEY_PROVEEDOR_IA = "mvcliente_proveedor_ia";
 const KEY_ENDPOINT_IA = "mvcliente_endpoint_ia";
+// El modelo elegido y la última lista traída del proveedor, UNO POR
+// PROVEEDOR (a diferencia de la clave, que es una sola activa a la vez):
+// así cambiar de proveedor y volver no hace perder lo que ya se eligió ni
+// obliga a apretar "Actualizar" de nuevo. `{claude: {modelo, modelos,
+// actualizado}, openai: {...}, …}`.
+const KEY_MODELOS_IA = "mvcliente_modelos_ia";
 // Código de dueño del despliegue web: exime del cupo gratis. Se compara en
 // el servidor contra la variable MVCLIENTE_OWNER.
 const KEY_OWNER = "mvcliente_owner";
@@ -52,7 +58,10 @@ export function setClaveIA(clave) {
   else localStorage.removeItem(KEY_CLAVE_IA);
 }
 
-export const PROVEEDORES_IA = ["claude", "openai", "gemini", "copilot"];
+export const PROVEEDORES_IA = ["claude", "openai", "gemini", "copilot", "grok"];
+// Copilot no entra: en Azure el modelo lo fija el deployment de la URL del
+// endpoint, no hay lista que traer (cliente_ia/proveedores/llm.py).
+export const PROVEEDORES_CON_LISTA_DE_MODELOS = ["claude", "openai", "gemini", "grok"];
 
 export function getProveedorIA() {
   const p = localStorage.getItem(KEY_PROVEEDOR_IA) || "claude";
@@ -70,6 +79,51 @@ export function setEndpointIA(url) {
   const limpia = (url || "").trim();
   if (limpia) localStorage.setItem(KEY_ENDPOINT_IA, limpia);
   else localStorage.removeItem(KEY_ENDPOINT_IA);
+}
+
+function _modelosIA() {
+  try {
+    return JSON.parse(localStorage.getItem(KEY_MODELOS_IA)) || {};
+  } catch {
+    return {};
+  }
+}
+function _guardarModelosIA(datos) {
+  localStorage.setItem(KEY_MODELOS_IA, JSON.stringify(datos));
+}
+
+// El modelo puntual elegido para regular el consumo de tokens (p. ej.
+// "claude-haiku-4-5" en vez del default del servidor). Vacío = default.
+export function getModeloIA(proveedor) {
+  return _modelosIA()[proveedor]?.modelo || "";
+}
+export function setModeloIA(proveedor, modelo) {
+  const todos = _modelosIA();
+  todos[proveedor] = { ...todos[proveedor], modelo: (modelo || "").trim() };
+  _guardarModelosIA(todos);
+}
+
+// La última lista de modelos que devolvió la API del proveedor (botón
+// «Actualizar»), en caché para no tener que volver a pedirla cada vez que
+// se abre Configuración.
+export function getModelosDisponibles(proveedor) {
+  return _modelosIA()[proveedor]?.modelos || [];
+}
+export function getModelosActualizado(proveedor) {
+  return _modelosIA()[proveedor]?.actualizado || "";
+}
+export function setModelosDisponibles(proveedor, modelos) {
+  const todos = _modelosIA();
+  todos[proveedor] = { ...todos[proveedor], modelos,
+                       actualizado: new Date().toISOString() };
+  _guardarModelosIA(todos);
+}
+
+// Le pregunta al servidor (que a su vez le pregunta al proveedor con esta
+// clave) qué modelos hay disponibles ahora mismo. La clave viaja sólo en
+// esta petición, igual que en una corrida.
+export function listarModelosIA(proveedor, clave) {
+  return api("/api/ia/modelos", { metodo: "POST", cuerpo: { proveedor, clave } });
 }
 
 // Correo del usuario para las búsquedas reales gratis de la web: el servidor

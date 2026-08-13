@@ -25,13 +25,15 @@ MODOS = ("demo", "web", "llm")
 def construir(modo: str = "demo", idioma_base: str = "es",
               clave_ia: str = "", proveedor_ia: str = "claude",
               endpoint_ia: str = "", mercado: str = "todos",
-              pais_base: str = "") -> Proveedor:
+              pais_base: str = "", modelo_ia: str = "") -> Proveedor:
     """`clave_ia` es la clave que el usuario pegó en la interfaz: vale para
     esta corrida y nada más. Nunca se guarda ni se escribe en un log.
-    `proveedor_ia` elige el modelo detrás: claude, openai, gemini o copilot
-    (Azure OpenAI, que además necesita `endpoint_ia`). `mercado` y `pais_base`
-    viajan al LLM para que la competencia se busque en el país que eligió el
-    cliente y no en uno cableado."""
+    `proveedor_ia` elige el modelo detrás: claude, openai, gemini, copilot
+    (Azure OpenAI, que además necesita `endpoint_ia`) o grok. `modelo_ia` es
+    el modelo puntual dentro de ese proveedor que el usuario eligió en
+    Configuración — vacío usa el default del servidor para ese proveedor.
+    `mercado` y `pais_base` viajan al LLM para que la competencia se busque
+    en el país que eligió el cliente y no en uno cableado."""
     modo = (modo or "demo").lower()
     if modo not in MODOS:
         raise ValueError(f"Modo desconocido: {modo} (esperaba uno de {MODOS})")
@@ -50,7 +52,8 @@ def construir(modo: str = "demo", idioma_base: str = "es",
     llm = ProveedorLLM(idioma_base, clave=clave_ia,
                        proveedor=proveedor_ia if clave_ia else "claude",
                        endpoint=endpoint_ia, mercado=mercado,
-                       pais_base=pais_base)
+                       pais_base=pais_base,
+                       modelo=modelo_ia if clave_ia else "")
     # `decisivo`: el usuario pidió IA por nombre. Si la IA falla en una fase
     # que implementa, la corrida falla con el motivo a la vista — no se
     # rellena con datos sintéticos. El demo queda en la cadena SÓLO para lo

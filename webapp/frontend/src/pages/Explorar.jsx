@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, apiStream, descargar, ErrorApi, esNativo, fmtScore, getBase, getClaveIA, getEmail, getEndpointIA, getProveedorIA, setEmail } from "../api.js";
+import { api, apiStream, descargar, ErrorApi, esNativo, fmtScore, getBase, getClaveIA, getEmail, getEndpointIA, getModeloIA, getProveedorIA, setEmail } from "../api.js";
 import { Aviso, etiquetasOla, Idioma, Kpis, Ola, Vacio } from "../componentes/Comunes.jsx";
 import { getCorridaId, setCorridaId, setCorridaLocal, useCorrida } from "../estado.js";
 import { getIdioma, t } from "../i18n/index.js";
@@ -146,12 +146,12 @@ export default function Explorar() {
         // El correo sólo hace falta para las búsquedas reales de la web
         // pública (cuenta el cupo gratis; el del dueño no descuenta).
         ...(form.modo !== "demo" && email.trim() ? { email: email.trim() } : {}),
-        // La clave sólo viaja cuando la corrida la necesita; el proveedor y
-        // el endpoint (Copilot/Azure) acompañan para que el servidor sepa a
-        // qué API llamar con ella.
+        // La clave sólo viaja cuando la corrida la necesita; el proveedor, el
+        // endpoint (Copilot/Azure) y el modelo elegido acompañan para que el
+        // servidor sepa a qué API y con qué modelo llamar con ella.
         ...(form.modo === "llm" && getClaveIA()
           ? { clave_ia: getClaveIA(), proveedor_ia: getProveedorIA(),
-              endpoint_ia: getEndpointIA() }
+              endpoint_ia: getEndpointIA(), modelo_ia: getModeloIA(getProveedorIA()) }
           : {}),
       };
       let r;

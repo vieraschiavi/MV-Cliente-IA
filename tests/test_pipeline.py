@@ -206,9 +206,9 @@ def test_la_clave_de_la_interfaz_habilita_el_modo_ia(monkeypatch):
 
 
 def test_proveedor_ia_elige_la_api_y_firma_los_avisos(monkeypatch):
-    """La clave puede ser de Claude, ChatGPT, Gemini o Copilot. El nombre del
-    proveedor tiene que viajar en la cadena (y por lo tanto en los avisos):
-    «openai · competencia: …» le dice al usuario QUÉ clave falló."""
+    """La clave puede ser de Claude, ChatGPT, Gemini, Copilot o Grok. El
+    nombre del proveedor tiene que viajar en la cadena (y por lo tanto en los
+    avisos): «openai · competencia: …» le dice al usuario QUÉ clave falló."""
     from cliente_ia import proveedores
     from cliente_ia.proveedores.llm import ErrorLLM, ProveedorLLM
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
@@ -219,9 +219,9 @@ def test_proveedor_ia_elige_la_api_y_firma_los_avisos(monkeypatch):
 
     # Un proveedor desconocido no se acepta en silencio.
     try:
-        ProveedorLLM(clave="x", proveedor="grok")
+        ProveedorLLM(clave="x", proveedor="bing")
     except ErrorLLM as e:
-        assert "grok" in str(e)
+        assert "bing" in str(e)
     else:
         raise AssertionError("proveedor desconocido tenía que fallar")
 
@@ -706,6 +706,90 @@ def test_el_error_http_del_proveedor_no_repite_la_clave(monkeypatch):
     p = ProveedorLLM(clave="sk-super-secreta-123", proveedor="openai")
     try:
         p._pedir("hola")
+    except ErrorLLM as e:
+        assert "sk-super-secreta-123" not in str(e)
+        assert "401" in str(e)
+    else:
+        raise AssertionError("el 401 tenía que propagarse como ErrorLLM")
+
+
+class _RespuestaFalsa:
+    """Un `with urllib.request.urlopen(...) as r: json.load(r)` sin red:
+    basta con `.read()` devolviendo los bytes del JSON."""
+
+    def __init__(self, payload):
+        import json
+        self._payload = json.dumps(payload).encode()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def read(self):
+        return self._payload
+
+
+def test_listar_modelos_trae_los_de_cada_proveedor(monkeypatch):
+    """El botón «Actualizar» de Configuración: cada proveedor devuelve sus
+    modelos en una forma distinta, y acá se homogeneizan a una lista plana
+    de nombres. Gemini de paso saca lo que no sirve para chat (embeddings)."""
+    from cliente_ia.proveedores.llm import ErrorLLM, listar_modelos
+
+    respuestas = {
+        "claude": {"data": [{"id": "claude-opus-5"}, {"id": "claude-haiku-4-5"}]},
+        "openai": {"data": [{"id": "gpt-4o"}, {"id": "gpt-4o-mini"}]},
+        "grok": {"data": [{"id": "grok-4"}]},
+        "gemini": {"models": [
+            {"name": "models/gemini-2.5-flash",
+             "supportedGenerationMethods": ["generateContent"]},
+            {"name": "models/embedding-001",
+             "supportedGenerationMethods": ["embedContent"]},
+        ]},
+    }
+    esperado = {
+        "claude": ["claude-haiku-4-5", "claude-opus-5"],
+        "openai": ["gpt-4o", "gpt-4o-mini"],
+        "grok": ["grok-4"],
+        "gemini": ["gemini-2.5-flash"],
+    }
+    for proveedor, payload in respuestas.items():
+        monkeypatch.setattr("urllib.request.urlopen",
+                            lambda *a, _p=payload, **k: _RespuestaFalsa(_p))
+        assert listar_modelos(proveedor, "clave-de-prueba") == esperado[proveedor]
+
+    # Copilot no tiene lista: el modelo lo fija el deployment de Azure.
+    try:
+        listar_modelos("copilot", "clave-de-prueba")
+    except ErrorLLM as e:
+        assert "modelo se escribe a mano" in str(e)
+    else:
+        raise AssertionError("copilot no debería tener lista de modelos")
+
+    # Sin clave no hay nada que preguntar.
+    try:
+        listar_modelos("claude", "")
+    except ErrorLLM as e:
+        assert "clave" in str(e).lower()
+    else:
+        raise AssertionError("sin clave tenía que fallar")
+
+
+def test_listar_modelos_no_repite_la_clave_en_el_error(monkeypatch):
+    import io
+    import urllib.error
+
+    from cliente_ia.proveedores.llm import ErrorLLM, listar_modelos
+
+    def _falla_401(*args, **kwargs):
+        raise urllib.error.HTTPError(
+            "https://api.openai.com/v1/models", 401, "Unauthorized", {},
+            io.BytesIO(b'{"error": "bad key: sk-super-secreta-123"}'))
+
+    monkeypatch.setattr("urllib.request.urlopen", _falla_401)
+    try:
+        listar_modelos("openai", "sk-super-secreta-123")
     except ErrorLLM as e:
         assert "sk-super-secreta-123" not in str(e)
         assert "401" in str(e)

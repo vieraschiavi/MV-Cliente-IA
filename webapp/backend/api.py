@@ -753,6 +753,28 @@ def catalogo_geo(pais: str = "", idioma: str = "es"):
 
 
 # ---------------------------------------------------------------------------
+# Modelos de IA disponibles para la clave del usuario
+# ---------------------------------------------------------------------------
+class ModelosIaIn(BaseModel):
+    proveedor: str = "claude"
+    clave: str = Field(default="", max_length=300)
+
+
+@app.post("/api/ia/modelos", dependencies=[Depends(requiere_auth)])
+def modelos_ia(entrada: ModelosIaIn):
+    """El botón «Actualizar» de Configuración: le pregunta a la API del
+    proveedor elegido qué modelos puede usar ESTA clave ahora mismo, para
+    que el selector nunca quede atrás de lo que el proveedor lanzó último.
+    La clave viaja en el cuerpo y se descarta al terminar, igual que en una
+    corrida — nunca se guarda ni se loguea."""
+    from cliente_ia.proveedores.llm import ErrorLLM, listar_modelos
+    try:
+        return {"modelos": listar_modelos(entrada.proveedor, entrada.clave)}
+    except ErrorLLM as e:
+        raise HTTPException(422, str(e)) from e
+
+
+# ---------------------------------------------------------------------------
 # Corridas
 # ---------------------------------------------------------------------------
 class CorridaIn(BaseModel):
@@ -780,10 +802,14 @@ class CorridaIn(BaseModel):
     # Clave de IA pegada por el usuario en Configuración. Vale para esta
     # corrida: no se guarda, no se loguea y no entra en la corrida.
     clave_ia: str = Field(default="", max_length=300)
-    # Qué modelo hay detrás de la clave: claude | openai | gemini | copilot.
-    # Copilot es Azure OpenAI y necesita además la URL del endpoint.
+    # Qué modelo hay detrás de la clave: claude | openai | gemini | copilot |
+    # grok. Copilot es Azure OpenAI y necesita además la URL del endpoint.
     proveedor_ia: str = "claude"
     endpoint_ia: str = Field(default="", max_length=500)
+    # El modelo puntual dentro del proveedor (p. ej. "claude-opus-5"): lo
+    # elige el usuario en Configuración para regular su propio consumo de
+    # tokens. Vacío usa el default del servidor para ese proveedor.
+    modelo_ia: str = Field(default="", max_length=100)
     # Hasta mil por corrida — los tramos del selector (50/100/200/500/1000).
     # La corrida de mil pesa ~1,7 MB en JSON: entra en el límite de Vercel.
     prospectos: int = Field(default=pipeline.LIMITE_PROSPECTOS_DEFAULT, ge=5, le=1000)
@@ -808,6 +834,7 @@ def _lanzar(entrada: CorridaIn, corrida_id: str) -> None:
             clave_ia=entrada.clave_ia,
             proveedor_ia=entrada.proveedor_ia,
             endpoint_ia=entrada.endpoint_ia,
+            modelo_ia=entrada.modelo_ia,
             mercado=entrada.mercado,
             pais_base=entrada.pais,
         )
@@ -834,6 +861,7 @@ def _ejecutar_sin_estado(entrada: CorridaIn, al_avanzar=None):
         clave_ia=entrada.clave_ia,
         proveedor_ia=entrada.proveedor_ia,
         endpoint_ia=entrada.endpoint_ia,
+        modelo_ia=entrada.modelo_ia,
         mercado=entrada.mercado,
         pais_base=entrada.pais,
         al_avanzar=al_avanzar,
@@ -855,7 +883,7 @@ def crear_corrida(entrada: CorridaIn, request: Request, stream: int = 0):
     if geo.normalizar_nivel(entrada.mercado) != entrada.mercado \
             and entrada.mercado not in ("todos", "latam"):
         raise HTTPException(422, f"Mercado inválido: {entrada.mercado}")
-    if entrada.proveedor_ia not in ("claude", "openai", "gemini", "copilot"):
+    if entrada.proveedor_ia not in ("claude", "openai", "gemini", "copilot", "grok"):
         raise HTTPException(422, f"Proveedor de IA inválido: {entrada.proveedor_ia}")
 
     # Programa instalado (no serverless): manda la LICENCIA, no el cupo. La

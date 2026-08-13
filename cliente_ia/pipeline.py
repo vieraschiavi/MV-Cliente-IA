@@ -61,6 +61,7 @@ def ejecutar(dominio: str,
              clave_ia: str = "",
              proveedor_ia: str = "claude",
              endpoint_ia: str = "",
+             modelo_ia: str = "",
              mercado: str = "todos",
              pais_base: str = "") -> Corrida:
     """
@@ -118,7 +119,7 @@ def ejecutar(dominio: str,
     # corrida, ni en el disco, ni en ningún log.
     proveedor = proveedores.construir(modo, corrida.idioma_ui, clave_ia,
                                       proveedor_ia, endpoint_ia, mercado,
-                                      base.codigo)
+                                      base.codigo, modelo_ia)
 
     try:
         # --- Fase 1 · investigar la empresa -----------------------------
