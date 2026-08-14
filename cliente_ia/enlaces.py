@@ -19,11 +19,12 @@ campaña, qué idioma y qué empresa trajeron la visita.
 """
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass, field
-from urllib.parse import quote, urlencode
+from urllib.parse import quote, urlencode, urlsplit
 
-from . import geo
+from . import geo, metricas
 
 # Ruta de cada idioma dentro del sitio (la convención de Kobra).
 RUTA_IDIOMA = {"es": "", "pt": "pt/", "en": "en/"}
@@ -124,6 +125,32 @@ class Enlaces:
 
     def hay_video(self, idioma: str) -> bool:
         return bool(self.video(idioma))
+
+    # ------------------------------------------------------------------
+    def traqueada(self, url: str, meta: dict) -> str:
+        """El enlace que va al correo, envuelto por el redirect de conversión
+        `/api/ir` — así un click queda atribuido al segmento/canal/día.
+
+        Opt-in y sin efecto salvo que estén las DOS cosas: la URL pública del
+        redirect (`MVCLIENTE_URL_TRAQUEO`) y el secreto de firma. Sin eso, el
+        enlace sale directo como siempre — la función de métricas de
+        conversión se enciende poniendo esas dos variables, no por default.
+        """
+        base = (os.getenv("MVCLIENTE_URL_TRAQUEO") or "").strip()
+        if not url or not base or not metricas.hay_traqueo():
+            return url
+        if not url.startswith(("http://", "https://")):
+            return url
+        completa = {"programa": self._host(), **{k: v for k, v in meta.items() if v}}
+        return metricas.url_de_traqueo(base, url, completa)
+
+    def _host(self) -> str:
+        """El dominio del producto, que es la clave con la que se agrupan las
+        métricas por programa."""
+        try:
+            return (urlsplit(self.sitio).hostname or "").lower()
+        except ValueError:
+            return ""
 
     # ------------------------------------------------------------------
     def _utm(self, canal: str, idioma: str, campana_id: str, prospecto_id: str) -> str:

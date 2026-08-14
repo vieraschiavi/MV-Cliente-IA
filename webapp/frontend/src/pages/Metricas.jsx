@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { api, borrarEnvios, fmtNum, getEnvios, getX, urlSegura } from "../api.js";
+import React, { useEffect, useState } from "react";
+import { api, borrarEnvios, fmtNum, getEnvios, getX, resumenMetricas, urlSegura } from "../api.js";
 import { Aviso, Vacio } from "../componentes/Comunes.jsx";
 import { getIdioma, t } from "../i18n/index.js";
 
@@ -40,11 +40,68 @@ function fecha(iso) {
   }
 }
 
+/** Tablero de conversión del backend: a qué segmento, día y hora le fue
+ *  mejor. Es lo que Explee no da — cruza envíos con clicks reales al enlace
+ *  del correo (`/api/ir`). Sólo aparece cuando el servidor tiene datos. */
+function PanelConversion({ resumen }) {
+  if (!resumen || !resumen.envios) return null;
+  const pct = (t) => `${(Number(t || 0) * 100).toFixed(1)}%`;
+  // Segmento y canal SÍ tienen tasa (envío y conversión comparten la clave);
+  // día y hora son volumen de clicks, no una tasa — mostrarlos como tasa
+  // mentiría (el día de envío no es el día de click).
+  const porTasa = (m) => (m ? `${m.clave} · ${pct(m.tasa)}` : t("metricas.sin_muestra"));
+  const porPico = (m) =>
+    m ? `${m.clave} · ${fmtNum(m.conversiones, getIdioma())}` : t("metricas.sin_muestra");
+  return (
+    <div className="card" style={{ marginBottom: 14 }}>
+      <h3 style={{ marginTop: 0 }}>{t("metricas.conversion_titulo")}</h3>
+      <div style={{ display: "grid", gap: 10, marginBottom: 4,
+                    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))" }}>
+        <Tarjeta titulo={t("metricas.tasa_conversion")} valor={pct(resumen.tasa_conversion)}
+                 pie={t("metricas.de_envios", { n: fmtNum(resumen.envios, getIdioma()) })}
+                 color="var(--green-deep)" />
+        <Tarjeta titulo={t("metricas.conversiones")}
+                 valor={fmtNum(resumen.conversiones, getIdioma())}
+                 pie={t("metricas.clicks_web")} />
+        {resumen.cpm != null ? (
+          <Tarjeta titulo="CPM" valor={fmtNum(resumen.cpm, getIdioma())}
+                   pie={t("metricas.por_mil")} />
+        ) : null}
+        {resumen.cpa != null ? (
+          <Tarjeta titulo="CPA" valor={fmtNum(resumen.cpa, getIdioma())}
+                   pie={t("metricas.por_conversion")} />
+        ) : null}
+      </div>
+      {resumen.muestra_suficiente ? (
+        <div style={{ display: "grid", gap: 10, marginTop: 6,
+                      gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+          <Tarjeta titulo={t("metricas.mejor_segmento")} valor={porTasa(resumen.mejor_segmento)} />
+          <Tarjeta titulo={t("metricas.mejor_canal")} valor={porTasa(resumen.mejor_canal)} />
+          <Tarjeta titulo={t("metricas.mejor_dia")} valor={porPico(resumen.mejor_dia)}
+                   pie={t("metricas.cuando_entran")} />
+          <Tarjeta titulo={t("metricas.mejor_hora")} valor={porPico(resumen.mejor_hora)}
+                   pie={t("metricas.cuando_entran")} />
+        </div>
+      ) : (
+        <p className="nota" style={{ marginBottom: 0 }}>{t("metricas.junta_mas")}</p>
+      )}
+    </div>
+  );
+}
+
 export default function Metricas() {
   const [envios, setEnvios] = useState(getEnvios());
   const [metricas, setMetricas] = useState({});
   const [estado, setEstado] = useState("");
+  const [resumen, setResumen] = useState(null);
   const x = getX();
+
+  // El tablero de conversión sale del backend: se pide al entrar. Si el
+  // servidor no está (o no tiene datos), la página sigue funcionando con lo
+  // del dispositivo — por eso el catch silencioso.
+  useEffect(() => {
+    resumenMetricas().then(setResumen).catch(() => setResumen(null));
+  }, []);
 
   // Los posts de X publicados desde acá: son los que tienen métricas propias.
   const posts = envios.filter((e) => e.x?.ok && e.x.id);
@@ -89,7 +146,10 @@ export default function Metricas() {
     setMetricas({});
   };
 
-  if (!envios.length) {
+  // Vacío del todo sólo si no hay NI historial local NI datos de conversión
+  // en el backend: el tablero de conversión puede tener datos aunque este
+  // dispositivo no tenga historial (los cargó otro, o son de la web).
+  if (!envios.length && !(resumen && resumen.envios)) {
     return (
       <>
         <h1 className="page-title">{t("nav.metricas")}</h1>
@@ -103,6 +163,8 @@ export default function Metricas() {
     <>
       <h1 className="page-title">{t("nav.metricas")}</h1>
       <p className="page-sub">{t("metricas.subtitulo")}</p>
+
+      <PanelConversion resumen={resumen} />
 
       <div style={{ display: "grid", gap: 10, marginBottom: 14,
                     gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))" }}>

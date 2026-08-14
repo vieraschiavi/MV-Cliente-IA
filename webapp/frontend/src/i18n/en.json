@@ -341,7 +341,7 @@
     "listo_li": "{{ok}} of {{total}} sent via {{prov}}"
   },
   "metricas": {
-    "subtitulo": "What went out on each channel and how each post performed. The history stays on this device: it never leaves for a server.",
+    "subtitulo": "Conversion by segment, channel, day and hour from the backend; below, this device's send history.",
     "vacio": "You haven't automated a flow yet. Once you do it from “Emails”, this is where each channel's results show up.",
     "correos": "Emails sent",
     "de_total": "of {{n}} attempted",
@@ -365,6 +365,20 @@
     "fecha": "Date",
     "post": "Post",
     "producto": "Product",
-    "manual": "Manual"
+    "manual": "Manual",
+    "conversion_titulo": "Conversion & segments (backend)",
+    "tasa_conversion": "Conversion rate",
+    "de_envios": "of {{n}} sends",
+    "conversiones": "Conversions",
+    "clicks_web": "clicks to the site",
+    "por_mil": "cost per thousand sends",
+    "por_conversion": "cost per conversion",
+    "mejor_segmento": "Best segment",
+    "mejor_dia": "Best day",
+    "mejor_hora": "Best hour",
+    "mejor_canal": "Best channel",
+    "sin_muestra": "not enough sample",
+    "junta_mas": "Gather more sends and conversions to see which segment, day and hour perform best.",
+    "cuando_entran": "when people engage"
   }
 }

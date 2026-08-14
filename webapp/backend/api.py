@@ -54,6 +54,7 @@ from fastapi.responses import (
     FileResponse,
     JSONResponse,
     PlainTextResponse,
+    RedirectResponse,
     Response,
     StreamingResponse,
 )
@@ -66,6 +67,7 @@ from cliente_ia import (
     exportar,
     geo,
     licencia,
+    metricas,
     modelos,
     pipeline,
     proveedores,
@@ -619,6 +621,73 @@ def metricas_x(entrada: MetricasXIn):
     panel de métricas. El historial vive en el dispositivo del usuario; acá
     sólo se consultan los números de X con sus claves."""
     return {"metricas": redes.metricas_de_x(_claves_x(entrada.x), entrada.ids)}
+
+
+# ---------------------------------------------------------------------------
+# Métricas de envíos y conversión (backend) — lo que Explee no da
+# ---------------------------------------------------------------------------
+class EventoEnvioIn(BaseModel):
+    # El programa es el dominio del producto; el resto ubica el envío en una
+    # celda del tablero (a qué segmento, en qué canal, con qué idioma).
+    programa: str = Field(default="", max_length=253)
+    canal: str = Field(default="email", max_length=20)
+    segmento: str = Field(default="", max_length=120)
+    nivel: str = Field(default="", max_length=20)
+    pais: str = Field(default="", max_length=2)
+    idioma: str = Field(default="", max_length=2)
+    ts: str = Field(default="", max_length=40)
+    n: int = Field(default=1, ge=1, le=100000)
+
+
+class EnviosIn(BaseModel):
+    eventos: list[EventoEnvioIn] = Field(default_factory=list, max_length=5000)
+
+
+@app.post("/api/metricas/envios", dependencies=[Depends(requiere_auth)])
+def registrar_envios(entrada: EnviosIn):
+    """Registra del lado del servidor los envíos que salieron, para poder
+    cruzarlos después con las conversiones. Es lo que le faltaba al panel:
+    hasta ahora los envíos vivían sólo en el navegador y no se podían cruzar
+    con nada. En serverless el disco es efímero — se guarda igual, pero para
+    acumular de verdad hace falta almacenamiento durable (ver README)."""
+    n = metricas.registrar_envios([e.model_dump() for e in entrada.eventos])
+    return {"registrados": n}
+
+
+@app.get("/api/metricas/resumen", dependencies=[Depends(requiere_auth)])
+def resumen_metricas(programa: str = "", costo: float | None = None):
+    """El tablero: envíos y conversión por programa, segmento, día de la
+    semana, hora y canal, con el mejor de cada dimensión marcado. `costo`
+    (gasto real de la campaña) habilita CPM y CPA."""
+    return metricas.resumen(programa=programa, costo=costo)
+
+
+@app.get("/api/ir")
+def ir(t: str = ""):
+    """El redirect de conversión: el enlace que va en el correo en lugar del
+    directo a la landing. Cuenta el click y rebota a la web real.
+
+    Sin autenticación a propósito: lo abre el DESTINATARIO del correo, que no
+    tiene sesión. La defensa es la firma del token — sólo se cuenta y sólo se
+    redirige a un enlace que firmamos nosotros (`metricas.firmar_traqueo`),
+    así que no es un open-redirect ni se puede inflar la conversión a mano."""
+    cuerpo = metricas.verificar_traqueo(t)
+    if not cuerpo:
+        raise HTTPException(400, "Enlace de seguimiento inválido o vencido")
+    destino = cuerpo.get("u", "")
+    # Defensa en profundidad: aunque la firma ya garantiza que la URL es
+    # nuestra, se rechaza cualquier esquema que no sea http/https — un
+    # `javascript:` firmado por error no puede convertirse en redirect.
+    if not re.match(r"(?i)^https?://", destino):
+        raise HTTPException(400, "Destino de seguimiento no permitido")
+    metricas.registrar_conversion({
+        "programa": cuerpo.get("programa", ""), "canal": cuerpo.get("canal", ""),
+        "segmento": cuerpo.get("segmento", ""), "nivel": cuerpo.get("nivel", ""),
+        "pais": cuerpo.get("pais", ""), "idioma": cuerpo.get("idioma", ""),
+    })
+    # 302 y no 301: el 301 lo cachea el navegador y un segundo click no
+    # volvería a pasar por acá, perdiendo la conversión repetida.
+    return RedirectResponse(destino, status_code=302)
 
 
 def _html_comprobante(comp: dict) -> str:

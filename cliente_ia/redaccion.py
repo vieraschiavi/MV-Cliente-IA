@@ -368,11 +368,23 @@ def redactar(decisor: Decisor, prospecto: Prospecto, empresa: Empresa,
     if empresa.nombre and propuesta.lower().startswith(empresa.nombre.lower()):
         propuesta = _minuscula_inicial(propuesta[len(empresa.nombre):].lstrip(" ,:—-"))
 
-    # Los tres enlaces, en el idioma del receptor.
-    landing_url = enlaces.landing(idioma, prospecto.campana_id, prospecto.id, "email")
+    # Los tres enlaces, en el idioma del receptor. El de la landing se
+    # envuelve por el redirect de conversión con los datos de ESTE prospecto
+    # (segmento, ola, país): así, si el traqueo está encendido, cada click
+    # queda atribuido a su celda del tablero de métricas. Sin traqueo
+    # configurado, `traqueada` devuelve el enlace tal cual.
+    def _meta(canal: str) -> dict:
+        return {"canal": canal, "segmento": prospecto.sector,
+                "nivel": prospecto.nivel, "pais": prospecto.pais, "idioma": idioma}
+
+    landing_url = enlaces.traqueada(
+        enlaces.landing(idioma, prospecto.campana_id, prospecto.id, "email"),
+        _meta("email"))
     video_url = enlaces.video(idioma, prospecto.campana_id, prospecto.id, "email")
     banner_url = enlaces.banner(idioma)
-    landing_li = enlaces.landing(idioma, prospecto.campana_id, prospecto.id, "linkedin")
+    landing_li = enlaces.traqueada(
+        enlaces.landing(idioma, prospecto.campana_id, prospecto.id, "linkedin"),
+        _meta("linkedin"))
     video_li = enlaces.video(idioma, prospecto.campana_id, prospecto.id, "linkedin")
 
     # Los decisores de empresas reales viajan sin nombre (no se inventan

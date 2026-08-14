@@ -341,7 +341,7 @@
     "listo_li": "{{ok}} de {{total}} enviados por {{prov}}"
   },
   "metricas": {
-    "subtitulo": "Qué se mandó por cada canal y cómo rindió cada publicación. El historial vive en este dispositivo: no sube a ningún servidor.",
+    "subtitulo": "Conversión por segmento, canal, día y hora desde el backend; abajo, el historial de envíos de este dispositivo.",
     "vacio": "Todavía no automatizaste ningún flujo. Cuando lo hagas desde «Correos», acá aparece qué salió por cada canal.",
     "correos": "Correos enviados",
     "de_total": "de {{n}} intentados",
@@ -365,6 +365,20 @@
     "fecha": "Fecha",
     "post": "Post",
     "producto": "Producto",
-    "manual": "A mano"
+    "manual": "A mano",
+    "conversion_titulo": "Conversión y segmentos (backend)",
+    "tasa_conversion": "Tasa de conversión",
+    "de_envios": "de {{n}} envíos",
+    "conversiones": "Conversiones",
+    "clicks_web": "clicks a la web",
+    "por_mil": "costo por mil envíos",
+    "por_conversion": "costo por conversión",
+    "mejor_segmento": "Mejor segmento",
+    "mejor_dia": "Mejor día",
+    "mejor_hora": "Mejor hora",
+    "mejor_canal": "Mejor canal",
+    "sin_muestra": "sin muestra suficiente",
+    "junta_mas": "Juntá más envíos y conversiones para ver qué segmento, día y hora rinden mejor.",
+    "cuando_entran": "cuándo entra la gente"
   }
 }

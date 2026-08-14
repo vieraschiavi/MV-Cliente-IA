@@ -219,6 +219,24 @@ export function borrarEnvios() {
   localStorage.removeItem(KEY_ENVIOS);
 }
 
+// Métricas de envíos y conversión del BACKEND (cliente_ia/metricas.py). A
+// diferencia del historial de arriba —que vive en este dispositivo— esto se
+// guarda en el servidor y cruza envíos con conversiones para decir a qué
+// segmento, día y hora le fue mejor. `registrarEnvios` es best-effort: si el
+// servidor no está, la automatización no se cae por no poder registrar.
+export function registrarEnvios(eventos) {
+  if (!eventos || !eventos.length) return Promise.resolve(null);
+  return api("/api/metricas/envios", { metodo: "POST", cuerpo: { eventos } })
+    .catch(() => null);
+}
+export function resumenMetricas(programa = "", costo = null) {
+  const q = new URLSearchParams();
+  if (programa) q.set("programa", programa);
+  if (costo != null && costo !== "") q.set("costo", String(costo));
+  const cola = q.toString();
+  return api("/api/metricas/resumen" + (cola ? `?${cola}` : ""));
+}
+
 // Estado de la licencia del programa instalado. En la web devuelve
 // {aplica:false}: ahí manda el cupo gratis, no una licencia.
 export async function getLicencia() {
