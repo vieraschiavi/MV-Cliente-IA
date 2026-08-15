@@ -1,0 +1,27 @@
+{
+  "name": "MV Cliente IA",
+  "short_name": "MV Cliente IA",
+  "description": "AutoGTM: investiga tu empresa, busca compradores, encuentra decisores y escribe los correos.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0a1020",
+  "theme_color": "#0a1020",
+  "lang": "es",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "./mv_icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./mv_icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

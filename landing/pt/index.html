@@ -97,7 +97,8 @@ section{padding:64px 0;border-top:1px solid var(--line)}
 .d{background:var(--navy2);border:1px solid var(--line);border-radius:14px;padding:22px}
 .d b{display:block;font-size:15px;margin-bottom:6px}
 .d p{margin:0;color:var(--muted);font-size:13.5px}
-.d .btn{display:inline-block;margin-top:14px}
+.d .btn{display:inline-flex;margin-top:14px}
+.btn .ico{flex:none}
 .d small{display:block;margin-top:10px;color:var(--faint);font-size:12px;line-height:1.5}
 
 .planes{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px;max-width:820px}
@@ -130,7 +131,7 @@ footer p{max-width:78ch;margin:0 0 10px}
   <h1>Sem clientes? Meses construindo,<br><span>e ainda R$0 de receita.</span></h1>
   <p>O problema nunca foi o produto — eram as vendas. Cole o link do seu site e o agente pesquisa o mercado, encontra seus compradores, escreve os e-mails e entrega a lista priorizada — em um minuto, no piloto automático, até enquanto você dorme. Você só aparece e fecha.</p>
   <div class="acciones">
-    <a class="btn btn-a" href="../app/">Testar com meu site →</a>
+    <a class="btn btn-a" href="../app/">Testar com meu site<svg class="ico" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.4 12h15.2"/><path d="m13.6 5.6 6.4 6.4-6.4 6.4"/></svg></a>
     <a class="btn btn-o" href="#pasos">Ver como funciona</a>
   </div>
   <small>Roda no navegador, no seu PC (Windows) e no celular (Android). A demo usa dados sintéticos: dá para testar sem entregar nada.</small>
@@ -171,9 +172,9 @@ footer p{max-width:78ch;margin:0 0 10px}
 <section id="descargar"><div class="wrap">
   <h2 class="sec-h">Onde for mais confortável</h2>
   <p class="sec-p">O mesmo produto, a mesma interface, nos três lugares.</p>
-  <div class="desc"><article class="d"><b>Navegador</b><p>Nada para instalar. Entra e busca.</p><a class="btn btn-o" href="../app/">Abrir o app →</a><small>A mesma interface do PC e do Android.</small></article>
-<article class="d"><b>PC · Windows</b><p>Instalador próprio com desinstalador em «Adicionar ou remover programas», sem permissões de administrador. O motor roda na sua máquina: os dados não saem.</p><a class="btn btn-o" href="https://github.com/vieraschiavi/MV-Cliente-IA/releases/latest/download/MVClienteIA_Setup_demo.exe" rel="noreferrer">⬇ Baixar o teste de 14 dias</a><small>Catorze dias com tudo aberto e sem colocar nenhuma chave. Depois você continua com a demo sintética, e a licença se compra em Preços. Instalador sem assinatura de código: se o SmartScreen avisar, «Mais informações → Executar assim mesmo». O SHA-256 está publicado junto ao download.</small><a class="btn btn-o" href="https://github.com/vieraschiavi/MV-Cliente-IA/releases/latest/download/MVClienteIA_Portable_demo.zip" rel="noreferrer">⬇ Versão portátil (ZIP)</a><small>100% no disco que você escolher: descompacte o ZIP onde quiser (D:\, um pendrive), execute MVClienteIA.exe e pronto — sem instalador, sem arquivos temporários em C:, com buscas e exports salvos na mesma pasta.</small><a class="btn btn-o" href="https://github.com/vieraschiavi/MV-Cliente-IA/releases/latest/download/MVClienteIA_BAT_demo.zip" rel="noreferrer">⬇ Versão sem .exe (BAT)</a><small>Se na sua empresa não deixam abrir programas baixados: o mesmo produto e a mesma interface, mas quem abre é um .bat, no seu navegador, usando o Python que você já tem (3.11 ou mais novo). Traz as dependências dentro, então instala sem internet, e o Instalar.bat deixa o atalho e o desinstalador igual ao instalador comum.</small></article>
-<article class="d"><b>Android · APK</b><p>A lista e os e-mails no celular, apontando para o seu servidor (Configuração → Endereço do servidor).</p><a class="btn btn-o" href="https://github.com/vieraschiavi/MV-Cliente-IA/releases/latest/download/MVClienteIA.apk" rel="noreferrer">⬇ Baixar o APK</a><small>APK direto, não vem da Play Store: ao instalar, habilite «Instalar apps desconhecidos» para o seu navegador. O SHA-256 está publicado junto ao download.</small></article></div>
+  <div class="desc"><article class="d"><b>Navegador</b><p>Nada para instalar. Entra e busca.</p><a class="btn btn-o" href="../app/">Abrir o app<svg class="ico" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.4 12h15.2"/><path d="m13.6 5.6 6.4 6.4-6.4 6.4"/></svg></a><small>A mesma interface do PC e do Android.</small></article>
+<article class="d"><b>PC · Windows</b><p>Instalador próprio com desinstalador em «Adicionar ou remover programas», sem permissões de administrador. O motor roda na sua máquina: os dados não saem.</p><a class="btn btn-o" href="https://github.com/vieraschiavi/MV-Cliente-IA/releases/latest/download/MVClienteIA_Setup_demo.exe" rel="noreferrer"><svg class="ico" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3.6v11.2"/><path d="m7.6 10.4 4.4 4.4 4.4-4.4"/><path d="M4.4 19.6h15.2"/></svg>Baixar o teste de 14 dias</a><small>Catorze dias com tudo aberto e sem colocar nenhuma chave. Depois você continua com a demo sintética, e a licença se compra em Preços. Instalador sem assinatura de código: se o SmartScreen avisar, «Mais informações → Executar assim mesmo». O SHA-256 está publicado junto ao download.</small><a class="btn btn-o" href="https://github.com/vieraschiavi/MV-Cliente-IA/releases/latest/download/MVClienteIA_Portable_demo.zip" rel="noreferrer"><svg class="ico" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3.6v11.2"/><path d="m7.6 10.4 4.4 4.4 4.4-4.4"/><path d="M4.4 19.6h15.2"/></svg>Versão portátil (ZIP)</a><small>100% no disco que você escolher: descompacte o ZIP onde quiser (D:\, um pendrive), execute MVClienteIA.exe e pronto — sem instalador, sem arquivos temporários em C:, com buscas e exports salvos na mesma pasta.</small><a class="btn btn-o" href="https://github.com/vieraschiavi/MV-Cliente-IA/releases/latest/download/MVClienteIA_BAT_demo.zip" rel="noreferrer"><svg class="ico" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3.6v11.2"/><path d="m7.6 10.4 4.4 4.4 4.4-4.4"/><path d="M4.4 19.6h15.2"/></svg>Versão sem .exe (BAT)</a><small>Se na sua empresa não deixam abrir programas baixados: o mesmo produto e a mesma interface, mas quem abre é um .bat, no seu navegador, usando o Python que você já tem (3.11 ou mais novo). Traz as dependências dentro, então instala sem internet, e o Instalar.bat deixa o atalho e o desinstalador igual ao instalador comum.</small></article>
+<article class="d"><b>Android · APK</b><p>A lista e os e-mails no celular, apontando para o seu servidor (Configuração → Endereço do servidor).</p><a class="btn btn-o" href="https://github.com/vieraschiavi/MV-Cliente-IA/releases/latest/download/MVClienteIA.apk" rel="noreferrer"><svg class="ico" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3.6v11.2"/><path d="m7.6 10.4 4.4 4.4 4.4-4.4"/><path d="M4.4 19.6h15.2"/></svg>Baixar o APK</a><small>APK direto, não vem da Play Store: ao instalar, habilite «Instalar apps desconhecidos» para o seu navegador. O SHA-256 está publicado junto ao download.</small></article></div>
 </div></section>
 
 <section id="precios"><div class="wrap">
@@ -185,7 +186,7 @@ footer p{max-width:78ch;margin:0 0 10px}
       <span class="precio">US$ 0</span>
       <span class="precio-nota">&nbsp;</span>
       <ul><li>Demo sintética ilimitada</li><li>3 buscas reais grátis (com a sua chave do Claude, ChatGPT, Gemini ou Copilot)</li><li>Os três idiomas e o export CSV/Excel</li></ul>
-      <a class="btn btn-o" href="../app/">Testar agora →</a>
+      <a class="btn btn-o" href="../app/">Testar agora<svg class="ico" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.4 12h15.2"/><path d="m13.6 5.6 6.4 6.4-6.4 6.4"/></svg></a>
     </article>
     <article class="plan destacado">
       <b>Licença completa · PC + Android</b>
@@ -227,7 +228,7 @@ document.querySelectorAll("[data-pay]").forEach(function (btn) {
 <section class="cierre"><div class="wrap">
   <h2 class="sec-h">Cole seu link e veja o que sai</h2>
   <p class="sec-p">A demo roda com dados sintéticos: você não precisa entregar nada para ver o fluxo completo funcionando.</p>
-  <a class="btn btn-a" href="../app/">Começar agora →</a>
+  <a class="btn btn-a" href="../app/">Começar agora<svg class="ico" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.4 12h15.2"/><path d="m13.6 5.6 6.4 6.4-6.4 6.4"/></svg></a>
 </div></section>
 
 <footer><div class="wrap"><p>Dados de demonstração sintéticos. As empresas e pessoas da demo não são reais. No modo de pesquisa real, a informação vem de fontes públicas — revise antes de contatar alguém.</p><p>© MV Cliente IA</p></div></footer>

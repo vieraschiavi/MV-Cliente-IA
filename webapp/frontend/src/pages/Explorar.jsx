@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, apiStream, descargar, ErrorApi, esNativo, fmtScore, getBase, getClaveIA, getEmail, getEndpointIA, getModeloIA, getProveedorIA, setEmail } from "../api.js";
 import { Aviso, etiquetasOla, Idioma, Kpis, Ola, Vacio } from "../componentes/Comunes.jsx";
+import { Icono } from "../componentes/Iconos.jsx";
 import { getCorridaId, setCorridaId, setCorridaLocal, useCorrida } from "../estado.js";
 import { getIdioma, t } from "../i18n/index.js";
 
@@ -16,7 +17,9 @@ function Fase({ n, clave, paso, abierta, alternar, children }) {
   return (
     <section className={`fase ${estado} ${abierta ? "abierta on" : ""}`}>
       <button className="fase-cab" onClick={alternar} aria-expanded={abierta}>
-        <span className="fase-num">{estado === "listo" ? "✓" : n}</span>
+        <span className="fase-num">
+          {estado === "listo" ? <Icono nombre="chequeo" tam={14} /> : n}
+        </span>
         <span className="fase-txt">
           <b>{t(`fase.${clave}.n`)}</b>
           <small>{paso?.detalle || t(`fase.${clave}.d`)}</small>
@@ -25,7 +28,7 @@ function Fase({ n, clave, paso, abierta, alternar, children }) {
           {estado === "corriendo" ? <i className="latido" /> : null}
           {hay ? <span className="tnum">{paso.items}</span> : null}
           {paso?.ms ? <span className="ms tnum">{paso.ms} ms</span> : null}
-          <span className="chev">⌄</span>
+          <span className="chev"><Icono nombre="chevron" tam={16} /></span>
         </span>
       </button>
       {abierta ? <div className="fase-cuerpo">{children}</div> : null}
@@ -285,9 +288,10 @@ export default function Explorar() {
         ) : null}
 
         <div className="enlaces-cfg">
-          <button type="button" className="desplegar"
+          <button type="button" className="desplegar con-ico"
                   onClick={() => setVerEnlaces(!verEnlaces)} aria-expanded={verEnlaces}>
-            {verEnlaces ? "▾" : "▸"} {t("explorar.enlaces")}
+            <Icono nombre="chevron" tam={15} className={verEnlaces ? "" : "cuarto"} />
+            {t("explorar.enlaces")}
           </button>
           {verEnlaces ? (
             <div className="enlaces-cuerpo">
@@ -520,13 +524,13 @@ export default function Explorar() {
                     <button className="btn ghost" onClick={() => nav("/correos")}>
                       {t("common.ver_todos")} ({corrida.emails.length}) →
                     </button>
-                    <button className="btn ghost"
+                    <button className="btn ghost con-ico"
                             onClick={() => descargar("/api/exportar/csv", `${corrida.dominio}.csv`, corrida)}>
-                      {t("common.exportar_csv")}
+                      <Icono nombre="descargar" tam={15} /> {t("common.exportar_csv")}
                     </button>
-                    <button className="btn ghost"
+                    <button className="btn ghost con-ico"
                             onClick={() => descargar("/api/exportar/xlsx", `${corrida.dominio}.xlsx`, corrida)}>
-                      {t("common.exportar_xlsx")}
+                      <Icono nombre="descargar" tam={15} /> {t("common.exportar_xlsx")}
                     </button>
                   </div>
                 </>

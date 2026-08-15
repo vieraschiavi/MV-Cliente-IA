@@ -8,6 +8,7 @@ import {
 } from "../api.js";
 import { SelectorIdioma } from "../App.jsx";
 import { Aviso } from "../componentes/Comunes.jsx";
+import { Icono } from "../componentes/Iconos.jsx";
 import { t } from "../i18n/index.js";
 
 /**
@@ -43,8 +44,9 @@ function FormLicencia() {
     <form className="card" style={{ maxWidth: 620, marginBottom: 14 }} onSubmit={activar}>
       <h3>{t("config.lic")}</h3>
       <p style={{ margin: "0 0 10px", fontSize: 14 }}>
-        <b style={{ color: lic.activa ? "var(--green-deep)" : "var(--amber)" }}>
-          {lic.activa ? "✔" : "⚠️"} {EDICION[lic.edicion] || lic.edicion}
+        <b className="con-ico" style={{ color: lic.activa ? "var(--green-deep)" : "var(--amber)" }}>
+          <Icono nombre={lic.activa ? "escudo" : "alerta"} tam={16} />
+          {EDICION[lic.edicion] || lic.edicion}
         </b>
         {lic.dias_restantes > 0 ? (
           <span className="apagado">

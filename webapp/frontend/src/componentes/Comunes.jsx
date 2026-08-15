@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { t } from "../i18n/index.js";
+import { Icono } from "./Iconos.jsx";
 
 /** Etiqueta de color: ola geográfica (local/regional/mundo) o idioma (es/pt/en). */
 export function Pill({ tipo, children }) {
@@ -28,7 +29,12 @@ export function Idioma({ codigo }) {
 }
 
 export function Aviso({ children }) {
-  return <div className="aviso">⚠️ <span>{children}</span></div>;
+  return (
+    <div className="aviso">
+      <Icono nombre="alerta" tam={17} titulo={t("common.aviso")} />
+      <span>{children}</span>
+    </div>
+  );
 }
 
 export function Vacio({ texto }) {
@@ -57,8 +63,9 @@ export function Copiar({ texto, etiqueta }) {
     setTimeout(() => setHecho(false), 1800);
   };
   return (
-    <button className="btn ghost" onClick={copiar}>
-      {hecho ? `✓ ${t("common.copiado")}` : etiqueta || t("common.copiar")}
+    <button className="btn ghost con-ico" onClick={copiar}>
+      <Icono nombre={hecho ? "chequeo" : "copiar"} tam={15} />
+      {hecho ? t("common.copiado") : etiqueta || t("common.copiar")}
     </button>
   );
 }

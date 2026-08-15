@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import { agregarEnvio, api, descargar, getEmail, getLinkedIn, getSmtp, getX, urlSegura } from "../api.js";
 import { Copiar, Idioma, Vacio } from "../componentes/Comunes.jsx";
+import { Icono } from "../componentes/Iconos.jsx";
 import { getCorridaId, useCorrida } from "../estado.js";
 import { t } from "../i18n/index.js";
 
@@ -52,12 +53,16 @@ function Enlaces({ correo }) {
   return (
     <p className="enlaces-msg">
       {correo.video_url ? (
-        <a href={urlSegura(correo.video_url)} target="_blank" rel="noreferrer">▸ {t("correos.video")}</a>
+        <a className="con-ico" href={urlSegura(correo.video_url)} target="_blank" rel="noreferrer">
+          <Icono nombre="reproducir" tam={15} /> {t("correos.video")}
+        </a>
       ) : (
         <span className="apagado">{t("correos.sin_video")}</span>
       )}
       {correo.landing_url ? (
-        <a href={urlSegura(correo.landing_url)} target="_blank" rel="noreferrer">🔗 {t("correos.web")}</a>
+        <a className="con-ico" href={urlSegura(correo.landing_url)} target="_blank" rel="noreferrer">
+          <Icono nombre="globo" tam={15} /> {t("correos.web")}
+        </a>
       ) : null}
     </p>
   );
@@ -91,8 +96,11 @@ function Mensaje({ correo, decisor, para, setPara, enviar, estado, smtpListo }) 
           <pre>{correo.cuerpo}</pre>
           <div className="acciones">
             <Copiar texto={`${correo.asunto}\n\n${correo.cuerpo}`} />
-            <button className="btn ghost" onClick={() => setSeguimiento(!seguimiento)}>
-              {t("correos.seguimiento")} {seguimiento ? "▴" : "▾"}
+            <button className="btn ghost con-ico" onClick={() => setSeguimiento(!seguimiento)}
+                    aria-expanded={seguimiento}>
+              {t("correos.seguimiento")}
+              <Icono nombre="chevron" tam={15}
+                     className={seguimiento ? "girado" : ""} />
             </button>
           </div>
           {seguimiento ? (
@@ -123,8 +131,9 @@ function Mensaje({ correo, decisor, para, setPara, enviar, estado, smtpListo }) 
                   srcDoc={correo.cuerpo_html} />
           <div className="acciones">
             <Copiar texto={correo.cuerpo_html} etiqueta={t("correos.copiar_html")} />
-            <button className="btn ghost" onClick={() => abrirHtml(correo.cuerpo_html)}>
-              {t("correos.abrir_html")} ↗
+            <button className="btn ghost con-ico" onClick={() => abrirHtml(correo.cuerpo_html)}>
+              {t("correos.abrir_html")}
+              <Icono nombre="enlace_externo" tam={15} />
             </button>
           </div>
         </>
@@ -252,28 +261,40 @@ function Automatizar({ listos, adjunto, smtp, correoDe, corrida }) {
 
   return (
     <div className="card" style={{ marginBottom: 14 }}>
-      <h3>🚀 {t("auto.titulo")}</h3>
+      <h3 className="con-ico"><Icono nombre="rayo" tam={17} /> {t("auto.titulo")}</h3>
       <p className="nota" style={{ marginTop: 0 }}>{t("auto.ayuda")}</p>
 
-      <ul style={{ margin: "10px 0", paddingLeft: 20, fontSize: 13.5, lineHeight: 1.9 }}>
-        <li>✉️ {t("auto.linea_correos", { n: listos.length })}</li>
+      {/* `list-style:none` + el icono de cada canal como viñeta: el punto del
+          <li> al lado de un icono se leía como suciedad. */}
+      <ul className="canales">
         <li>
-          <label style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+          <Icono nombre="sobre" tam={16} />
+          <span>{t("auto.linea_correos", { n: listos.length })}</span>
+        </li>
+        <li>
+          <label>
             <input type="checkbox" checked={conX} disabled={!x}
                    onChange={(e) => setConX(e.target.checked)} />
-            𝕏 {x ? t("auto.linea_x") : t("auto.x_faltan_claves")}
+            <Icono nombre="equis" tam={16} />
+            <span>{x ? t("auto.linea_x") : t("auto.x_faltan_claves")}</span>
           </label>
         </li>
         <li>
-          <label style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+          <label>
             <input type="checkbox" checked={conLi} disabled={!li}
                    onChange={(e) => setConLi(e.target.checked)} />
-            💼 {li
+            <Icono nombre="maletin" tam={16} />
+            <span>{li
               ? t("auto.linea_li", { n: paraLinkedIn.length, prov: li.proveedor })
-              : t("auto.li_falta_proveedor")}
+              : t("auto.li_falta_proveedor")}</span>
           </label>
         </li>
-        <li>📸 Instagram · 🎵 TikTok — {t("auto.linea_manuales")}</li>
+        <li>
+          <Icono nombre="camara" tam={16} />
+          <span>
+            Instagram · <Icono nombre="musica" tam={16} /> TikTok — {t("auto.linea_manuales")}
+          </span>
+        </li>
       </ul>
 
       {conX && x ? (
@@ -298,34 +319,44 @@ function Automatizar({ listos, adjunto, smtp, correoDe, corrida }) {
         <p className="error-note">{estado}</p>
       ) : null}
       {comp ? (
-        <div style={{ marginTop: 12, fontSize: 13.5, lineHeight: 1.9 }}>
-          <p style={{ margin: 0, color: "var(--green-deep)", fontWeight: 700 }}>
-            ✔ {t("auto.listo_correos", {
-              ok: comp.correos.enviados, total: comp.correos.total })}
+        <div className="comprobante">
+          <p style={{ color: "var(--green-deep)", fontWeight: 700 }}>
+            <Icono nombre="chequeo_circulo" tam={16} />
+            <span>{t("auto.listo_correos", {
+              ok: comp.correos.enviados, total: comp.correos.total })}</span>
           </p>
           {comp.linkedin ? (
-            <p style={{ margin: 0, color: comp.linkedin.enviados ? "var(--green-deep)" : "" }}>
-              {comp.linkedin.enviados ? "✔" : "✘"} LinkedIn:{" "}
-              {t("auto.listo_li", { ok: comp.linkedin.enviados,
-                                    total: comp.linkedin.total,
-                                    prov: comp.linkedin.proveedor })}
+            <p style={{ color: comp.linkedin.enviados ? "var(--green-deep)" : "" }}>
+              <Icono nombre={comp.linkedin.enviados ? "chequeo_circulo" : "equis_circulo"} tam={16} />
+              <span>LinkedIn: {t("auto.listo_li", { ok: comp.linkedin.enviados,
+                                                    total: comp.linkedin.total,
+                                                    prov: comp.linkedin.proveedor })}</span>
             </p>
           ) : null}
           {comp.x ? (
             comp.x.ok
-              ? <p style={{ margin: 0 }}>✔ {t("auto.listo_x")}{" "}
-                  <a href={urlSegura(comp.x.url)} target="_blank" rel="noreferrer">{comp.x.url}</a></p>
-              : <p className="error-note" style={{ margin: 0 }}>✘ X: {comp.x.detalle}</p>
+              ? <p>
+                  <Icono nombre="chequeo_circulo" tam={16} />
+                  <span>{t("auto.listo_x")}{" "}
+                    <a href={urlSegura(comp.x.url)} target="_blank" rel="noreferrer">{comp.x.url}</a>
+                  </span>
+                </p>
+              : <p className="error-note">
+                  <Icono nombre="equis_circulo" tam={16} />
+                  <span>X: {comp.x.detalle}</span>
+                </p>
           ) : null}
           {Object.entries(comp.manuales || {}).map(([canal, n]) => (
-            <p key={canal} style={{ margin: 0, color: "var(--muted)" }}>
-              ⏳ {canal[0].toUpperCase() + canal.slice(1)}: {n} {t("auto.pendiente_manual")}
+            <p key={canal} style={{ color: "var(--muted)" }}>
+              <Icono nombre="arena" tam={16} />
+              <span>{canal[0].toUpperCase() + canal.slice(1)}: {n} {t("auto.pendiente_manual")}</span>
             </p>
           ))}
-          <p style={{ margin: 0 }}>
-            {comp.comprobante?.ok
-              ? `📧 ${t("auto.comprobante_ok", { a: comp.comprobante.a })}`
-              : `⚠️ ${t("auto.comprobante_fallo")}`}
+          <p className={comp.comprobante?.ok ? "" : "error-note"}>
+            <Icono nombre={comp.comprobante?.ok ? "chequeo_circulo" : "alerta"} tam={16} />
+            <span>{comp.comprobante?.ok
+              ? t("auto.comprobante_ok", { a: comp.comprobante.a })
+              : t("auto.comprobante_fallo")}</span>
           </p>
         </div>
       ) : null}
@@ -430,16 +461,17 @@ export default function Correos() {
             <option key={i} value={i}>{i.toUpperCase()} ({porIdioma[i]})</option>
           ))}
         </select>
-        <button className="btn ghost"
+        <button className="btn ghost con-ico"
                 onClick={() => descargar("/api/exportar/csv", `${corrida.dominio}.csv`, corrida)}>
-          {t("common.exportar_csv")}
+          <Icono nombre="descargar" tam={15} /> {t("common.exportar_csv")}
         </button>
-        <button className="btn ghost"
+        <button className="btn ghost con-ico"
                 onClick={() => descargar("/api/exportar/xlsx", `${corrida.dominio}.xlsx`, corrida)}>
-          {t("common.exportar_xlsx")}
+          <Icono nombre="descargar" tam={15} /> {t("common.exportar_xlsx")}
         </button>
-        <button className="btn ghost" onClick={() => refArchivo.current?.click()}>
-          {adjunto ? `📎 ${adjunto.nombre}` : t("correos.adjuntar")}
+        <button className="btn ghost con-ico" onClick={() => refArchivo.current?.click()}>
+          <Icono nombre="clip" tam={15} />
+          {adjunto ? adjunto.nombre : t("correos.adjuntar")}
         </button>
         <input ref={refArchivo} type="file" style={{ display: "none" }}
                onChange={elegirAdjunto} />

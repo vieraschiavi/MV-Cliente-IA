@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { api, borrarEnvios, fmtNum, getEnvios, getX, resumenMetricas, urlSegura } from "../api.js";
 import { Aviso, Vacio } from "../componentes/Comunes.jsx";
+import { Icono } from "../componentes/Iconos.jsx";
 import { getIdioma, t } from "../i18n/index.js";
 
 /**
@@ -276,8 +277,11 @@ export default function Metricas() {
                 <td>
                   {e.x
                     ? (e.x.ok
-                        ? <a href={urlSegura(e.x.url)} target="_blank" rel="noreferrer">✔</a>
-                        : "✘")
+                        ? <a href={urlSegura(e.x.url)} target="_blank" rel="noreferrer"
+                             style={{ color: "var(--green-deep)" }}>
+                            <Icono nombre="chequeo_circulo" tam={16} titulo={t("metricas.publicado")} />
+                          </a>
+                        : <Icono nombre="equis_circulo" tam={16} titulo={t("metricas.no_publicado")} />)
                     : <span className="apagado">—</span>}
                 </td>
                 <td style={{ whiteSpace: "normal" }}>

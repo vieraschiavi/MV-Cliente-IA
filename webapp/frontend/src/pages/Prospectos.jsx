@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { fmtScore, urlSegura } from "../api.js";
 import { etiquetasOla, Ola, Tabla, Vacio } from "../componentes/Comunes.jsx";
+import { Icono } from "../componentes/Iconos.jsx";
 import { getCorridaId, useCorrida } from "../estado.js";
 import { t } from "../i18n/index.js";
 
@@ -28,8 +29,10 @@ export default function Prospectos() {
       render: (p) => {
         const c = p.contactos || {};
         const enlaces = [
-          c.email ? <a key="m" href={`mailto:${c.email}`} title={c.email}>✉ {c.email}</a> : null,
-          c.telefono ? <a key="t" href={`tel:${c.telefono}`}>☎ {c.telefono}</a> : null,
+          c.email ? <a key="m" className="con-ico" href={`mailto:${c.email}`} title={c.email}>
+            <Icono nombre="sobre" tam={14} /> {c.email}</a> : null,
+          c.telefono ? <a key="t" className="con-ico" href={`tel:${c.telefono}`}>
+            <Icono nombre="telefono" tam={14} /> {c.telefono}</a> : null,
           c.linkedin ? <a key="l" href={urlSegura(c.linkedin)} target="_blank" rel="noreferrer">LinkedIn</a> : null,
           c.instagram ? <a key="i" href={urlSegura(c.instagram)} target="_blank" rel="noreferrer">Instagram</a> : null,
         ].filter(Boolean);

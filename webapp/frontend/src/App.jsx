@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { api, getToken, setToken } from "./api.js";
+import { Icono } from "./componentes/Iconos.jsx";
 import { IDIOMAS, cambiarIdioma, getIdioma, t } from "./i18n/index.js";
 
 import Analisis from "./pages/Analisis.jsx";
@@ -13,15 +14,18 @@ import Login from "./pages/Login.jsx";
 import Metricas from "./pages/Metricas.jsx";
 import Prospectos from "./pages/Prospectos.jsx";
 
+// `ico` es el nombre de un trazo de componentes/Iconos.jsx, no un emoji: el
+// emoji lo dibujaba la fuente del sistema y la barra salía de otro color en
+// cada plataforma (ver el encabezado de ese archivo).
 const NAV = [
-  { ruta: "/", ico: "🚀", clave: "nav.explorar" },
-  { ruta: "/prospectos", ico: "🎯", clave: "nav.prospectos" },
-  { ruta: "/decisores", ico: "📇", clave: "nav.decisores" },
-  { ruta: "/correos", ico: "✉️", clave: "nav.correos" },
-  { ruta: "/analisis", ico: "📊", clave: "nav.analisis" },
-  { ruta: "/metricas", ico: "📈", clave: "nav.metricas" },
-  { ruta: "/historial", ico: "🕘", clave: "nav.historial" },
-  { ruta: "/configuracion", ico: "⚙️", clave: "nav.configuracion" },
+  { ruta: "/", ico: "brujula", clave: "nav.explorar" },
+  { ruta: "/prospectos", ico: "diana", clave: "nav.prospectos" },
+  { ruta: "/decisores", ico: "ficha", clave: "nav.decisores" },
+  { ruta: "/correos", ico: "sobre", clave: "nav.correos" },
+  { ruta: "/analisis", ico: "barras", clave: "nav.analisis" },
+  { ruta: "/metricas", ico: "tendencia", clave: "nav.metricas" },
+  { ruta: "/historial", ico: "reloj", clave: "nav.historial" },
+  { ruta: "/configuracion", ico: "ajustes", clave: "nav.configuracion" },
 ];
 
 export function Marca() {
@@ -76,7 +80,7 @@ function Sidebar() {
           onClick={() => nav(n.ruta)}
           className={"nav-item" + (loc.pathname === n.ruta ? " on" : "")}
         >
-          <span className="ico">{n.ico}</span>
+          <span className="ico"><Icono nombre={n.ico} tam={18} /></span>
           {/* Dos etiquetas: la larga en escritorio y una corta abajo en el
               celular, donde seis destinos comparten 360 px de ancho. Con la
               larga, "Configuración" se partía a la mitad. El CSS muestra una

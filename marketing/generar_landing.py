@@ -407,7 +407,8 @@ section{padding:64px 0;border-top:1px solid var(--line)}
 .d{background:var(--navy2);border:1px solid var(--line);border-radius:14px;padding:22px}
 .d b{display:block;font-size:15px;margin-bottom:6px}
 .d p{margin:0;color:var(--muted);font-size:13.5px}
-.d .btn{display:inline-block;margin-top:14px}
+.d .btn{display:inline-flex;margin-top:14px}
+.btn .ico{flex:none}
 .d small{display:block;margin-top:10px;color:var(--faint);font-size:12px;line-height:1.5}
 
 .planes{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px;max-width:820px}
@@ -428,6 +429,25 @@ footer p{max-width:78ch;margin:0 0 10px}
 
 def _esc(t: str) -> str:
     return html.escape(t, quote=False)
+
+
+# Los mismos trazos que webapp/frontend/src/componentes/Iconos.jsx, en línea:
+# la landing es un HTML suelto que se sirve estático, así que no puede pedirle
+# una fuente de iconos a nadie. Antes acá había un emoji (⬇) y en cada sistema
+# operativo salía de otro color, al lado de un botón de la paleta Kobra.
+_TRAZOS = {
+    "descargar": '<path d="M12 3.6v11.2"/><path d="m7.6 10.4 4.4 4.4 4.4-4.4"/>'
+                 '<path d="M4.4 19.6h15.2"/>',
+    "flecha": '<path d="M4.4 12h15.2"/><path d="m13.6 5.6 6.4 6.4-6.4 6.4"/>',
+}
+
+
+def _ico(nombre: str) -> str:
+    """SVG decorativo: el texto del botón es el que nombra la acción."""
+    return (f'<svg class="ico" viewBox="0 0 24 24" width="17" height="17" fill="none" '
+            f'stroke="currentColor" stroke-width="1.8" stroke-linecap="round" '
+            f'stroke-linejoin="round" aria-hidden="true" focusable="false">'
+            f'{_TRAZOS[nombre]}</svg>')
 
 
 def _alternates() -> str:
@@ -457,15 +477,18 @@ def render(idioma: str) -> str:
         for i, (n, d) in enumerate(t["pasos"], 1))
     def _tarjeta_descarga(n, d, cta, href, nota, *extra):
         if href == APP:
-            enlace = f'<a class="btn btn-o" href="{base}app/">{_esc(cta)} →</a>'
+            enlace = (f'<a class="btn btn-o" href="{base}app/">{_esc(cta)}'
+                      f'{_ico("flecha")}</a>')
         else:
-            enlace = f'<a class="btn btn-o" href="{href}" rel="noreferrer">⬇ {_esc(cta)}</a>'
+            enlace = (f'<a class="btn btn-o" href="{href}" rel="noreferrer">'
+                      f'{_ico("descargar")}{_esc(cta)}</a>')
         cuerpo = f'{enlace}<small>{_esc(nota)}</small>'
         # Descargas secundarias, de a tres datos (texto, enlace, nota): la
         # edición portable y la edición BAT, que no trae ningún .exe.
         for i in range(0, len(extra), 3):
             cta2, href2, nota2 = extra[i:i + 3]
-            cuerpo += (f'<a class="btn btn-o" href="{href2}" rel="noreferrer">⬇ {_esc(cta2)}</a>'
+            cuerpo += (f'<a class="btn btn-o" href="{href2}" rel="noreferrer">'
+                       f'{_ico("descargar")}{_esc(cta2)}</a>'
                        f'<small>{_esc(nota2)}</small>')
         return f'<article class="d"><b>{_esc(n)}</b><p>{_esc(d)}</p>{cuerpo}</article>'
 
@@ -517,7 +540,7 @@ def render(idioma: str) -> str:
   <h1>{_esc(t['hero_h1'][0])}<br><span>{_esc(t['hero_h1'][1])}</span></h1>
   <p>{_esc(t['hero_p'])}</p>
   <div class="acciones">
-    <a class="btn btn-a" href="{app}">{_esc(t['hero_cta'])} →</a>
+    <a class="btn btn-a" href="{app}">{_esc(t['hero_cta'])}{_ico("flecha")}</a>
     <a class="btn btn-o" href="#pasos">{_esc(t['hero_cta2'])}</a>
   </div>
   <small>{_esc(t['hero_nota'])}</small>
@@ -565,7 +588,7 @@ def render(idioma: str) -> str:
       <span class="precio">US$ 0</span>
       <span class="precio-nota">&nbsp;</span>
       <ul>{items_gratis}</ul>
-      <a class="btn btn-o" href="{app}">{_esc(t['plan_gratis_cta'])} →</a>
+      <a class="btn btn-o" href="{app}">{_esc(t['plan_gratis_cta'])}{_ico("flecha")}</a>
     </article>
     <article class="plan destacado">
       <b>{_esc(t['plan_pago_t'])}</b>
@@ -607,7 +630,7 @@ document.querySelectorAll("[data-pay]").forEach(function (btn) {{
 <section class="cierre"><div class="wrap">
   <h2 class="sec-h">{_esc(t['cierre_h'])}</h2>
   <p class="sec-p">{_esc(t['cierre_p'])}</p>
-  <a class="btn btn-a" href="{app}">{_esc(t['cierre_cta'])} →</a>
+  <a class="btn btn-a" href="{app}">{_esc(t['cierre_cta'])}{_ico("flecha")}</a>
 </div></section>
 
 <footer><div class="wrap"><p>{_esc(t['pie'])}</p><p>© {_esc(t['marca'])}</p></div></footer>

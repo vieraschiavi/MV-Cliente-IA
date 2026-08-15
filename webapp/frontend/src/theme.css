@@ -36,6 +36,40 @@ a { color: inherit; text-decoration: none; }
 button { font-family: inherit; }
 .tnum { font-variant-numeric: tabular-nums; }
 
+/* ---- iconos (componentes/Iconos.jsx) ----
+   Reemplazan a los emojis. Heredan el color del texto que acompañan, así que
+   un icono dentro de un enlace verde sale verde y dentro de `.error-note`
+   sale rojo, sin reglas por caso. `flex:none` porque muchos viven en
+   contenedores flex y ahí un SVG se deja aplastar. La corrección vertical es
+   la que alinea la rejilla de 24 con la línea base del texto de al lado. */
+.ico-svg { flex: none; vertical-align: -.19em; }
+/* Icono + palabra como una sola unidad que no se parte al final del renglón. */
+.con-ico { display: inline-flex; align-items: center; gap: 6px; }
+/* Dentro de un flex la corrección vertical sobra: la alinea el propio flex. */
+.con-ico .ico-svg { vertical-align: 0; }
+/* Chevron plegable. El trazo base apunta hacia abajo: `girado` lo da vuelta
+   (sección abierta hacia arriba) y `cuarto` lo pone de costado (cerrada). */
+.ico-svg.girado, .ico-svg.cuarto { transition: transform .18s; }
+.ico-svg.girado { transform: rotate(180deg); }
+.ico-svg.cuarto { transform: rotate(-90deg); }
+@media (prefers-reduced-motion: reduce) {
+  .ico-svg.girado, .ico-svg.cuarto { transition: none; }
+}
+
+/* Lista de canales de «Automatizar flujo»: el icono ES la viñeta. */
+.canales { list-style: none; margin: 10px 0; padding: 0; font-size: 13.5px; }
+.canales li { display: flex; align-items: center; gap: 8px; padding: 4px 0; color: var(--muted); }
+.canales li .ico-svg { color: var(--faint); }
+.canales label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.canales input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--green-deep); }
+
+/* Comprobante del envío: una línea por canal, icono de estado a la izquierda
+   y el texto alineado con el texto de las demás (no con el icono). */
+.comprobante { margin-top: 12px; font-size: 13.5px; }
+.comprobante p { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 5px; }
+.comprobante p .ico-svg { margin-top: 2px; }
+.comprobante .error-note { margin-top: 0; }
+
 /* ---- layout ---- */
 .layout { display: flex; min-height: 100%; }
 .main { flex: 1; min-width: 0; padding: 28px 34px calc(60px + var(--nav-alto)); }
@@ -61,7 +95,12 @@ button { font-family: inherit; }
 }
 .nav-item:hover { color: var(--ink); background: var(--navy-800); }
 .nav-item.on { color: var(--ink); background: var(--navy-800); border-color: var(--line); }
-.nav-item .ico { width: 18px; text-align: center; }
+.nav-item .ico { width: 18px; height: 18px; display: grid; place-items: center; }
+/* El icono de un destino que no es el actual se apaga un poco: así el activo
+   se lee de un vistazo aunque los ocho tengan el mismo peso de trazo. */
+.nav-item .ico { opacity: .75; }
+.nav-item:hover .ico, .nav-item.on .ico { opacity: 1; }
+.nav-item.on .ico { color: var(--green-deep); }
 .nav-item .txt-corto { display: none; }   /* sólo se usa en la barra móvil */
 .sidebar .spacer { flex: 1; }
 .session-chip { color: var(--faint); font-size: 12px; padding: 8px 12px; }
@@ -106,8 +145,12 @@ button { font-family: inherit; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fase-meta { color: var(--faint); font-size: 12px; flex: none; display: flex; align-items: center; gap: 10px; }
 .fase-cuerpo { padding: 4px 18px 20px; border-top: 1px solid var(--line); }
-.chev { transition: transform .18s; color: var(--faint); }
+/* `inline-flex` y no el `inline` por defecto: `transform` NO se aplica a un
+   elemento inline no reemplazado, así que la flecha de la fase abierta nunca
+   llegaba a rotar — se veía siempre para abajo. */
+.chev { display: inline-flex; transition: transform .18s; color: var(--faint); }
 .fase.abierta .chev { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) { .chev { transition: none; } }
 
 /* puntito animado de la fase en curso */
 .latido { width: 8px; height: 8px; border-radius: 50%; background: var(--green-deep);
@@ -163,7 +206,15 @@ button { font-family: inherit; }
 .mail pre {
   margin: 0; font-family: var(--sans); font-size: 13px; white-space: pre-wrap;
   color: var(--muted); line-height: 1.6;
+  /* `pre-wrap` corta en los espacios, pero el cuerpo del correo termina con el
+     enlace a la web — y si va traqueado (cliente_ia/enlaces.py) es una URL
+     firmada de más de 200 caracteres SIN un solo espacio. En un teléfono de
+     390 px eso estiraba la ficha a 483 px y metía scroll horizontal en TODA la
+     página. `anywhere` la parte donde haga falta. */
+  overflow-wrap: anywhere;
 }
+/* Misma razón: acá se muestra la URL del post de X tal cual la devuelve la API. */
+.enlaces-msg a, .comprobante a { overflow-wrap: anywhere; }
 .mail .acciones { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 .mail .para { color: var(--faint); font-size: 12.5px; }
 .mail .sub { margin: 16px 0 8px; font-size: 12px; color: var(--muted);
@@ -224,11 +275,17 @@ tbody tr:hover { background: var(--navy-800); }
 
 /* ---- controles ---- */
 .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; align-items: center; }
-select, input[type="text"], input[type="password"], input[type="number"], textarea {
+select, input[type="text"], input[type="password"], input[type="number"],
+input[type="email"], input[type="url"], textarea {
   background: var(--navy-800); color: var(--ink); border: 1px solid var(--line);
   border-radius: 9px; padding: 9px 12px; font-size: 13.5px; font-family: inherit; outline: none;
   /* 16px en móvil evita el zoom automático de Android/iOS al enfocar */
   max-width: 100%;
+  /* Los tipos van enumerados (y no un `input` pelado) para no pisar los
+     checkbox ni el `type=file`. Faltaban `email` y `url`: los cuatro campos
+     de correo de la app —destinatario, comprobante, cupo gratis y usuario
+     SMTP— salían con el blanco por defecto del navegador en medio del tema
+     oscuro. Si agregás un tipo nuevo de campo, sumalo acá y a la regla móvil. */
 }
 select:focus, input:focus, textarea:focus { border-color: var(--green); }
 .btn {
@@ -306,7 +363,7 @@ select:focus, input:focus, textarea:focus { border-color: var(--green); }
     flex-direction: column; gap: 3px; padding: 7px 2px;
     text-align: center; justify-content: center;
   }
-  .nav-item .ico { width: auto; font-size: 17px; }
+  .nav-item .ico { width: 20px; height: 20px; }
   .nav-item .txt { display: none; }
   .nav-item .txt-corto {
     display: block; font-size: 9px; letter-spacing: -.01em; line-height: 1.15;
@@ -325,7 +382,8 @@ select:focus, input:focus, textarea:focus { border-color: var(--green); }
   .arranque { flex-direction: column; align-items: stretch; }
   .campo.crece { min-width: 0; }
   .btn, .btn.cta { width: 100%; padding: 13px 18px; }
-  select, input[type="text"], input[type="password"], input[type="number"], textarea {
+  select, input[type="text"], input[type="password"], input[type="number"],
+input[type="email"], input[type="url"], textarea {
     font-size: 16px; width: 100%;
   }
   .fase-cab { padding: 14px 14px; gap: 11px; }
