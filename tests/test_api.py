@@ -501,3 +501,42 @@ def test_automatizar_manda_lote_y_comprobante(cliente, monkeypatch):
     assert "Linkedin: 12" in cuerpo and "Tiktok: 1" in cuerpo
     html = recibo.get_body(("html",)).get_content()
     assert "<table" in html and "<style" not in html   # regla Outlook
+
+
+def test_corrida_con_proveedor_mal_config_no_queda_colgada(cliente, monkeypatch):
+    """El ALTO de la auditoría: elegir copilot sin endpoint hacía que
+    `construir` lanzara FUERA del try de `ejecutar`, dejando la corrida en
+    'corriendo' para siempre (spinner infinito) o un 500 crudo en serverless.
+    Ahora cae en el manejador y queda 'error' con el motivo."""
+    # Sin estado (serverless): la corrida se ejecuta en la misma petición.
+    monkeypatch.setattr("webapp.backend.api.SIN_ESTADO", True)
+    r = cliente.post("/api/corridas", json={
+        "dominio": "ejemplo.com", "modo": "llm", "proveedor_ia": "copilot",
+        "clave_ia": "una-clave", "endpoint_ia": "", "prospectos": 5,
+        "email": "x@y.com"})
+    # No revienta con 500: sale un error controlado (502 con el motivo).
+    assert r.status_code == 502
+    assert "endpoint" in r.json()["detail"].lower() or "copilot" in r.json()["detail"].lower()
+
+
+def test_una_corrida_vieja_con_un_campo_extra_no_da_500(cliente, monkeypatch, tmp_path):
+    """El MEDIO: un JSON guardado por una versión previa que traiga una clave
+    renombrada/quitada tumbaba `desde_dict` con TypeError -> 500 al abrir o
+    exportar. Ahora las claves desconocidas se ignoran."""
+    import json as _json
+
+    from cliente_ia import almacen, rutas
+    monkeypatch.setenv("MVCLIENTE_DIR_DATOS", str(tmp_path))
+    # Corrida mínima válida + un campo que el dataclass Prospecto ya no tiene.
+    corrida = {
+        "id": "vieja01", "dominio": "ejemplo.com", "estado": "listo",
+        "prospectos": [{"id": "p1", "nombre": "ACME", "dominio": "acme.com",
+                        "sector": "x", "pais": "UY", "nivel": "local",
+                        "prioridad": 1, "senales": [], "campana_id": "c1",
+                        "campo_que_ya_no_existe": "basura"}],
+    }
+    (rutas.dir_corridas() / "vieja01.json").write_text(_json.dumps(corrida))
+    # Reconstruir no revienta y conserva el prospecto.
+    c = almacen.cargar("vieja01")
+    assert c is not None and len(c.prospectos) == 1
+    assert c.prospectos[0].nombre == "ACME"

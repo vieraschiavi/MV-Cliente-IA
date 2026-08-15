@@ -11,7 +11,7 @@ cartel — igual que el banner de datos de demo de MV Kobra AI.
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 
 from . import geo
 
@@ -284,8 +284,20 @@ class Corrida:
         }
 
 
+def _solo(cls, d: dict) -> dict:
+    """Filtra `d` a los campos que `cls` conoce. Sin esto, una corrida
+    guardada por una versión previa que traiga una clave renombrada o quitada
+    tumbaba la reconstrucción con TypeError —y como `almacen.cargar` sólo
+    reintenta PermissionError, subía como 500 al abrir o exportar esa corrida
+    vieja—. Una clave que ya no existe se ignora; una nueva que falta usa el
+    default del dataclass."""
+    validos = {f.name for f in fields(cls)}
+    return {k: v for k, v in (d or {}).items() if k in validos}
+
+
 def desde_dict(d: dict) -> Corrida:
-    """Reconstruye una corrida guardada en disco."""
+    """Reconstruye una corrida guardada en disco. Tolera deriva de esquema
+    entre versiones: campos desconocidos se ignoran (ver `_solo`)."""
     c = Corrida(
         id=d["id"], dominio=d["dominio"], creada=d.get("creada", ""),
         estado=d.get("estado", "pendiente"), modo=d.get("modo", "demo"),
@@ -296,17 +308,17 @@ def desde_dict(d: dict) -> Corrida:
         enlaces=d.get("enlaces") or {},
     )
     c.avisos = [str(a) for a in d.get("avisos", [])]
-    c.pasos = [PasoFase(**p) for p in d.get("pasos", [])]
+    c.pasos = [PasoFase(**_solo(PasoFase, p)) for p in d.get("pasos", [])]
     if d.get("empresa"):
-        c.empresa = Empresa(**d["empresa"])
-    c.competidores = [Competidor(**x) for x in d.get("competidores", [])]
-    c.campanas = [Campana(**x) for x in d.get("campanas", [])]
-    c.prospectos = [Prospecto(**x) for x in d.get("prospectos", [])]
+        c.empresa = Empresa(**_solo(Empresa, d["empresa"]))
+    c.competidores = [Competidor(**_solo(Competidor, x)) for x in d.get("competidores", [])]
+    c.campanas = [Campana(**_solo(Campana, x)) for x in d.get("campanas", [])]
+    c.prospectos = [Prospecto(**_solo(Prospecto, x)) for x in d.get("prospectos", [])]
     # Las corridas guardadas antes de que el país base fuera elegible traen la
     # ola regional escrita "latam". Se traduce al abrirlas para que el filtro
     # de la tabla y el resumen sigan encontrándolas.
     for fila in (*c.campanas, *c.prospectos):
         fila.nivel = geo.normalizar_nivel(fila.nivel)
-    c.decisores = [Decisor(**x) for x in d.get("decisores", [])]
-    c.emails = [Email(**x) for x in d.get("emails", [])]
+    c.decisores = [Decisor(**_solo(Decisor, x)) for x in d.get("decisores", [])]
+    c.emails = [Email(**_solo(Email, x)) for x in d.get("emails", [])]
     return c

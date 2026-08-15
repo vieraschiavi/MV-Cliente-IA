@@ -1107,7 +1107,9 @@ def crear_corrida(entrada: CorridaIn, request: Request, stream: int = 0):
         _en_curso.add(corrida_id)
     _ejecutor.submit(_lanzar, entrada, corrida_id)
     return {"id": corrida_id, "estado": "corriendo",
-            "modo": proveedores.modo_efectivo(entrada.modo)}
+            # Con la clave pegada, `llm` corre como `llm` — sin pasarla, esto
+            # informaba "web" para una corrida que sí usa IA.
+            "modo": proveedores.modo_efectivo(entrada.modo, entrada.clave_ia)}
 
 
 @app.get("/api/corridas", dependencies=[Depends(requiere_auth)])

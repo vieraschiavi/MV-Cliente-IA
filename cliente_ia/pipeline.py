@@ -115,13 +115,19 @@ def ejecutar(dominio: str,
             al_avanzar(corrida)
 
     avisar()
-    # La clave de la interfaz vive lo que dura esta llamada: no entra en la
-    # corrida, ni en el disco, ni en ningún log.
-    proveedor = proveedores.construir(modo, corrida.idioma_ui, clave_ia,
-                                      proveedor_ia, endpoint_ia, mercado,
-                                      base.codigo, modelo_ia)
-
+    # Construir el proveedor va DENTRO del try: si falla la inicialización
+    # (p. ej. `copilot` sin la URL del endpoint, o una clave mal formada),
+    # antes la excepción escapaba de `ejecutar` y la corrida quedaba
+    # `corriendo` para siempre —spinner infinito en el instalado, 500 crudo en
+    # serverless—. Ahora cae en el mismo manejador que marca `estado="error"`
+    # con el motivo a la vista.
+    proveedor = None
     try:
+        # La clave de la interfaz vive lo que dura esta llamada: no entra en
+        # la corrida, ni en el disco, ni en ningún log.
+        proveedor = proveedores.construir(modo, corrida.idioma_ui, clave_ia,
+                                          proveedor_ia, endpoint_ia, mercado,
+                                          base.codigo, modelo_ia)
         # --- Fase 1 · investigar la empresa -----------------------------
         with _fase(corrida, "investigar", avisar) as paso:
             corrida.empresa = proveedor.investigar(dominio)
@@ -261,10 +267,12 @@ def ejecutar(dominio: str,
     # Lo que la cadena de proveedores absorbió sin tumbar la corrida (p. ej.
     # el LLM falló y lo cubrió el demo) se muestra, no se esconde. Se suma a
     # los avisos que el propio pipeline haya dejado (p. ej. el del filtro de
-    # mercado) en vez de pisarlos.
-    corrida.avisos.extend(getattr(proveedor, "errores", []))
-    for p in getattr(proveedor, "proveedores", []):
-        corrida.avisos.extend(getattr(p, "notas", []))
+    # mercado) en vez de pisarlos. `proveedor` puede ser None si la
+    # construcción misma falló — por eso la guarda.
+    if proveedor is not None:
+        corrida.avisos.extend(getattr(proveedor, "errores", []))
+        for p in getattr(proveedor, "proveedores", []):
+            corrida.avisos.extend(getattr(p, "notas", []))
     avisar()
     return corrida
 
