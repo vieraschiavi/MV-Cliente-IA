@@ -38,7 +38,14 @@ export default function Prospectos() {
           : "—";
       } },
     { id: "senales", titulo: t("tabla.senales"),
-      render: (p) => <span style={{ whiteSpace: "normal" }}>{(p.senales || []).join(" · ")}</span> },
+      // "Por qué ahora" puede traer varias señales: sin tope, el texto se
+      // apila y estira la fila a 300px. Se limita a 2 líneas con el texto
+      // completo en el title, y un ancho que evita que la columna se
+      // aplaste contra el borde derecho de la tabla.
+      render: (p) => {
+        const txt = (p.senales || []).join(" · ");
+        return <span className="celda-2l" title={txt}>{txt}</span>;
+      } },
   ];
 
   if (!corrida) return <Vacio />;
