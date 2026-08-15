@@ -1,29 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   El APK guarda en el WebView la clave del modelo, la del SMTP y las de X y
-  LinkedIn, y las manda en cada pedido al servidor. Antes la app tenía
-  `usesCleartextTraffic="true"` para TODO destino (lo pedía
-  `capacitor.config.json`), así que esas claves viajaban en texto plano hacia
-  cualquier host — alcanzaba con estar en el mismo wifi para leerlas.
+  LinkedIn, y las manda en cada pedido al servidor configurado. El uso normal
+  es apuntarlo a un servidor propio en la LAN (`http://192.168.1.10:8810`),
+  que es HTTP.
 
-  Pero el uso normal del APK es apuntarlo a un servidor propio en la LAN
-  (`http://192.168.1.10:8810`, el ejemplo de Configuración), y eso es HTTP.
-  Prohibir el texto plano en general dejaría el producto sin su modo
-  principal, así que se permite SÓLO en las redes privadas donde ese servidor
-  vive: contra Internet, HTTPS obligatorio.
+  IMPORTANTE — por qué esto NO intenta whitelistear rangos privados acá:
+  Android Network Security Config compara `<domain>` por SUFIJO DE HOSTNAME;
+  NO entiende notación CIDR (`192.168.0.0/16`) ni rangos de IP. Una versión
+  anterior de este archivo los listaba y NO funcionaban: como `192.168.1.10`
+  no es sufijo del literal `192.168.0.0/16`, esas reglas nunca matcheaban y la
+  conexión LAN caía en el `false` del base-config — bloqueada. Fallaba cerrado
+  (más seguro que prometido) pero rompía el modo LAN, que es el principal.
+
+  La restricción "texto plano SÓLO a redes privadas" NO se puede expresar en
+  este XML. Se permite el texto plano a nivel plataforma (para que la LAN por
+  IP funcione) y el candado REAL vive en la app: `api.js` rechaza cualquier
+  pedido `http://` a un host que no sea loopback ni RFC 1918. Ahí sí se puede
+  chequear la IP, y es donde el control tiene efecto de verdad.
 -->
 <network-security-config>
-    <base-config cleartextTrafficPermitted="false" />
-
-    <domain-config cleartextTrafficPermitted="true">
-        <!-- El propio equipo -->
-        <domain includeSubdomains="false">localhost</domain>
-        <domain includeSubdomains="false">127.0.0.1</domain>
-        <!-- Redes privadas (RFC 1918): el servidor de la oficina o de casa.
-             Android compara por sufijo, así que se enumeran los prefijos que
-             cubren cada rango. -->
-        <domain includeSubdomains="true">192.168.0.0/16</domain>
-        <domain includeSubdomains="true">10.0.0.0/8</domain>
-        <domain includeSubdomains="true">172.16.0.0/12</domain>
-    </domain-config>
+    <base-config cleartextTrafficPermitted="true" />
 </network-security-config>

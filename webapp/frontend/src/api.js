@@ -41,6 +41,22 @@ export function setBase(url) {
   else localStorage.removeItem(KEY_BASE);
 }
 
+// El candado de texto plano que Android Network Security Config NO puede
+// hacer (no entiende rangos de IP). En el APK el servidor se apunta a mano, y
+// las claves del usuario (modelo, SMTP, X, LinkedIn) viajan en cada pedido:
+// permitir `http://` a un host PÚBLICO las dejaría a la vista de cualquiera en
+// el mismo wifi. `https://` siempre pasa; `http://` sólo a loopback o a una
+// red privada (RFC 1918), que es donde vive un servidor propio en la LAN.
+export function baseInsegura(base) {
+  const u = (base || "").trim();
+  if (!u || /^https:\/\//i.test(u)) return false;      // vacío o https: ok
+  if (!/^http:\/\//i.test(u)) return false;            // no es http(s): no aplica
+  let host;
+  try { host = new URL(u).hostname.toLowerCase(); } catch { return true; }
+  const priv = /^(localhost|127\.\d+\.\d+\.\d+|::1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)$/;
+  return !priv.test(host);                              // http a host público = inseguro
+}
+
 export function getToken() {
   return localStorage.getItem(KEY_TOKEN) || "";
 }
@@ -313,6 +329,12 @@ function cabeceras(cuerpo) {
 }
 
 export async function api(ruta, { metodo = "GET", cuerpo, crudo = false } = {}) {
+  // Ningún pedido en texto plano a un host público: llevaría las claves del
+  // usuario a la vista de cualquiera en la misma red. Se corta antes del
+  // fetch, no después.
+  if (baseInsegura(getBase())) {
+    throw new ErrorApi("servidor_inseguro_http", 0);
+  }
   let r;
   try {
     r = await fetch(getBase() + ruta, {
@@ -346,6 +368,9 @@ export async function api(ruta, { metodo = "GET", cuerpo, crudo = false } = {}) 
  * la corrida entera. Devuelve la última línea (la corrida terminada).
  */
 export async function apiStream(ruta, cuerpo, onLinea) {
+  if (baseInsegura(getBase())) {
+    throw new ErrorApi("servidor_inseguro_http", 0);
+  }
   let r;
   try {
     r = await fetch(getBase() + ruta, {

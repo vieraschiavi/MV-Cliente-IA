@@ -32,10 +32,12 @@ es la única pieza de infra que queda del lado del usuario.
 from __future__ import annotations
 
 import base64
+import collections
 import hashlib
 import hmac
 import json
 import os
+import secrets
 import threading
 from collections import defaultdict
 from datetime import datetime
@@ -48,6 +50,21 @@ CANALES = ("email", "linkedin", "x")
 # Un bucket (segmento, día, hora…) con menos de esto no se corona "el mejor":
 # una conversión sobre un envío es 100% y no dice nada.
 MINIMO_PARA_RANKEAR = 5
+
+# Techo del archivo. Sin esto, `/api/metricas/envios` (o el replay del enlace
+# de conversión) puede escribir sin fin: en la edición instalada llenaría el
+# disco, y `resumen()` relee el archivo entero en cada llamada, así que el
+# costo de lectura también crecería sin límite. Al toparlo, se deja de
+# agregar — perder una métrica es mejor que tumbar la máquina del cliente.
+MAX_BYTES = int(os.getenv("MVCLIENTE_METRICAS_MAX_BYTES", str(20 * 1024 * 1024)))
+
+# Nonces de conversión ya vistos, para no contar dos veces el MISMO click.
+# El enlace del correo lleva un nonce único por envío; reproducirlo (el
+# destinatario que recdcarga, o un atacante que repite el token que le llegó)
+# no infla la conversión. Acotado en memoria para no crecer sin techo; se
+# reinicia entre arranques, y el techo del archivo cubre el resto.
+_NONCES_TOPE = 200_000
+_nonces_vistos = None  # OrderedDict, se inicializa perezoso en `_nonce_nuevo`
 
 _lock = threading.Lock()
 
@@ -76,11 +93,37 @@ def hay_traqueo() -> bool:
 def _agregar(evento: dict) -> None:
     linea = json.dumps(evento, ensure_ascii=False, sort_keys=True)
     with _lock:
+        ruta = _ruta()
+        # Techo de disco: si el archivo ya llegó al límite, no se agrega más.
+        # Barato (getsize), y corta el llenado por spam o replay antes de que
+        # importe.
+        try:
+            if os.path.exists(ruta) and os.path.getsize(ruta) >= MAX_BYTES:
+                return
+        except OSError:
+            pass
         # `a` es atómico para líneas cortas en POSIX; el instalado es
         # monoproceso, así que no hay carrera real. No se reescribe el
         # archivo: un evento perdido es mejor que corromper el historial.
-        with open(_ruta(), "a", encoding="utf-8") as f:
+        with open(ruta, "a", encoding="utf-8") as f:
             f.write(linea + "\n")
+
+
+def _nonce_nuevo(nonce: str) -> bool:
+    """True la primera vez que se ve un nonce; False si ya se contó. Acota el
+    set para no crecer sin techo (descarta el más viejo)."""
+    global _nonces_vistos
+    if not nonce:
+        return True                          # sin nonce no hay dedup (compat)
+    with _lock:
+        if _nonces_vistos is None:
+            _nonces_vistos = collections.OrderedDict()
+        if nonce in _nonces_vistos:
+            return False
+        _nonces_vistos[nonce] = True
+        if len(_nonces_vistos) > _NONCES_TOPE:
+            _nonces_vistos.popitem(last=False)
+        return True
 
 
 def registrar_envios(eventos: list[dict]) -> int:
@@ -106,7 +149,11 @@ def registrar_envios(eventos: list[dict]) -> int:
     return n
 
 
-def registrar_conversion(datos: dict) -> None:
+def registrar_conversion(datos: dict) -> bool:
+    """Cuenta una conversión, salvo que su nonce ya se haya visto (replay del
+    mismo enlace). Devuelve True si contó, False si era repetida."""
+    if not _nonce_nuevo(str(datos.get("nonce", ""))):
+        return False
     _agregar({
         "tipo": "conversion",
         "ts": _ts(datos.get("ts")),
@@ -117,6 +164,7 @@ def registrar_conversion(datos: dict) -> None:
         "pais": str(datos.get("pais", "")).strip().upper()[:2],
         "idioma": str(datos.get("idioma", "")).strip().lower()[:2],
     })
+    return True
 
 
 def _ts(valor) -> str:
@@ -137,8 +185,14 @@ def _ts(valor) -> str:
 # ---------------------------------------------------------------------------
 def firmar_traqueo(destino: str, meta: dict) -> str:
     """Un token que envuelve la URL de la landing y de dónde viene el click.
-    Firmado: `/api/ir` sólo cuenta —y sólo redirige a— lo que salió de acá."""
-    cuerpo = {"u": destino, **{k: str(v) for k, v in meta.items() if v}}
+    Firmado: `/api/ir` sólo cuenta —y sólo redirige a— lo que salió de acá.
+
+    Lleva un `nonce` único por enlace: así el mismo click no se cuenta dos
+    veces (el destinatario que recarga, o alguien que repite el token que le
+    llegó). Cada correo sale con su nonce, así que cuenta a lo sumo una
+    conversión por envío, no importa cuántas veces se abra."""
+    cuerpo = {"u": destino, "j": meta.get("nonce") or secrets.token_urlsafe(9),
+              **{k: str(v) for k, v in meta.items() if v and k != "nonce"}}
     crudo = json.dumps(cuerpo, separators=(",", ":"), sort_keys=True).encode()
     datos = base64.urlsafe_b64encode(crudo).decode().rstrip("=")
     firma = _firma(datos)
@@ -321,7 +375,9 @@ def _rotular(dim: str, clave) -> str:
 
 def borrar_todo() -> None:
     """Sólo para los tests y para el botón de 'reiniciar métricas'."""
+    global _nonces_vistos
     ruta = _ruta()
     with _lock:
         if os.path.exists(ruta):
             os.remove(ruta)
+        _nonces_vistos = None                # también se olvidan los clicks vistos

@@ -210,6 +210,48 @@ def test_el_redirect_de_conversion_cuenta_el_click_y_rebota(monkeypatch):
     assert resumen["tasa_conversion"] == 0.1
 
 
+def test_reproducir_el_mismo_enlace_no_infla_la_conversion(monkeypatch):
+    """El hallazgo de la auditoría: sin dedup, un atacante que recibe UN correo
+    extrae el token y lo repite N veces, inflando la conversión. El nonce
+    único por enlace hace que el mismo click cuente una sola vez."""
+    monkeypatch.setenv("MVCLIENTE_TRAQUEO_SECRETO", "secreto-anti-replay")
+    cliente = _cliente()
+    cliente.post("/api/metricas/envios", json={"eventos": [
+        {"programa": "x.com", "canal": "email", "segmento": "fintech",
+         "ts": "2026-03-02T10:00:00+00:00"} for _ in range(10)]})
+
+    token = metricas.firmar_traqueo("https://ejemplo.com/", {"programa": "x.com",
+                                    "canal": "email", "segmento": "fintech"})
+    # Seis clicks con el MISMO token: seis 302 (el destinatario igual llega a
+    # la web) pero UNA sola conversión contada.
+    for _ in range(6):
+        r = cliente.get(f"/api/ir?t={token}", follow_redirects=False)
+        assert r.status_code == 302
+    assert cliente.get("/api/metricas/resumen?programa=x.com").json()["conversiones"] == 1
+
+
+def test_dos_enlaces_distintos_cuentan_dos_conversiones(monkeypatch):
+    """Que el dedup no coma conversiones legítimas: dos ENVÍOS distintos (dos
+    nonces) tienen que contar dos veces."""
+    monkeypatch.setenv("MVCLIENTE_TRAQUEO_SECRETO", "secreto-anti-replay")
+    cliente = _cliente()
+    for _ in range(2):
+        tok = metricas.firmar_traqueo("https://ejemplo.com/", {"canal": "email"})
+        cliente.get(f"/api/ir?t={tok}", follow_redirects=False)
+    assert metricas.resumen()["conversiones"] == 2
+
+
+def test_el_archivo_de_metricas_tiene_techo(monkeypatch):
+    """Sin techo, spamear envíos llenaría el disco de la edición instalada y
+    `resumen()` releería un archivo cada vez más grande. Al toparlo, se deja
+    de agregar en vez de tumbar la máquina."""
+    monkeypatch.setattr(metricas, "MAX_BYTES", 2000)     # techo minúsculo para el test
+    for _ in range(50):
+        metricas.registrar_envios([_envio() for _ in range(20)])
+    import os
+    assert os.path.getsize(metricas._ruta()) < 2000 + 500   # no crece sin control
+
+
 def test_el_redirect_rechaza_firma_falsa(monkeypatch):
     monkeypatch.setenv("MVCLIENTE_TRAQUEO_SECRETO", "secreto-del-redirect")
     cliente = _cliente()

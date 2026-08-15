@@ -85,13 +85,24 @@ def test_los_xml_de_seguridad_existen_y_parsean(archivo):
     ET.parse(RAIZ / archivo)
 
 
-def test_el_texto_plano_solo_se_permite_en_redes_privadas():
-    """El APK apunta a un servidor propio en la LAN, así que el HTTP hace
-    falta — pero sólo ahí. Contra internet, HTTPS obligatorio: si no, las
-    claves del usuario viajan a la vista de cualquiera en el mismo wifi."""
+def test_el_texto_plano_lo_controla_la_app_no_un_cidr_falso_en_el_xml():
+    """La auditoría encontró que el XML listaba rangos CIDR (192.168.0.0/16),
+    que Android Network Security Config NO entiende — comparaba por sufijo de
+    hostname, así que esas reglas nunca matcheaban y rompían el modo LAN.
+
+    El control real vive en `api.js` (`baseInsegura`): rechaza `http://` a un
+    host que no sea loopback ni RFC 1918. El XML no debe fingir un filtro por
+    IP que la plataforma no puede hacer."""
     texto = (RAIZ / "android/app/src/main/res/xml/seguridad_red.xml").read_text(encoding="utf-8")
-    assert 'cleartextTrafficPermitted="false"' in texto      # el default
-    assert "192.168" in texto and "10.0.0.0" in texto        # la excepción
+    # Ya no hay domain-config con CIDR (la ilusión que no funcionaba): sólo
+    # base-config, y el candado real lo pone la app.
+    assert "<domain-config" not in texto
+    assert 'cleartextTrafficPermitted="true"' in texto
+    # El candado de verdad está en la app.
+    api_js = (RAIZ / "webapp/frontend/src/api.js").read_text(encoding="utf-8")
+    assert "baseInsegura" in api_js
+    # El chequeo RFC 1918/loopback (regex, de ahí los backslashes).
+    assert r"192\.168" in api_js and r"127\." in api_js
     cfg = json.loads((RAIZ / "capacitor.config.json").read_text(encoding="utf-8"))
     assert "cleartext" not in cfg.get("server", {}), \
         "capacitor.config.json vuelve a habilitar texto plano para TODO destino"

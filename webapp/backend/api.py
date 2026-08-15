@@ -680,10 +680,14 @@ def ir(t: str = ""):
     # `javascript:` firmado por error no puede convertirse en redirect.
     if not re.match(r"(?i)^https?://", destino):
         raise HTTPException(400, "Destino de seguimiento no permitido")
+    # El nonce (`j`) es lo que impide que reproducir el enlace infle la
+    # conversión: un click ya contado se ignora, pero igual se redirige (el
+    # destinatario que recarga tiene que llegar a la web lo mismo).
     metricas.registrar_conversion({
         "programa": cuerpo.get("programa", ""), "canal": cuerpo.get("canal", ""),
         "segmento": cuerpo.get("segmento", ""), "nivel": cuerpo.get("nivel", ""),
         "pais": cuerpo.get("pais", ""), "idioma": cuerpo.get("idioma", ""),
+        "nonce": cuerpo.get("j", ""),
     })
     # 302 y no 301: el 301 lo cachea el navegador y un segundo click no
     # volvería a pasar por acá, perdiendo la conversión repetida.
