@@ -55,7 +55,10 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # Node 22, no 20: Electron 43 declara `engines: node >= 22.12`.
+          # Con Node 20 el `npm ci` de electron/ falla y el instalador no se
+          # arma — se descubrió al subir Electron de la 33 (fuera de soporte).
+          node-version: "22"
 
       - name: Compilar la app React
         run: |
@@ -115,7 +118,8 @@ jobs:
         run: |
           cd electron
           npm pkg set version=$env:MVVER
-          npm install
+          # Árbol exacto del lock, igual que en build_windows.yml.
+          npm ci
           npx electron-builder --win --publish never
           if (-Not (Test-Path "dist_installer/MVClienteIA_Setup.exe")) {
             Write-Error "No se generó el instalador owner"; exit 1

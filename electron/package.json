@@ -4,7 +4,9 @@
   "version": "1.0.0",
   "description": "MV Cliente IA · encontrá tus próximos clientes — investiga tu empresa, busca compradores, encuentra decisores y escribe los correos",
   "main": "main.js",
-  "author": { "name": "MV Cliente IA" },
+  "author": {
+    "name": "MV Cliente IA"
+  },
   "license": "UNLICENSED",
   "private": true,
   "scripts": {
@@ -13,19 +15,40 @@
     "dist:linux": "electron-builder --linux AppImage --publish never"
   },
   "devDependencies": {
-    "electron": "^33.2.1",
-    "electron-builder": "^25.1.8"
+    "electron": "^43.4.0",
+    "electron-builder": "^26.15.3"
   },
   "build": {
     "appId": "com.mvclienteia.desktop",
     "productName": "MV Cliente IA",
-    "directories": { "output": "dist_installer", "buildResources": "build" },
-    "files": ["main.js", "preload.js"],
-    "extraResources": [{ "from": "../dist/MVClienteIA", "to": "backend" }],
+    "directories": {
+      "output": "dist_installer",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js"
+    ],
+    "extraResources": [
+      {
+        "from": "../dist/MVClienteIA",
+        "to": "backend"
+      }
+    ],
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] },
-        { "target": "zip", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "artifactName": "MVClienteIA_Portable.${ext}",
       "icon": "build/icon.ico"
@@ -38,12 +61,22 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "MV Cliente IA",
-      "installerLanguages": ["es_ES", "pt_BR", "en_US"],
+      "installerLanguages": [
+        "es_ES",
+        "pt_BR",
+        "en_US"
+      ],
       "multiLanguageInstaller": true,
       "displayLanguageSelector": true,
       "runAfterFinish": true
     },
-    "linux": { "target": ["AppImage"], "category": "Office", "icon": "build/icon.png" },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Office",
+      "icon": "build/icon.png"
+    },
     "copyright": "© MV Cliente IA"
   }
 }

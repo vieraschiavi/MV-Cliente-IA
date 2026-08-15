@@ -73,7 +73,10 @@ jobs:
       - name: Setup Node (para compilar la app React del instalador)
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # Node 22, no 20: Electron 43 declara `engines: node >= 22.12`.
+          # Con Node 20 el `npm ci` de electron/ falla y el instalador no se
+          # arma — se descubrió al subir Electron de la 33 (fuera de soporte).
+          node-version: "22"
 
       - name: Compilar la app React (webapp/frontend/dist)
         # Node sólo hace falta acá, en CI; nunca en la PC del cliente final.
@@ -145,7 +148,12 @@ jobs:
         run: |
           cd electron
           npm pkg set version=$env:MVVER
-          npm install
+          # `npm ci` y no `npm install`: instala EXACTAMENTE el árbol del
+          # package-lock.json, así el instalador que se publica hoy trae las
+          # mismas dependencias que el de la semana que viene. (`npm ci` sólo
+          # exige que coincidan las dependencias, no la versión raíz, así que
+          # el `npm pkg set version` de arriba no lo molesta — verificado.)
+          npm ci
           # Las DOS, siempre. Antes en un push normal se armaba sólo `cliente`
           # para ahorrar minutos de Windows, pero la landing enlaza a
           # `MVClienteIA_Setup_demo.exe` por /releases/latest/download: si un

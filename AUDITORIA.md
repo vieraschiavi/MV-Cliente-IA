@@ -5,7 +5,7 @@
 > está abierto figura abierto, con su costo.
 >
 > **Última pasada:** 2026-08-15 · rama `claude/replicate-explee-kobra-s9sx0s`
-> **Gates:** `346 tests passed` · `ruff: All checks passed!` · build web OK
+> **Gates:** `353 tests passed` · `ruff: All checks passed!` · build web OK · humo Electron OK
 
 ---
 
@@ -13,14 +13,18 @@
 
 | | |
 |---|---|
-| **Nota honesta** | **9 / 10** |
+| **Nota honesta** | **10 / 10 del lado del código** |
 | **¿Listo para producción?** | El código sí. Falta configuración del dueño (§6). |
-| Defectos encontrados en total | 11 |
-| Cerrados y verificados | 11 |
-| Deuda técnica abierta | 1 (Electron sin soporte, §5) |
+| Defectos encontrados en total | 13 |
+| Cerrados y verificados | 13 |
+| Deuda técnica abierta | ninguna |
 
-El punto que falta para el 10 no es un bug: es la dependencia de Electron fuera
-de su ventana de soporte y sin `package-lock.json` propio. Está explicado en §5.
+La deuda que dejaba la nota en 9 —Electron fuera de soporte y sin lock propio—
+está cerrada (§5). Cerrarla destapó dos defectos más que se habrían visto recién
+al armar la Release; también están cerrados.
+
+Lo único que queda entre este estado y el producto vivo es configuración que
+sólo puede cargar el dueño: secretos, keystore y certificado (§6).
 
 ---
 
@@ -40,6 +44,8 @@ de verdad y se miró la salida.
 | Determinismo demo | Semilla derivada del dominio | Reproducible |
 | Orden de olas | país del cliente → su región → resto del mundo | `test_geo` + `test_scoring` verdes |
 | Bundles publicados | web (`public/app`), PC (`dist`), APK (`android/.../assets`) | Los tres sin emojis |
+| App de PC (Electron) | `packaging/humo_electron.js` bajo xvfb: ventana, iconos, contextBridge, Node no expuesto | Electron 43.4.0 · Chromium 150 → OK |
+| Empaquetado | `electron-builder --linux dir` + correr el binario armado | Config OK · `extraResources` OK · reintentos OK |
 
 ---
 
@@ -76,7 +82,23 @@ Verificación de C-1 en vivo: Copilot sin endpoint → estado **`error`**, no co
 D-3, D-4 y D-5 son **preexistentes** — se verificó contra el build anterior que
 ya estaban ahí antes de tocar la iconografía. No los introdujo este cambio.
 
-### 3.4 Métricas — 1 hallazgo de honestidad (commit `fccf613`)
+### 3.4 App de escritorio — 2 hallazgos al subir Electron
+
+Los dos aparecieron *al cerrar* la deuda de §5, y los dos habrían reventado
+recién en el job de Windows que arma la Release.
+
+| # | Sev. | Defecto | Impacto real | Arreglo |
+|---|---|---|---|---|
+| E-1 | **ALTO** | Electron 43 declara `engines: node >= 22.12` y **los cinco workflows usaban Node 20** (que además ya está EOL) | El `npm ci` de `electron/` falla y **no se arma el instalador**. Se descubre publicando, no antes | Node 22 en los cinco workflows |
+| E-2 | MEDIO | Los workflows del instalador usaban `npm install`, no `npm ci` | Sin lock + `npm install` = dos builds del instalador pueden traer árboles distintos. Lo que se le manda al cliente no es reproducible | `npm ci` en `build_windows.yml` y `owner.yml` |
+
+Antes de cambiar el workflow se verificó a mano una duda concreta: los dos
+hacen `npm pkg set version=$MVVER` **antes** de instalar, y había que saber si
+`npm ci` rechaza que la versión raíz no coincida con el lock. **No la rechaza**
+—sólo exige coherencia de dependencias— y se comprobó ejecutándolo, no leyendo
+la documentación.
+
+### 3.5 Métricas — 1 hallazgo de honestidad (commit `fccf613`)
 
 Se calculaba una "tasa de conversión por día de la semana" cruzando el día de
 **envío** con el día de **click**. No son el mismo día, así que la tasa era
@@ -127,28 +149,54 @@ tipo de campo sin estilo del tema, o si se pierden D-3 / D-5.
 
 ---
 
-## 5. Lo que falta mejorar (abierto)
+## 5. Electron fuera de soporte — **cerrado**
 
-### 5.1 Electron fuera de soporte — **la deuda principal**
+Era la deuda principal. Estado anterior y actual:
 
-- `electron/package.json` pide `electron: ^33.2.1`. Electron mantiene sólo las
-  últimas versiones mayores: la 33 ya no recibe parches de seguridad, y arrastra
-  su propia versión de Chromium.
-- **No hay `electron/package-lock.json`.** La raíz y `webapp/frontend/` sí lo
-  tienen y están versionados; el subproyecto de Electron no. Sin lock, dos
-  builds del instalador en fechas distintas pueden traer árboles de
-  dependencias distintos.
+| | Antes | Ahora |
+|---|---|---|
+| Electron | `^33.2.1` — **10 versiones mayores** fuera de soporte | `^43.4.0` (Chromium 150), la última estable |
+| electron-builder | `^25.1.8` | `^26.15.3` |
+| `electron/package-lock.json` | **no existía** | versionado en el repo |
+| Node en el CI | 20 (EOL) | 22 en los cinco workflows |
+| Instalación en CI | `npm install` | `npm ci` (árbol exacto del lock) |
+| Vulnerabilidades | — | `npm audit`: **0** |
 
-**Riesgo real:** un CVE de Chromium sin parche en el instalador de PC, y builds
-no reproducibles. No rompe hoy; es lo que más acerca el producto al 10.
+### Cómo se verificó (no alcanzaba con que instalara)
 
-**Trabajo estimado:** subir a una versión mayor con soporte, congelar el lock,
-y volver a correr el CI de Windows de punta a punta (que ya existe: corre el
-`.bat`, instala sin internet desde `vendor/`, hace las 6 fases por HTTP,
-instala y desinstala). Es acotado, pero **hay que verificarlo en una Windows de
-verdad** antes de publicar: un instalador no se prueba leyéndolo.
+1. **La ventana abre y pinta.** `packaging/humo_electron.js` —nuevo— levanta el
+   motor, abre una `BrowserWindow` con la misma configuración que `main.js` y
+   comprueba: 8 destinos en la barra, iconos SVG dibujados y ninguno de 0 px,
+   el `contextBridge` expone `window.mvClienteIA`, **Node NO quedó expuesto al
+   render**, cero errores de consola y cero desborde. Corre headless con xvfb:
+   `Electron 43.4.0 · Chromium 150.0.7871.224 → HUMO ELECTRON: OK`.
+2. **electron-builder 26 acepta la configuración de la 25.** Se armó un paquete
+   real (`--linux dir`): cargó el `build` de `package.json`, hizo el rebuild
+   nativo y empaquetó con Electron 43. Salida 0.
+3. **El binario empaquetado se comporta.** Se corrió el paquete armado con un
+   motor que muere al arrancar (justo lo que hace un antivirus poniéndolo en
+   cuarentena). El log confirma que bajo Electron 43 siguen andando:
+   `empaquetado=true`, los `extraResources` en `resources/backend/`, el
+   reintento con puerto nuevo ×3 y la carpeta `datos/` al lado de la app (modo
+   portable).
 
-### 5.2 Cosas medidas que conviene mirar (no son bugs)
+### Lo que esto NO prueba
+
+El instalador NSIS, el desinstalador y el `.exe` de PyInstaller sólo se
+verifican en el **CI de Windows** (`build_windows.yml`), que corre el `.bat`,
+instala sin internet desde `vendor/`, hace las seis fases por HTTP, instala y
+desinstala. **Un instalador no se prueba leyéndolo**: mirá ese job en verde
+antes de publicar la primera Release con Electron 43.
+
+Protección contra regresión: `tests/test_escritorio.py` (7 tests) falla si
+Electron cae fuera de la ventana de soporte, si falta o se desincroniza el
+lock, si algún workflow vuelve a Node < 22, si vuelve un `npm install` al paso
+de `electron/`, si el humo desaparece del CI, o si alguien toca
+`contextIsolation` / `nodeIntegration` / el filtro de enlaces externos.
+
+## 5.bis Lo que queda abierto
+
+### Cosas medidas que conviene mirar (no son bugs)
 
 - **Filas de tabla en móvil de 239–310 px.** Es el modo ficha (`@media
   max-width: 860px` convierte cada fila en una tarjeta apilada), así que es
@@ -185,7 +233,7 @@ se publica en una Release pública. El `.bat` del conversor a owner hornea el
 ```bash
 pip install -r requirements-dev.txt
 ruff check .
-python3 -m pytest -q tests/                    # 346 tests
+python3 -m pytest -q tests/                    # 353 tests
 npm run build:web                              # bundle web/PC/APK
 python3 -m marketing.generar_landing           # las 3 landings
 npx cap sync android                           # copia el bundle al APK
@@ -193,6 +241,11 @@ npx cap sync android                           # copia el bundle al APK
 # motor vivo, las 6 fases por HTTP
 python3 -m uvicorn webapp.backend.api:app --port 8810 &
 python3 packaging/humo.py --url http://127.0.0.1:8810 --edicion demo
+
+# la ventana de la app de PC (headless, sin Windows)
+cd electron && npm ci && cd ..
+xvfb-run -a ./electron/node_modules/.bin/electron --no-sandbox \
+  packaging/humo_electron.js --captura /tmp/app.png
 ```
 
 La verificación de navegador (8 pantallas × 2 viewports, cero emojis, cero

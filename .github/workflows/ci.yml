@@ -55,7 +55,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
           cache-dependency-path: webapp/frontend/package-lock.json
       - run: npm ci
@@ -68,3 +68,39 @@ jobs:
       # le servía a nadie — los instaladores se construyen su propio frontend
       # y las descargas de los clientes salen de la Release, que es otra cuota.
       # Lo que este job tiene que responder es una sola pregunta: ¿compila?
+
+  escritorio:
+    name: App de escritorio (Electron)
+    runs-on: ubuntu-latest
+    # Que el frontend compile no prueba que la VENTANA abra. El instalador de
+    # Windows se verifica en build_windows.yml, pero eso tarda y sólo corre en
+    # releases: cuando se subió Electron de la 33 (fuera de soporte) a la 43 no
+    # había forma barata de contestar «¿sigue andando la ventana?». Esto la
+    # contesta en cada push, en Linux headless, en menos de un minuto.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          # Electron 43 declara `engines: node >= 22.12`.
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: electron/package-lock.json
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+      - name: Compilar el frontend que sirve el motor
+        run: |
+          cd webapp/frontend && npm ci && npm run build
+      - name: Instalar Electron (árbol exacto del lock)
+        run: cd electron && npm ci
+      # Sin servidor X no hay ventana: xvfb le da una virtual. `--no-sandbox`
+      # porque el runner corre como root y el sandbox de Chromium se niega.
+      - name: Humo de la ventana
+        run: |
+          xvfb-run -a ./electron/node_modules/.bin/electron --no-sandbox \
+            packaging/humo_electron.js
