@@ -107,6 +107,54 @@ function dirDatos() {
   }
 }
 
+// Carpetas de Chromium que NO se copian al mudar el perfil: son caché
+// regenerable y pesan más que todo lo demás junto.
+const CACHES = new Set(["Cache", "Code Cache", "GPUCache", "DawnCache",
+                        "DawnGraphiteCache", "DawnWebGPUCache", "ShaderCache",
+                        "GrShaderCache", "blob_storage", "Crashpad"]);
+
+/**
+ * El perfil del WebView, al lado de la app — para que elegir el disco sirva.
+ *
+ * El instalador deja elegir carpeta (y disco), y `dirDatos()` ya manda las
+ * corridas y los exports ahí. Pero el PERFIL de Chromium —el localStorage,
+ * donde viven la clave de licencia, la del modelo, la del SMTP y las de X y
+ * LinkedIn— seguía yéndose a `%APPDATA%`, o sea a C:, siempre. Instalar en D:
+ * dejaba la mitad del programa en C: igual, que es justo lo que el usuario
+ * quería evitar.
+ *
+ * Tres cuidados:
+ *
+ * 1. Sólo se muda si la carpeta de la app es ESCRIBIBLE. Si no lo es, se deja
+ *    el perfil donde estaba: un perfil que no se puede escribir es una app que
+ *    no arranca.
+ * 2. La migración COPIA, no mueve. Si algo sale mal, la configuración vieja
+ *    sigue intacta en su lugar de siempre y el usuario, en el peor caso, la
+ *    vuelve a cargar — no la pierde.
+ * 3. Se llama ANTES de `app.whenReady()`: después de que Chromium abrió el
+ *    perfil, `setPath` no tiene efecto.
+ */
+function perfilJuntoALaApp() {
+  const dir = dirDatos();
+  if (!dir) return;                       // Program Files o similar: no se toca
+  const destino = path.join(dir, "perfil");
+  const original = app.getPath("userData");
+  try {
+    if (!fs.existsSync(destino) && fs.existsSync(original)) {
+      fs.cpSync(original, destino, {
+        recursive: true,
+        filter: (origen) => !CACHES.has(path.basename(origen)),
+      });
+      log(`perfil migrado de ${original} a ${destino}`);
+    }
+    app.setPath("userData", destino);
+  } catch (e) {
+    // Sin perfil junto a la app se sigue con el de siempre: se pierde la
+    // portabilidad, no el programa.
+    log(`no se pudo mudar el perfil (${e.message}); se usa ${original}`);
+  }
+}
+
 /** Ejecutable empaquetado si existe; si no, el código fuente con Python. */
 function comandoBackend(puerto) {
   const empaquetado = path.join(
@@ -380,8 +428,13 @@ async function arrancar(intento = 0) {
   await ventana.loadURL(url);
 }
 
+// Antes de `whenReady`: una vez que Chromium abrió el perfil, `setPath` ya no
+// tiene efecto y el programa quedaría a medias entre dos discos.
+perfilJuntoALaApp();
+
 app.whenReady().then(() => {
-  log(`arranque · empaquetado=${app.isPackaged} · plataforma=${process.platform}`);
+  log(`arranque · empaquetado=${app.isPackaged} · plataforma=${process.platform}`
+      + ` · datos=${dirDatos() || "carpeta del usuario"}`);
   abrirSplash();
   arrancar().catch((e) => { log(`fallo inesperado: ${e.stack || e}`); fallar(String(e)); app.quit(); });
 });

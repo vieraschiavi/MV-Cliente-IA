@@ -87,7 +87,9 @@ TEXTOS: dict[str, dict] = {
              "Abrir la app", APP,
              "La misma interfaz que en PC y Android."),
             ("PC · Windows", "Instalador propio con desinstalador en «Agregar o quitar "
-             "programas», sin permisos de administrador. El motor corre en tu máquina: "
+             "programas», sin permisos de administrador y en el disco que elijas (D:\\, "
+             "un disco externo): el programa y sus datos quedan juntos ahí. El "
+             "motor corre en tu máquina: "
              "los datos no salen.",
              "Descargar la prueba de 14 días", URL_EXE,
              "Catorce días con todo abierto y sin poner ninguna clave. Después seguís "

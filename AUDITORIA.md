@@ -5,7 +5,7 @@
 > está abierto figura abierto, con su costo.
 >
 > **Última pasada:** 2026-08-15 · rama `claude/replicate-explee-kobra-s9sx0s`
-> **Gates:** `377 tests passed` · `ruff: All checks passed!` · build web OK · humo Electron OK
+> **Gates:** `385 tests passed` · `ruff: All checks passed!` · build web OK · humo Electron OK
 
 ---
 
@@ -15,8 +15,8 @@
 |---|---|
 | **Nota honesta** | **10 / 10 del lado del código** |
 | **¿Listo para producción?** | El código sí. Falta configuración del dueño (§6). |
-| Defectos encontrados en total | 13 |
-| Cerrados y verificados | 13 |
+| Defectos encontrados en total | 16 |
+| Cerrados y verificados | 16 |
 | Deuda técnica abierta | ninguna |
 
 La deuda que dejaba la nota en 9 —Electron fuera de soporte y sin lock propio—
@@ -290,6 +290,97 @@ Los cinco salieron de mirar la salida real, no de leer el código:
 Cubierto por `tests/test_segmento.py` (24 tests) y por las reglas 10-12 de
 `CLAUDE.md`.
 
+## 5.quater Instalador de Windows y APK — tres bugs que impedían usar el producto
+
+### El instalador obligaba a usar C:
+
+El instalador asistido de electron-builder muestra siempre la pantalla *«¿para
+quién instalar?»*. Elegir **«para todos los usuarios»** pide UAC e instala en
+`C:\Program Files` — una carpeta que el usuario **no puede escribir**. Y ahí
+se encadena todo: `dirDatos()` (electron/main.js) sólo guarda al lado de la app
+si esa carpeta es escribible; como no lo es, cae a `%LOCALAPPDATA%` y el
+programa entero termina en C: aunque el usuario hubiera querido otro disco.
+
+Arreglado con `electron/build/installer.nsh`, que usa el punto de extensión
+oficial de la plantilla (`customInstallMode`) para forzar la instalación por
+usuario: la pantalla se saltea, no hay UAC, y la única decisión que queda es la
+que importa — **en qué carpeta y en qué disco**.
+
+**Verificado ejecutando** (electron-builder en Linux, comparando la línea de
+`makensis` antes y después):
+
+| | Antes | Ahora |
+|---|---|---|
+| `MULTIUSER_INSTALLMODE_ALLOW_ELEVATION` | presente | **ausente** — no hay UAC |
+| `allowToChangeInstallationDirectory` | presente | presente (la página de carpeta sigue) |
+| `include: build/installer.nsh` | — | tomado por el build |
+
+`makensis` corre con `-WX` (warnings = errores) y compiló sin quejas; el build
+sólo se corta después, en el paso que **ejecuta** el desinstalador con `wine`,
+que es Windows-only.
+
+### Elegir el disco no alcanzaba: media app seguía en C:
+
+Las corridas ya iban al lado de la app, pero el **perfil de Chromium** —donde
+viven la licencia, la clave del modelo, la del SMTP y las de X y LinkedIn— se
+iba a `%APPDATA%`, o sea a C:, siempre. Instalar en D: dejaba la mitad del
+programa en C:.
+
+`perfilJuntoALaApp()` lo muda, con tres cuidados: sólo si la carpeta es
+escribible; **copiando, no moviendo** (si la migración falla, la configuración
+vieja sigue intacta en su lugar); y antes de `whenReady()`, porque una vez que
+Chromium abrió el perfil `setPath` no hace nada.
+
+**Verificado ejecutando** un binario empaquetado de verdad:
+
+```
+perfil migrado de /root/.config/MV Cliente IA a …/linux-unpacked/datos/perfil
+arranque · empaquetado=true · datos=…/linux-unpacked/datos
+```
+
+Y el filtro de cachés, probado aparte: se lleva `Local Storage` y
+`Preferences`, deja `Cache`, `Code Cache` y `Crashpad` (que se regeneran solos
+y son casi todo el peso).
+
+### El APK no podía conectarse a NINGÚN servidor
+
+El APK es sólo interfaz: el motor corre en el servidor del usuario, y el uso
+normal es apuntarlo a su PC en la LAN (`http://192.168.1.10:8810`). Pero la app
+vive en `https://localhost` (`androidScheme`), así que ese pedido es **contenido
+mixto**, y el WebView de Android lo bloquea por defecto desde targetSdk 21.
+Capacitor sólo lo habilita con `allowMixedContent` — y estaba en `false`.
+
+Las otras dos capas ya estaban abiertas: el Network Security Config permite
+texto plano (se corrigió en la auditoría de seguridad) y `baseInsegura()` acepta
+las redes privadas. **La única capa cerrada era la del WebView**, y con eso el
+APK fallaba con un error de red genérico que no decía que era una política del
+navegador embebido.
+
+No afloja la seguridad: el WebView **no sabe distinguir una LAN de internet**,
+así que el filtro no puede vivir ahí. Vive en `baseInsegura()`, que sí mira la
+IP y sigue rechazando cualquier `http://` a un host público.
+
+> El test que afirmaba `allowMixedContent is False` **era el que sostenía el
+> bug**. No se dio vuelta la aserción sin más: quedó explicado en el propio
+> test por qué la capa correcta es la app y no el WebView.
+
+### Y uno que apareció al ir a commitear
+
+`.gitignore` tenía `build/` **sin barra adelante**, y ese patrón matchea
+cualquier carpeta llamada `build` a cualquier profundidad — incluida
+`electron/build/`, que no es salida de nada: son los recursos del instalador.
+Dos consecuencias, las dos silenciosas:
+
+- **`icon.ico` e `icon.png` nunca estuvieron en el repo.** El CI armaba el
+  instalador y la app de Windows con el **icono por defecto de Electron**.
+  Nadie lo notó porque los dos `.bmp` del panel lateral sí estaban (alguien los
+  forzó en su momento) y un icono faltante no rompe el build: se reemplaza.
+- **`installer.nsh` tampoco se habría subido**, así que el arreglo de arriba
+  no habría llegado a producción.
+
+Anclado a `/build/`. `tests/test_instalacion.py` corre `git check-ignore` sobre
+cada recurso del instalador para que no vuelva a pasar.
+
 ## 6. Lo que falta de tu lado (configuración, no código)
 
 Nada de esto es programación: son secretos y certificados que sólo podés cargar
@@ -314,7 +405,7 @@ se publica en una Release pública. El `.bat` del conversor a owner hornea el
 ```bash
 pip install -r requirements-dev.txt
 ruff check .
-python3 -m pytest -q tests/                    # 377 tests
+python3 -m pytest -q tests/                    # 385 tests
 npm run build:web                              # bundle web/PC/APK
 python3 -m marketing.generar_landing           # las 3 landings
 npx cap sync android                           # copia el bundle al APK

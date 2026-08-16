@@ -54,21 +54,23 @@
       "icon": "build/icon.ico"
     },
     "nsis": {
-      "artifactName": "MVClienteIA_Setup.exe",
-      "oneClick": false,
-      "perMachine": false,
+      "allowElevation": false,
       "allowToChangeInstallationDirectory": true,
+      "artifactName": "MVClienteIA_Setup.exe",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "MV Cliente IA",
+      "displayLanguageSelector": true,
+      "include": "build/installer.nsh",
       "installerLanguages": [
         "es_ES",
         "pt_BR",
         "en_US"
       ],
       "multiLanguageInstaller": true,
-      "displayLanguageSelector": true,
-      "runAfterFinish": true
+      "oneClick": false,
+      "perMachine": false,
+      "runAfterFinish": true,
+      "shortcutName": "MV Cliente IA"
     },
     "linux": {
       "target": [

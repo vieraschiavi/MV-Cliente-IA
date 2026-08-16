@@ -22,7 +22,15 @@ electron/node_modules/
 electron/dist_installer/
 
 # --- Empaquetado ---
-build/
+# `/build/` con la barra ADELANTE: sólo la de la raíz (la salida de
+# PyInstaller). Sin el ancla, el patrón matcheaba CUALQUIER carpeta llamada
+# `build` a cualquier profundidad — y se comía `electron/build/`, que no es
+# salida de nada: son los RECURSOS del instalador. Consecuencias reales, las
+# dos silenciosas: `icon.ico`/`icon.png` nunca llegaron al repo, así que en el
+# CI el instalador y la app de Windows salían con el icono por defecto de
+# Electron; y `installer.nsh` (el que fuerza la instalación por usuario para
+# que se pueda elegir el disco) tampoco se habría subido.
+/build/
 dist/
 *.spec.bak
 

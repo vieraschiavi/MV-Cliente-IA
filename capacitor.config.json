@@ -3,7 +3,28 @@
   "appName": "MV Cliente IA",
   "webDir": "webapp/frontend/dist",
   "android": {
-    "allowMixedContent": false
+    "_comentario_allowMixedContent": [
+      "El APK es SÓLO interfaz: el motor corre en el servidor del usuario, y el",
+      "uso normal es apuntarlo a su PC en la LAN — http://192.168.1.10:8810.",
+      "",
+      "Con androidScheme 'https' la app vive en https://localhost, así que ese",
+      "fetch a http:// es CONTENIDO MIXTO. El WebView de Android lo bloquea por",
+      "defecto desde targetSdk 21 (MIXED_CONTENT_NEVER_ALLOW) y Capacitor sólo",
+      "llama a setMixedContentMode(ALWAYS_ALLOW) si esto está en true",
+      "(@capacitor/android · Bridge.java:569).",
+      "",
+      "Con esto en false el APK NO PODÍA CONECTARSE A NINGÚN SERVIDOR DE LA LAN,",
+      "que es su único modo de uso. Fallaba con un error de red genérico, sin",
+      "decir que era una política del WebView. Las otras dos capas ya estaban",
+      "abiertas —el Network Security Config permite texto plano y api.js acepta",
+      "las redes privadas— así que ésta era la que sobraba.",
+      "",
+      "No es un agujero: el candado real está en la app. `baseInsegura()`",
+      "(webapp/frontend/src/api.js) rechaza cualquier http:// a un host que no",
+      "sea loopback o RFC 1918, y ahí sí se puede mirar la IP. El WebView no",
+      "sabe distinguir una LAN de internet; la app sí."
+    ],
+    "allowMixedContent": true
   },
   "server": {
     "androidScheme": "https"

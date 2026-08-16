@@ -216,8 +216,13 @@ npm run apk:debug     # → android/app/build/outputs/apk/debug/app-debug.apk
 
 ## Dónde se guardan los datos
 
-Una corrida = un JSON. En el repo, bajo `datos/corridas/`; instalado, en la
-carpeta del usuario (`%LOCALAPPDATA%\\MVClienteIA` en Windows). La escritura es
+Una corrida = un JSON. En el repo, bajo `datos/corridas/`; instalado, **al lado
+de la app**, en la carpeta que el usuario eligió en el instalador — si instaló
+en `D:\\MVClienteIA`, los datos van a `D:\\MVClienteIA\\datos`. Ahí va también el
+perfil del navegador embebido (`datos/perfil`), donde viven la licencia y las
+claves de IA, SMTP, X y LinkedIn: elegir el disco vale para TODO, no sólo para
+el ejecutable. Sólo si esa carpeta no fuera escribible se cae a la carpeta del
+usuario (`%LOCALAPPDATA%\\MVClienteIA` en Windows). La escritura es
 atómica, porque el backend guarda el avance después de *cada* fase.
 `MVCLIENTE_DIR_DATOS` fuerza el directorio (lo usan los tests).
 

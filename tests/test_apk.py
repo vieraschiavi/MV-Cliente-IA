@@ -106,7 +106,21 @@ def test_el_texto_plano_lo_controla_la_app_no_un_cidr_falso_en_el_xml():
     cfg = json.loads((RAIZ / "capacitor.config.json").read_text(encoding="utf-8"))
     assert "cleartext" not in cfg.get("server", {}), \
         "capacitor.config.json vuelve a habilitar texto plano para TODO destino"
-    assert cfg["android"]["allowMixedContent"] is False
+    # `allowMixedContent` SÍ tiene que estar en true, y esta línea antes decía
+    # lo contrario. La corrección de aquella auditoría abrió las capas 1 (el
+    # XML) y 3 (la app) pero dejó cerrada la 2 (el WebView), y con eso el APK
+    # no podía hablar con NINGÚN servidor de la LAN — su único modo de uso.
+    # La app corre en `https://localhost` (androidScheme) y el servidor del
+    # usuario es `http://192.168.x.x`: eso es contenido mixto, y el WebView de
+    # Android lo bloquea salvo que Capacitor llame a setMixedContentMode
+    # (@capacitor/android · Bridge.java:569).
+    #
+    # No afloja la seguridad: el WebView no sabe distinguir una LAN de
+    # internet, así que el filtro NO puede vivir ahí. Vive en `baseInsegura`,
+    # que sí mira la IP — y es lo que este mismo test comprueba arriba.
+    assert cfg["android"]["allowMixedContent"] is True, (
+        "sin esto el APK no puede conectarse a un servidor de la LAN; el "
+        "filtro de texto plano es baseInsegura(), no el WebView")
 
 
 # ---------------------------------------------------------------------------
