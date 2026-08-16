@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, apiStream, descargar, ErrorApi, esNativo, fmtScore, getBase, getClaveIA, getEmail, getEndpointIA, getModeloIA, getProveedorIA, setEmail } from "../api.js";
+import { api, apiStream, descargar, ErrorApi, esNativo, fmtScore, getBase, getClaveIA, getEmail, getEndpointIA, getModeloIA, getProveedorIA, setEmail, urlSegura } from "../api.js";
 import { Aviso, etiquetasOla, Idioma, Kpis, Ola, Vacio } from "../componentes/Comunes.jsx";
 import { Icono } from "../componentes/Iconos.jsx";
 import { getCorridaId, setCorridaId, setCorridaLocal, useCorrida } from "../estado.js";
@@ -33,6 +33,71 @@ function Fase({ n, clave, paso, abierta, alternar, children }) {
       </button>
       {abierta ? <div className="fase-cuerpo">{children}</div> : null}
     </section>
+  );
+}
+
+/** La afinidad medida en una palabra. Los cortes son los del motor
+ *  (cliente_ia/segmento.py): si se tocan allá, se tocan acá. */
+function claseAfinidad(v) {
+  if (v >= 0.30) return "alta";
+  if (v >= 0.15) return "media";
+  return "baja";
+}
+
+/**
+ * Buscar MÁS clientes del mismo segmento en las redes.
+ *
+ * Son consultas, no resultados: LinkedIn e Instagram prohíben el scraping y lo
+ * bloquean, así que una lista "automática" sería inventada o frágil. El porqué
+ * completo está en cliente_ia/busqueda_social.py. Lo que sí se automatiza es
+ * escribir la consulta correcta — que es donde estaba el trabajo: nadie sabe
+ * de memoria el operador de búsqueda de gente por rubro de LinkedIn.
+ */
+function BusquedasRedes({ corrida }) {
+  const bloques = corrida.busquedas || [];
+  const [abierto, setAbierto] = useState("");
+  if (!bloques.length) return null;
+  const ICONO = { linkedin: "maletin", instagram: "camara", tiktok: "musica",
+                  x: "equis", buscador: "globo" };
+  return (
+    <div className="busquedas">
+      <h4 className="sub">{t("busquedas.titulo")}</h4>
+      <p className="nota" style={{ marginTop: 0 }}>{t("busquedas.ayuda")}</p>
+      {(corrida.palabras_segmento || []).length ? (
+        <p className="nota">
+          {t("busquedas.palabras")}{" "}
+          {corrida.palabras_segmento.slice(0, 6).map((w) => (
+            <span className="clave" key={w}>{w}</span>
+          ))}
+        </p>
+      ) : null}
+      {bloques.map((b) => (
+        <div className="bloque-busqueda" key={b.campana_id}>
+          <button type="button" className="desplegar con-ico"
+                  aria-expanded={abierto === b.campana_id}
+                  onClick={() => setAbierto(abierto === b.campana_id ? "" : b.campana_id)}>
+            <Icono nombre="chevron" tam={15}
+                   className={abierto === b.campana_id ? "" : "cuarto"} />
+            {b.sector}
+            <Ola nivel={b.nivel} etiquetas={etiquetasOla(corrida)} />
+          </button>
+          {abierto === b.campana_id ? (
+            <div className="lista-busqueda">
+              {b.busquedas.map((q) => (
+                <a key={`${q.red}-${q.etiqueta}`} className="busq con-ico"
+                   href={urlSegura(q.url)} target="_blank" rel="noreferrer"
+                   title={q.consulta}>
+                  <Icono nombre={ICONO[q.red] || "globo"} tam={15} />
+                  <span className="red">{q.red}</span>
+                  <span className="que">{q.etiqueta}</span>
+                  <Icono nombre="enlace_externo" tam={13} />
+                </a>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -427,7 +492,19 @@ export default function Explorar() {
                           filtro de mercado se aplicó (o leer el aviso si
                           ningún competidor tiene base local). */}
                       {c.pais ? <span className="pill mundo">{c.pais}</span> : null}
-                      <span className="sol tnum">{Math.round((c.solapamiento || 0) * 100)}%</span>
+                      {/* Dos números distintos a propósito: el gris es el
+                          solapamiento que DECLARA el modelo; el verde es la
+                          afinidad MEDIDA sobre la web del competidor. Cuando
+                          no coinciden, el que vale es el medido. */}
+                      {c.afinidad >= 0 ? (
+                        <span className={`afin ${claseAfinidad(c.afinidad)}`}
+                              title={t("competencia.afinidad_ayuda")}>
+                          {t(`competencia.afin_${claseAfinidad(c.afinidad)}`)}
+                        </span>
+                      ) : null}
+                      <span className="sol tnum" title={t("competencia.solapamiento_ayuda")}>
+                        {Math.round((c.solapamiento || 0) * 100)}%
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -450,6 +527,7 @@ export default function Explorar() {
                   ))}
                 </div>
               ) : <Vacio texto={t("common.cargando")} />}
+              <BusquedasRedes corrida={corrida} />
             </Fase>
 
             {/* 4 · clientes potenciales */}

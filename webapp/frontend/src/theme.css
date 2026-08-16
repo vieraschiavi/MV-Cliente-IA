@@ -410,3 +410,48 @@ input[type="email"], input[type="url"], textarea {
   }
 }
 @media (min-width: 861px) { .top-movil { display: none; } }
+
+/* ---- afinidad medida y búsqueda por redes ----
+   La afinidad es evidencia (se leyó la web del competidor), el solapamiento es
+   una declaración del modelo: se pintan distinto a propósito para que no se
+   lean como el mismo dato. */
+.afin {
+  font-size: 10.5px; font-weight: 800; letter-spacing: .03em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 999px; border: 1px solid; white-space: nowrap;
+}
+.afin.alta { color: var(--green-deep); border-color: rgba(0, 200, 150, .4);
+             background: rgba(0, 200, 150, .1); }
+.afin.media { color: var(--amber); border-color: rgba(242, 180, 65, .4);
+              background: rgba(242, 180, 65, .1); }
+.afin.baja { color: var(--faint); border-color: var(--line); }
+
+.busquedas { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); }
+.busquedas .clave {
+  display: inline-block; background: var(--navy-800); border: 1px solid var(--line);
+  color: var(--ink); border-radius: 6px; padding: 1px 7px; margin: 0 4px 4px 0;
+  font-size: 11.5px; font-weight: 600;
+}
+.bloque-busqueda { border-top: 1px solid var(--line); }
+.bloque-busqueda:first-of-type { border-top: 0; }
+.bloque-busqueda .desplegar {
+  background: none; border: 0; color: var(--ink); cursor: pointer; width: 100%;
+  text-align: left; padding: 9px 2px; font-size: 13px; font-weight: 700;
+}
+.bloque-busqueda .desplegar:hover { color: var(--green-deep); }
+.lista-busqueda {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(215px, 1fr));
+  gap: 8px; padding: 2px 0 12px;
+}
+.busq {
+  background: var(--navy-800); border: 1px solid var(--line); border-radius: 9px;
+  padding: 8px 11px; font-size: 12.5px; color: var(--muted);
+}
+.busq:hover { border-color: var(--green-deep); color: var(--ink); }
+.busq .red { font-weight: 800; text-transform: capitalize; color: var(--ink); }
+/* El nombre de la consulta se corta antes de estirar la tarjeta: el texto
+   completo va en el `title`, como en la columna de señales. */
+.busq .que { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+             white-space: nowrap; }
+@media (max-width: 860px) {
+  .lista-busqueda { grid-template-columns: 1fr; }
+}

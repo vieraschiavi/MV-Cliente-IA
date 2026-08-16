@@ -80,8 +80,14 @@ def _instagram(html: str) -> str:
     return ""
 
 
-def contactos_de(dominio: str, timeout: int = TIMEOUT) -> dict:
-    """Contactos públicos de UN dominio. Devuelve {} si el sitio no responde."""
+def contactos_de(dominio: str, timeout: int = TIMEOUT,
+                 devolver_html: bool = False):
+    """Contactos públicos de UN dominio. Devuelve {} si el sitio no responde.
+
+    Con `devolver_html=True` devuelve `(contactos, html)`: el mismo texto que
+    ya se bajó, para medir la afinidad de segmento sin un segundo pedido al
+    sitio (cliente_ia/segmento.py). Verificar el rubro salía gratis y estaba
+    a la vista — sólo había que no tirar el HTML."""
     base = _base(dominio)
     host = base
     try:
@@ -92,7 +98,7 @@ def contactos_de(dominio: str, timeout: int = TIMEOUT) -> dict:
         try:
             paginas = [bajar(host, timeout)]
         except ErrorWeb:
-            return {}
+            return ({}, "") if devolver_html else {}
 
     # De la portada salen los enlaces a "contacto"/"nosotros" del MISMO sitio.
     extra = 0
@@ -137,25 +143,42 @@ def contactos_de(dominio: str, timeout: int = TIMEOUT) -> dict:
         "instagram": _instagram(junto),
         "web": f"https://{base}",
     }
+    if devolver_html:
+        # El HTML sale por separado, no dentro de `contactos`: ahí adentro
+        # viajaría a la interfaz, al CSV y al JSON de la corrida guardada.
+        return salida, junto
     return salida if any(salida[k] for k in ("email", "telefono", "linkedin", "instagram")) \
         else {"web": salida["web"]}
 
 
 def enriquecer(prospectos, max_empresas: int = MAX_EMPRESAS,
-               timeout: int = TIMEOUT) -> tuple[int, int]:
+               timeout: int = TIMEOUT, huella=None) -> tuple[int, int]:
     """Visita en paralelo los sitios de los prospectos REALES y les carga
     `contactos`. Devuelve (con_datos, visitados). Los sintéticos no se tocan:
-    sus dominios no existen y visitarlos sería ruido."""
+    sus dominios no existen y visitarlos sería ruido.
+
+    Con `huella` (de cliente_ia.segmento) aprovecha el MISMO HTML para medir
+    cuánto habla ese sitio del segmento del producto y lo deja en
+    `prospecto.afinidad`. Cero pedidos extra: el sitio ya estaba bajado."""
     reales = [p for p in prospectos if not p.sintetico and p.dominio][:max_empresas]
     if not reales:
         return (0, 0)
+    from .. import segmento
+
     with ThreadPoolExecutor(max_workers=HILOS) as pool:
-        futuros = {pool.submit(contactos_de, p.dominio, timeout): p for p in reales}
+        futuros = {pool.submit(contactos_de, p.dominio, timeout, True): p
+                   for p in reales}
         for futuro, p in futuros.items():
             try:
-                p.contactos = futuro.result()
+                contactos, html = futuro.result()
             except Exception:                            # noqa: BLE001
-                p.contactos = {}
+                contactos, html = {}, ""
+            util = any(contactos.get(k) for k in
+                       ("email", "telefono", "linkedin", "instagram"))
+            p.contactos = contactos if util else (
+                {"web": contactos["web"]} if contactos.get("web") else {})
+            if huella and html:
+                p.afinidad = segmento.afinidad_de_html(huella, html)
     con_datos = sum(1 for p in reales
                     if any(p.contactos.get(k) for k in
                            ("email", "telefono", "linkedin", "instagram")))

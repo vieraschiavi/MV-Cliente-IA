@@ -73,6 +73,12 @@ class Competidor:
     posicionamiento: str = ""
     pais: str = ""
     solapamiento: float = 0.0                 # 0..1 · cuánto pisa nuestro ICP
+    # Afinidad MEDIDA: se bajó la web del competidor y se comparó contra la
+    # huella del producto (cliente_ia/segmento.py). `solapamiento` lo DECLARA
+    # el modelo; esto lo comprueba el motor. -1 = no se pudo verificar (sitio
+    # caído, sin red). Los dos conviven a propósito: cuando no coinciden, el
+    # que manda para filtrar es este.
+    afinidad: float = -1.0
     fuente: str = "demo"
 
     def a_dict(self) -> dict:
@@ -121,6 +127,10 @@ class Prospecto:
     idioma: str = "es"
     sintetico: bool = True
     fuente: str = "demo"
+    # Afinidad medida del sitio del prospecto contra la huella del producto.
+    # Sale GRATIS: se calcula con el mismo HTML que se baja para los
+    # contactos públicos, sin un pedido extra. -1 = no verificado.
+    afinidad: float = -1.0
     # Contactos PÚBLICOS leídos del propio sitio de la empresa (sólo reales):
     # {email, emails, telefono, linkedin, instagram, web}. Lo que la empresa
     # no publica, no está — acá no se adivina nada.
@@ -228,6 +238,15 @@ class Corrida:
     # interfaz lo muestra — una corrida "con IA" que en realidad usó datos
     # sintéticos sin decir por qué ya confundió a un usuario.
     avisos: list[str] = field(default_factory=list)
+    # Las palabras que MIDEN el segmento del producto, contadas sobre su propia
+    # web (cliente_ia/segmento.py). Se guardan para que la interfaz pueda
+    # mostrar con qué criterio se filtró — un filtro que no dice qué usó es
+    # indistinguible de un capricho.
+    palabras_segmento: list[str] = field(default_factory=list)
+    # Consultas listas para encontrar MÁS clientes de cada segmento en las
+    # redes (cliente_ia/busqueda_social.py): [{campana_id, sector, nivel,
+    # pais, busquedas: [{red, etiqueta, consulta, url}]}].
+    busquedas: list[dict] = field(default_factory=list)
 
     def paso(self, clave: str) -> PasoFase:
         for p in self.pasos:
@@ -253,6 +272,8 @@ class Corrida:
             "enlaces": dict(self.enlaces),
             "error": self.error,
             "avisos": list(self.avisos),
+            "palabras_segmento": list(self.palabras_segmento),
+            "busquedas": list(self.busquedas),
             "pasos": [p.a_dict() for p in self.pasos],
             "empresa": self.empresa.a_dict() if self.empresa else None,
             "competidores": [c.a_dict() for c in self.competidores],
@@ -308,6 +329,8 @@ def desde_dict(d: dict) -> Corrida:
         enlaces=d.get("enlaces") or {},
     )
     c.avisos = [str(a) for a in d.get("avisos", [])]
+    c.palabras_segmento = [str(x) for x in d.get("palabras_segmento", [])]
+    c.busquedas = [x for x in d.get("busquedas", []) if isinstance(x, dict)]
     c.pasos = [PasoFase(**_solo(PasoFase, p)) for p in d.get("pasos", [])]
     if d.get("empresa"):
         c.empresa = Empresa(**_solo(Empresa, d["empresa"]))

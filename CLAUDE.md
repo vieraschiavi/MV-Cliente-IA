@@ -79,6 +79,26 @@ diseño de **MV Kobra AI**: se le pasa la URL de un producto y recorre seis fase
    seis fases por HTTP (`packaging/humo.py`), instala y desinstala. Si tocás
    empaquetado, mirá que esos pasos sigan en verde antes de publicar.
 
+10. **La huella dice QUÉ ES el producto; el sector dice QUIÉN lo compra.**
+    `segmento.huella_de` se arma con el texto real del sitio + la categoría, y
+    **nunca** con `sectores_objetivo`: esos describen al comprador. Mezclarlos
+    rompía dos cosas a la vez — las «palabras que definen tu segmento» pasaban
+    a listar rubros de clientes, y verificar a un competidor le exigía nombrar
+    nuestros sectores objetivo, que su web no tiene por qué mencionar. Por la
+    misma razón, en `busqueda_social` la consulta de **empresas** usa el
+    SECTOR (una empresa que habla como nuestra web es un competidor, no un
+    cliente) y sólo la de **intención** usa el dolor y las palabras del
+    producto. Está cubierto por `tests/test_segmento.py`.
+11. **Medir sólo cuando hay con qué.** `segmento.huella_verificable` devuelve
+    `None` sin `resumen_sitio`: con una huella hecha de dos etiquetas, todo
+    sitio da afinidad casi cero y el filtro descarta a todos por igual. Eso
+    también mantiene el modo demo determinista (regla 7) porque no sale a la
+    red. Se apaga entero con `MVCLIENTE_VERIFICAR_SEGMENTO=0`.
+12. **Las búsquedas por redes son consultas, no listas.** LinkedIn e Instagram
+    prohíben y bloquean el scraping: devolver perfiles "automáticos" sería
+    inventarlos o romperse. Se automatiza escribir la consulta correcta, que
+    es donde estaba el trabajo. No convertir esto en un scraper.
+
 ## Convenciones
 - Español en el dominio y en los nombres de módulo, igual que MV Kobra AI.
 - Comentarios que expliquen **por qué**, no qué. Los que están dicen qué falló

@@ -383,5 +383,17 @@
     "sin_muestra": "not enough sample",
     "junta_mas": "Gather more sends and conversions to see which segment, day and hour perform best.",
     "cuando_entran": "when people engage"
+  },
+  "busquedas": {
+    "titulo": "Find more customers in this segment",
+    "ayuda": "Ready-made queries for each network, built from the words measured on your site, the campaign's industry and its country. They are searches, not lists: LinkedIn and Instagram don't allow profile extraction, so what gets automated is writing the right query.",
+    "palabras": "Words that define your segment:"
+  },
+  "competencia": {
+    "afinidad_ayuda": "MEASURED affinity: the competitor's site was read and compared to yours.",
+    "solapamiento_ayuda": "Overlap as declared by the analysis.",
+    "afin_alta": "same industry",
+    "afin_media": "close industry",
+    "afin_baja": "different industry"
   }
 }

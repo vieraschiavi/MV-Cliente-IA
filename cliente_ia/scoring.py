@@ -7,14 +7,21 @@ ventas: cada punto sale de algo que el usuario puede ver en la ficha.
 
     score = 100 · ajuste_icp · peso_geográfico
 
-`ajuste_icp` (0..1) combina cuatro señales, con estos pesos:
+`ajuste_icp` (0..1) combina cinco señales, con estos pesos:
 
 | señal              | peso | de dónde sale                                    |
 |--------------------|------|--------------------------------------------------|
-| sector             | 0.40 | el sector del prospecto está en el ICP de fase 1 |
-| tamaño             | 0.25 | empleados dentro del rango objetivo              |
-| señales de compra  | 0.25 | hechos con fecha: contrataron, expandieron, etc. |
-| solapamiento comp. | 0.10 | usa/evalúa un competidor conocido                |
+| sector             | 0.32 | el sector del prospecto está en el ICP de fase 1 |
+| afinidad medida    | 0.20 | su web habla del segmento (cliente_ia.segmento)  |
+| tamaño             | 0.20 | empleados dentro del rango objetivo              |
+| señales de compra  | 0.20 | hechos con fecha: contrataron, expandieron, etc. |
+| solapamiento comp. | 0.08 | usa/evalúa un competidor conocido                |
+
+La **afinidad medida** es la única señal que no sale de lo que el modelo
+declara: se lee la web del prospecto y se cuenta cuánto del vocabulario del
+producto aparece ahí. Por eso pesa tanto como el tamaño — es evidencia, no
+una etiqueta. Cuando no se pudo medir (prospecto sintético, sitio caído) vale
+un neutro: ni premia ni castiga, igual que el tamaño sin dato.
 
 `peso_geográfico` es 1.00 en el país que eligió el cliente (`empresa.pais`),
 0.72 en el resto de su región y 0.45 en el resto del mundo (ver
@@ -27,13 +34,20 @@ from __future__ import annotations
 
 import re
 
-from . import geo
+from . import geo, segmento
 from .modelos import Decisor, Empresa, Prospecto
 
-PESO_SECTOR = 0.40
-PESO_TAMANO = 0.25
-PESO_SENALES = 0.25
-PESO_COMPETENCIA = 0.10
+PESO_SECTOR = 0.32
+PESO_AFINIDAD = 0.20
+PESO_TAMANO = 0.20
+PESO_SENALES = 0.20
+PESO_COMPETENCIA = 0.08
+
+# Afinidad no medida (-1): ni premio ni castigo. Es el mismo criterio que
+# `ajuste_tamano` con empleados en cero — la mitad de los prospectos de una
+# corrida demo no tienen sitio que visitar y castigarlos por eso sería
+# inventar una diferencia que no existe.
+AFINIDAD_NEUTRA = 0.45
 
 # Cuánto suma cada señal de compra. Tope: 1.0 (tres señales ya saturan).
 VALOR_SENAL = 0.34
@@ -126,11 +140,25 @@ def sectores_objetivo_multi(empresa: Empresa) -> list[str]:
     return salida
 
 
+def ajuste_afinidad(afinidad: float) -> float:
+    """La afinidad medida, llevada a 0..1 útil para el score.
+
+    `AFIN_BUENA` (0.30) ya es un sitio que claramente habla del segmento, así
+    que ahí satura: exigir 1.0 de afinidad sería pedir que el prospecto tenga
+    la misma web que el producto, que es la definición de competidor y no la
+    de cliente.
+    """
+    if afinidad is None or afinidad < 0:
+        return AFINIDAD_NEUTRA
+    return round(min(1.0, afinidad / segmento.AFIN_BUENA), 4)
+
+
 def ajuste_icp(prospecto: Prospecto, empresa: Empresa,
                competidores: list[str] | None = None) -> float:
-    """Las cuatro señales combinadas, antes del peso geográfico (0..1)."""
+    """Las cinco señales combinadas, antes del peso geográfico (0..1)."""
     return (
         PESO_SECTOR * ajuste_sector(prospecto.sector, sectores_objetivo_multi(empresa))
+        + PESO_AFINIDAD * ajuste_afinidad(getattr(prospecto, "afinidad", -1.0))
         + PESO_TAMANO * ajuste_tamano(prospecto.empleados, empresa.tamano_objetivo)
         + PESO_SENALES * ajuste_senales(prospecto.senales)
         + PESO_COMPETENCIA * ajuste_competencia(prospecto.senales, competidores or [])

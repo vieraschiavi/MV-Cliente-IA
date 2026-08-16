@@ -21,7 +21,7 @@ import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
 
-from . import almacen, geo, proveedores, redaccion, scoring
+from . import almacen, busqueda_social, geo, proveedores, redaccion, scoring, segmento
 from . import enlaces as menlaces
 from .modelos import FASES, Corrida, Email, Prospecto
 
@@ -175,6 +175,17 @@ def ejecutar(dominio: str,
             paso.items = 1
             paso.detalle = corrida.empresa.categoria
 
+        # La huella del segmento se arma UNA vez, acá: la fase 1 ya dejó el
+        # texto real del sitio, la categoría y los sectores. De ella salen las
+        # palabras que verifican competidores y prospectos, y las que arman las
+        # búsquedas por redes. Sin sitio real (modo demo) sale de la categoría
+        # y los sectores, que es poco pero no es nada.
+        huella = segmento.huella_de(corrida.empresa)
+        corrida.palabras_segmento = segmento.palabras_de_busqueda(huella, 8)
+        # Para MEDIR (afinidad de prospectos y competidores) hace falta que la
+        # huella venga del sitio real; si no, es None y no se sale a la red.
+        huella_medir = segmento.huella_verificable(corrida.empresa)
+
         # --- Fase 2 · explorar la competencia ---------------------------
         with _fase(corrida, "competencia", avisar) as paso:
             corrida.competidores = proveedor.competencia(corrida.empresa)
@@ -211,6 +222,12 @@ def ejecutar(dominio: str,
                     corrida.avisos.append(
                         f"El recorte de mercado «{mercado}» no dejó campañas; "
                         "se usaron todas las olas.")
+            # Con las campañas ya definidas se arman las consultas que
+            # encuentran MÁS clientes de cada segmento en LinkedIn, Instagram,
+            # X, TikTok y el buscador. Son enlaces de búsqueda, no resultados:
+            # el porqué está en el encabezado de cliente_ia/busqueda_social.py.
+            corrida.busquedas = busqueda_social.por_campana(
+                huella, corrida.campanas, corrida.idioma_ui)
             paso.items = len(corrida.campanas)
             paso.detalle = _detalle_olas(corrida)
 
@@ -225,20 +242,39 @@ def ejecutar(dominio: str,
             # candidatos, los que se caen son siempre los del final de la cola,
             # nunca los del mercado propio.
             corrida.prospectos = scoring.ordenar_prospectos(crudos)[:limite_prospectos]
+
+            # Verificación de los que quedaron: se visita el sitio de cada
+            # empresa real UNA vez y de ahí salen dos cosas — sus contactos
+            # públicos y cuánto habla del segmento del producto. Va acá y no
+            # en la fase 5 porque la afinidad medida ENTRA al score
+            # (cliente_ia/scoring.py), y en la fase 5 llegaba tarde: la lista
+            # ya estaba ordenada con una señal menos.
+            from .proveedores import contactos as mod_contactos
+            con_datos, visitados = mod_contactos.enriquecer(
+                corrida.prospectos, huella=huella_medir)
+            if visitados:
+                corrida.avisos.append(
+                    f"Contactos públicos: {con_datos} de {visitados} empresas "
+                    "reales publican correo, teléfono o redes en su sitio.")
+                medidos = [p for p in corrida.prospectos if p.afinidad >= 0]
+                if medidos:
+                    # Con la afinidad ya medida se vuelve a puntuar y a
+                    # ordenar. La regla de olas no se toca: `ordenar_prospectos`
+                    # sigue ordenando por ola ANTES que por puntaje.
+                    for p in corrida.prospectos:
+                        scoring.puntuar_prospecto(p, corrida.empresa, nombres_comp)
+                    corrida.prospectos = scoring.ordenar_prospectos(corrida.prospectos)
+                    del_rubro = sum(1 for p in medidos
+                                    if p.afinidad >= segmento.AFIN_DUDOSA)
+                    corrida.avisos.append(
+                        f"Segmento verificado: {del_rubro} de {len(medidos)} "
+                        "sitios visitados hablan del rubro del producto; la "
+                        "lista se reordenó con eso.")
             paso.items = len(corrida.prospectos)
             paso.detalle = _detalle_niveles(corrida.prospectos, base.codigo, corrida.idioma_ui)
 
         # --- Fase 5 · encontrar decisores -------------------------------
         with _fase(corrida, "decisores", avisar) as paso:
-            # Antes de los cargos, los contactos PÚBLICOS de cada empresa
-            # real: su sitio dice cómo quiere que la contacten (info@,
-            # teléfono, LinkedIn, Instagram). Nada se inventa.
-            from .proveedores import contactos as mod_contactos
-            con_datos, visitados = mod_contactos.enriquecer(corrida.prospectos)
-            if visitados:
-                corrida.avisos.append(
-                    f"Contactos públicos: {con_datos} de {visitados} empresas "
-                    "reales publican correo, teléfono o redes en su sitio.")
             decisores = proveedor.decisores(corrida.prospectos, decisores_por_empresa)
             por_id = {p.id: p for p in corrida.prospectos}
             for d in decisores:

@@ -33,11 +33,19 @@ import os
 import re
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 
-from .. import geo
+from .. import geo, segmento
 from ..modelos import Campana, Competidor, Empresa, Prospecto
 from .base import Proveedor
 from .demo import ProveedorDemo
+
+# Verificación de segmento (ver ProveedorLLM._verificar_competencia). Los
+# topes existen para que la fase no se vuelva lenta: 12 sitios en paralelo con
+# 4 s de timeout son ~4 s de pared, no 48.
+TIMEOUT_SITIO = 4
+HILOS_SITIO = 8
+MAX_SITIOS_COMPETENCIA = 12
 
 MODELO_DEFAULT = "claude-opus-5"
 PROVEEDORES_IA = ("claude", "openai", "gemini", "copilot", "grok")
@@ -240,6 +248,7 @@ class ProveedorLLM(Proveedor):
         # Notas informativas (no errores) que el pipeline copia a los avisos
         # de la corrida — p. ej. "ningún competidor tiene base en Uruguay".
         self.notas: list[str] = []
+        self._huella_cache: segmento.Huella | None = None
         self._demo = ProveedorDemo(idioma_base)
         # El proveedor viaja en `fuente` y en los avisos: si algo falla, el
         # usuario tiene que ver "openai · competencia: …", no un "llm" mudo.
@@ -493,7 +502,22 @@ class ProveedorLLM(Proveedor):
                           f"{empresa.resumen_sitio}")
         partes.append(f"Empresa: {empresa.nombre} ({empresa.dominio}). "
                       f"Propuesta: {empresa.propuesta}")
+        # Las palabras que MÁS identifican al producto, contadas sobre su
+        # propia web. No son adorno: dichas explícitamente, el modelo deja de
+        # generalizar al rubro vecino ("software", "IA") y se queda en el
+        # segmento concreto ("gestión de cobranzas").
+        claves = segmento.palabras_de_busqueda(self._huella(empresa), 8)
+        if claves:
+            partes.append("Palabras que definen el segmento, medidas sobre esa "
+                          f"web: {', '.join(claves)}.")
         return "\n\n".join(partes)
+
+    def _huella(self, empresa: Empresa) -> segmento.Huella:
+        """La huella del producto, calculada UNA vez por corrida: la usan las
+        fases 2, 3 y 4, y recalcularla en cada prompt era gastar por gusto."""
+        if getattr(self, "_huella_cache", None) is None:
+            self._huella_cache = segmento.huella_de(empresa)
+        return self._huella_cache
 
     # Fase 2 · competencia
     def competencia(self, empresa: Empresa) -> list[Competidor]:
@@ -569,6 +593,10 @@ class ProveedorLLM(Proveedor):
                 if c.dominio not in vistos:
                     vende_ahi[c.dominio] = True
                     salida.append(c)
+        # Primero el filtro MEDIDO (¿habla del mismo segmento?), después el
+        # geográfico (¿vende donde vende el cliente?). En este orden: no tiene
+        # sentido priorizar por país a una empresa de otro rubro.
+        salida = self._verificar_competencia(salida, empresa)
         return self._recortar_competencia(salida, vende_ahi, pais)
 
     def _idioma_mayoritario(self, codigos: list[str]) -> str:
@@ -627,6 +655,72 @@ class ProveedorLLM(Proveedor):
                 fuente=self.nombre,
             ))
         return salida
+
+    def _verificar_competencia(self, competidores: list[Competidor],
+                               empresa: Empresa) -> list[Competidor]:
+        """Baja la web de cada competidor y MIDE si habla del mismo segmento.
+
+        Esta es la diferencia entre un filtro y una promesa. Hasta acá lo único
+        que decía si un competidor era del rubro era el `solapamiento` que el
+        propio modelo se ponía: un nombre inventado o una empresa de un rubro
+        vecino llegaba con 0.9 y nadie lo contradecía. Acá se contrasta contra
+        la huella del producto real (cliente_ia/segmento.py).
+
+        Tres decisiones deliberadas:
+
+        1. **Sin red, no se filtra.** Si el sitio no responde, la afinidad
+           queda en -1 y el competidor se conserva con su orden declarado. Un
+           filtro que borra por no poder verificar es peor que no filtrar: en
+           una máquina sin salida a internet vaciaría la fase entera.
+        2. **Sólo se descarta lo claramente ajeno** (`AFIN_AJENA`). El umbral
+           está bajo a propósito: es preferible dejar pasar un competidor flojo
+           que borrar uno bueno cuya portada es una imagen sin texto.
+        3. **Se dice lo que se hizo.** Cuántos se verificaron y cuántos se
+           cayeron va a las notas de la corrida; un filtro silencioso que borra
+           la mitad de la lista es indistinguible de un bug.
+        """
+        # `huella_verificable` y no `_huella`: para ORIENTAR el prompt alcanza
+        # con la categoría, pero para MEDIR la web de un tercero hace falta que
+        # la nuestra venga del sitio real. Sin eso no se sale a la red — y de
+        # paso el modo demo queda determinista.
+        huella = segmento.huella_verificable(empresa)
+        if not huella or not competidores:
+            return competidores
+        # Import local: `contactos` importa `web`, y traerlo arriba metía una
+        # dependencia de red en el import del proveedor.
+        from .web import ErrorWeb, bajar
+
+        def _mirar(c: Competidor) -> tuple[Competidor, float]:
+            try:
+                html = bajar(c.dominio, TIMEOUT_SITIO)
+            except (ErrorWeb, Exception):             # noqa: BLE001
+                return (c, -1.0)
+            return (c, segmento.afinidad_de_html(huella, html))
+
+        with ThreadPoolExecutor(max_workers=HILOS_SITIO) as pool:
+            medidos = list(pool.map(_mirar, competidores[:MAX_SITIOS_COMPETENCIA]))
+        for c, valor in medidos:
+            c.afinidad = valor
+
+        verificados = [c for c in competidores if c.afinidad >= 0]
+        ajenos = [c for c in verificados if c.afinidad < segmento.AFIN_AJENA]
+        # Salvaguarda: si "lo ajeno" es TODO lo verificado, el que está mal es
+        # el filtro (una huella pobre, un idioma que no matchea), no la lista.
+        # Antes de vaciar la fase se prefiere avisar y no tocar nada.
+        if verificados and len(ajenos) == len(verificados):
+            self.notas.append(
+                "Competencia: no se pudo confirmar el segmento de ninguno de "
+                f"los {len(verificados)} sitios verificados; se deja la lista "
+                "como la propuso el modelo.")
+            return competidores
+        if ajenos:
+            nombres = ", ".join(c.nombre or c.dominio for c in ajenos[:4])
+            self.notas.append(
+                f"Competencia: se descartaron {len(ajenos)} de "
+                f"{len(verificados)} competidores porque su web no habla del "
+                f"mismo segmento ({nombres}).")
+        fuera = {c.dominio for c in ajenos}
+        return [c for c in competidores if c.dominio not in fuera]
 
     def _recortar_competencia(self, competidores: list[Competidor],
                               vende_ahi: dict[str, bool], pais: str) -> list[Competidor]:
@@ -767,8 +861,6 @@ class ProveedorLLM(Proveedor):
         # Las tres olas van EN PARALELO: en serie eran tres llamadas al modelo
         # una detrás de otra y la corrida entera rozaba el timeout de una
         # función serverless — el usuario veía "Buscando…" hasta el corte.
-        from concurrent.futures import ThreadPoolExecutor
-
         with ThreadPoolExecutor(max_workers=len(niveles) or 1) as pool:
             futuros = {n: pool.submit(_pedir_ola, n) for n in niveles}
 

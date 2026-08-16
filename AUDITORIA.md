@@ -5,7 +5,7 @@
 > está abierto figura abierto, con su costo.
 >
 > **Última pasada:** 2026-08-15 · rama `claude/replicate-explee-kobra-s9sx0s`
-> **Gates:** `353 tests passed` · `ruff: All checks passed!` · build web OK · humo Electron OK
+> **Gates:** `377 tests passed` · `ruff: All checks passed!` · build web OK · humo Electron OK
 
 ---
 
@@ -209,6 +209,87 @@ de `electron/`, si el humo desaparece del CI, o si alguien toca
 
 ---
 
+## 5.ter Competencia por segmento y clientes por redes (funcionalidad nueva)
+
+Era el pedido que quedaba pendiente: *«que busque competencia y filtros más
+acertados en base al segmento de la página/producto, y que busque más
+certeramente clientes por redes sociales»*.
+
+### El filtro dejó de ser una promesa
+
+Hasta acá lo único que decía si un competidor era del rubro era el
+`solapamiento` que **el propio modelo se ponía**. Un nombre inventado o una
+empresa de un rubro vecino llegaba con 0.9 y nadie lo contradecía.
+
+Ahora `cliente_ia/segmento.py` arma una **huella** del producto —unigramas y
+bigramas pesados del texto REAL de su web— y el motor **baja la web de cada
+competidor y la mide** contra ella. La afinidad medida viaja al lado del
+solapamiento declarado, y en la interfaz se pintan distinto a propósito:
+cuando no coinciden, el que vale es el medido.
+
+Lo mismo con los prospectos, y **sin un solo pedido extra**: el HTML ya se
+bajaba para leer sus contactos públicos: sólo había que no tirarlo.
+
+Tres salvaguardas, porque un filtro que borra de más es peor que no filtrar:
+
+| Situación | Qué hace |
+|---|---|
+| El sitio no responde | Afinidad `-1`, se conserva el orden declarado |
+| Sin `resumen_sitio` (modo demo) | **No se verifica ni se sale a la red** — con una huella de dos etiquetas todo da casi cero y el filtro descartaría a todos por igual. Esto mantiene el modo demo determinista |
+| *Todo* lo verificado da ajeno | El que está mal es el filtro, no la lista: se avisa y no se toca nada |
+
+Y el descarte nunca es silencioso: cuántos se verificaron y cuántos se cayeron
+va a los avisos de la corrida.
+
+### La afinidad entra al score
+
+`ajuste_icp` pasó de cuatro señales a cinco, con **0.20 para la afinidad
+medida** — tanto como el tamaño, porque es evidencia y no una etiqueta. Sin
+medir vale un neutro: media corrida demo no tiene sitio que visitar y
+castigarla sería inventar una diferencia que no existe.
+
+**La regla de olas no se movió:** `ordenar_prospectos` sigue ordenando por ola
+antes que por puntaje, y hay un test que lo prueba con el caso extremo
+(un prospecto de afuera perfecto contra uno local pésimo).
+
+### Clientes por redes, con las palabras medidas
+
+`cliente_ia/busqueda_social.py` arma seis consultas por campaña (sector × ola),
+en el idioma de esa ola.
+
+**El error que este módulo casi comete, y que vale documentar:** al principio
+metía las palabras del *producto* en la búsqueda de empresas. Una empresa cuya
+web habla como la nuestra es un **competidor, no un cliente** — devolvía justo
+la lista equivocada. Corregido:
+
+| Consulta | Qué palabra usa | Por qué |
+|---|---|---|
+| LinkedIn · empresas | el **sector** + país | son los compradores |
+| LinkedIn · decisores | sector + **cargos** en su idioma | sin los cargos devolvía pasantes |
+| Instagram / TikTok | hashtag del rubro, sin acentos ni mayúsculas | así es como se indexa; `#Fintechdepréstamos` abría una etiqueta vacía |
+| X · intención | el **dolor** + palabras del producto | quién se está quejando AHORA del problema |
+| Buscador | sector entre comillas + TLD del país, sin agregadores | el que más rinde |
+
+Son **consultas, no listas**: LinkedIn e Instagram prohíben y bloquean el
+scraping, así que una lista "automática" sería inventada o frágil. Lo que se
+automatiza es escribir la consulta correcta — que es donde estaba el trabajo:
+nadie sabe de memoria el operador de búsqueda de gente por rubro de LinkedIn.
+
+### Defectos propios encontrados y corregidos mientras se construía
+
+Los cinco salieron de mirar la salida real, no de leer el código:
+
+| # | Defecto | Por qué importaba |
+|---|---|---|
+| F-1 | Los bigramas cruzaban el punto entre oraciones → «atraso motor» | Metido en una búsqueda con AND, devuelve cero resultados |
+| F-2 | El unigrama de la categoría pesaba como el bigrama | Cualquier página que dijera «software» sumaba afinidad |
+| F-3 | `palabras_de_busqueda` devolvía cola larga | Consultas imposibles; se agregó un corte por peso relativo |
+| F-4 | El hashtag salía con acentos y mayúsculas | El enlace abría una etiqueta de Instagram vacía |
+| F-5 | El sector y su palabra clave se repetían en la misma consulta | «Fintech de préstamos» + «fintech prestamos» con AND = cero |
+
+Cubierto por `tests/test_segmento.py` (24 tests) y por las reglas 10-12 de
+`CLAUDE.md`.
+
 ## 6. Lo que falta de tu lado (configuración, no código)
 
 Nada de esto es programación: son secretos y certificados que sólo podés cargar
@@ -233,7 +314,7 @@ se publica en una Release pública. El `.bat` del conversor a owner hornea el
 ```bash
 pip install -r requirements-dev.txt
 ruff check .
-python3 -m pytest -q tests/                    # 353 tests
+python3 -m pytest -q tests/                    # 377 tests
 npm run build:web                              # bundle web/PC/APK
 python3 -m marketing.generar_landing           # las 3 landings
 npx cap sync android                           # copia el bundle al APK

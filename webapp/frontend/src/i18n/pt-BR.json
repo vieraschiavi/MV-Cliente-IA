@@ -383,5 +383,17 @@
     "sin_muestra": "sem amostra suficiente",
     "junta_mas": "Junte mais envios e conversões para ver qual segmento, dia e hora rendem melhor.",
     "cuando_entran": "quando as pessoas entram"
+  },
+  "busquedas": {
+    "titulo": "Buscar mais clientes deste segmento",
+    "ayuda": "Consultas prontas para cada rede, montadas com as palavras medidas do seu site, o setor da campanha e o país dela. São buscas, não listas: LinkedIn e Instagram não permitem extrair perfis, então o que se automatiza é escrever a consulta certa.",
+    "palabras": "Palavras que definem seu segmento:"
+  },
+  "competencia": {
+    "afinidad_ayuda": "Afinidade MEDIDA: leu-se o site do concorrente e comparou-se com o seu.",
+    "solapamiento_ayuda": "Sobreposição declarada pela análise.",
+    "afin_alta": "mesmo setor",
+    "afin_media": "setor próximo",
+    "afin_baja": "setor diferente"
   }
 }
