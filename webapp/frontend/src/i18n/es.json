@@ -195,7 +195,7 @@
     "subtitulo": "Idioma de la interfaz, servidor y datos del producto.",
     "idioma": "Idioma de la interfaz",
     "servidor": "Dirección del servidor",
-    "servidor_ayuda": "En el APK ya viene conectado a la web pública (mvclienteia.com). Si tenés tu propio servidor en la LAN (o el motor corriendo en tu PC), poné su dirección acá — por ejemplo http://192.168.1.10:8810. En la web y en la app de PC se deja vacío.",
+    "servidor_ayuda": "En el APK ya viene conectado a la web pública (mv-cliente-ia.vercel.app). Si tenés tu propio servidor en la LAN (o el motor corriendo en tu PC), poné su dirección acá — por ejemplo http://192.168.1.10:8810. En la web y en la app de PC se deja vacío.",
     "guardar": "Guardar",
     "guardado": "Guardado",
     "probar": "Probar conexión",

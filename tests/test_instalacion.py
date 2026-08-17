@@ -221,10 +221,18 @@ def test_el_apk_conecta_solo_sin_pedir_configuracion():
 
     Antes, sin configurar nada, el APK quedaba mudo hasta que el usuario
     encontraba y tipeaba la IP de un servidor propio: el primer uso era una
-    pantalla en rojo. Ahora `getBase()` en nativo cae a la web pública
-    (mvclienteia.com, el mismo backend que ya sirve la demo y valida
-    licencias) si no hay nada guardado — anda apenas se instala, y el campo
-    de Ajustes sigue editable para quien quiera su propio servidor en la LAN.
+    pantalla en rojo. Ahora `getBase()` en nativo cae a la web pública si no
+    hay nada guardado — anda apenas se instala, y el campo de Ajustes sigue
+    editable para quien quiera su propio servidor en la LAN.
+
+    El dominio de ese default es `mv-cliente-ia.vercel.app`, NO
+    `mvclienteia.com`: se probó con `curl` (fuera de este test, que no tiene
+    red) y `mvclienteia.com` no resolvía — el dominio de marca todavía no
+    está apuntado en el DNS — mientras que `mv-cliente-ia.vercel.app/api/salud`
+    respondía 200. Apuntar el default ahí rompía "conecta solo" con un
+    "Failed to fetch" igual de mudo que el que esto vino a arreglar. Usa el
+    mismo dominio que `cliente_ia/licencia.py:URL_VALIDACION`, que ya lo
+    tenía bien por la misma razón.
 
     `faltaServidor()` (el test de arriba) queda como red de segundo nivel:
     con este default, `getBase()` nunca vuelve a dar vacío en nativo, así que
@@ -233,7 +241,9 @@ def test_el_apk_conecta_solo_sin_pedir_configuracion():
     """
     api = (RAIZ / "webapp/frontend/src/api.js").read_text(encoding="utf-8")
     assert "const URL_PUBLICA = " in api
-    assert '"https://mvclienteia.com"' in api
+    assert '"https://mv-cliente-ia.vercel.app"' in api, (
+        "el default tiene que ser el dominio que de verdad resuelve — ver el "
+        "docstring de este test")
 
     bloque = api.split("export function getBase()", 1)[1].split("\n}", 1)[0]
     assert "URL_PUBLICA" in bloque, (
@@ -252,5 +262,5 @@ def test_el_apk_conecta_solo_sin_pedir_configuracion():
                        .read_text(encoding="utf-8"))
         assert "sin_servidor" not in d.get("aviso", {}), (
             f"{idioma}.json: sobró la traducción de un aviso que ya no se usa")
-        assert "mvclienteia.com" in d["config"]["servidor_ayuda"], (
+        assert "mv-cliente-ia.vercel.app" in d["config"]["servidor_ayuda"], (
             f"{idioma}.json: la ayuda del campo no dice cuál es el default")

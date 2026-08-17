@@ -195,7 +195,7 @@
     "subtitulo": "Interface language, server and product details.",
     "idioma": "Interface language",
     "servidor": "Server address",
-    "servidor_ayuda": "The Android app comes connected to the public site (mvclienteia.com) out of the box. If you have your own server on the LAN (or the engine running on your PC), put its address here — for example http://192.168.1.10:8810. Leave it empty on web and on the desktop app.",
+    "servidor_ayuda": "The Android app comes connected to the public site (mv-cliente-ia.vercel.app) out of the box. If you have your own server on the LAN (or the engine running on your PC), put its address here — for example http://192.168.1.10:8810. Leave it empty on web and on the desktop app.",
     "guardar": "Save",
     "guardado": "Saved",
     "probar": "Test connection",
