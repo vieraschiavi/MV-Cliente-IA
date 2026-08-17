@@ -318,6 +318,35 @@ export class ErrorApi extends Error {
   }
 }
 
+/**
+ * En el APK, sin dirección configurada, `fetch("" + ruta)` es una URL
+ * RELATIVA — se resuelve contra el propio origen de la app
+ * (`https://localhost`), que es donde Capacitor sirve el bundle. Su servidor
+ * local está en "html5mode" (rutea cualquier ruta sin extensión a
+ * `index.html`, para que el router de una sola página funcione en `/#/...`),
+ * así que `/api/salud` no daba un error de red: devolvía el propio HTML de
+ * la app con status 200. `r.json()` fallaba en silencio (hay un `.catch(()
+ * => ({}))` para no romper con una respuesta vacía) y `api()` devolvía `{}`
+ * como si el pedido hubiera funcionado — "Conexión correcta" con
+ * `r.version` en `undefined`. Un falso positivo: nunca se habló con ningún
+ * servidor.
+ *
+ * Se corta ACÁ, antes del fetch, con el mismo criterio que `baseInsegura`:
+ * en native sin base no hay adónde ir. `sin import de i18n/index.js` a
+ * propósito — ese módulo importa `getIdioma`/`setIdioma` DESDE este archivo,
+ * así que importar `t()` acá cerraría un ciclo. El texto va en las tres
+ * lenguas, a mano, como en `cliente_ia/redaccion.py` del lado del motor.
+ */
+const FALTA_SERVIDOR = {
+  es: "Configurá la dirección del servidor en Ajustes antes de buscar.",
+  pt: "Configure o endereço do servidor em Configurações antes de buscar.",
+  en: "Set the server address in Settings before searching.",
+};
+
+function faltaServidor() {
+  return esNativo() && !getBase();
+}
+
 function cabeceras(cuerpo) {
   const token = getToken();
   const owner = getOwner();
@@ -329,6 +358,13 @@ function cabeceras(cuerpo) {
 }
 
 export async function api(ruta, { metodo = "GET", cuerpo, crudo = false } = {}) {
+  // Sin base en el APK, "" + ruta es relativa a https://localhost — que
+  // Capacitor responde con su propio index.html (ver el comentario de
+  // FALTA_SERVIDOR más arriba). Cortar acá evita el falso "conexión
+  // correcta".
+  if (faltaServidor()) {
+    throw new ErrorApi(FALTA_SERVIDOR[getIdioma()] || FALTA_SERVIDOR.es, 0);
+  }
   // Ningún pedido en texto plano a un host público: llevaría las claves del
   // usuario a la vista de cualquiera en la misma red. Se corta antes del
   // fetch, no después.
@@ -368,6 +404,9 @@ export async function api(ruta, { metodo = "GET", cuerpo, crudo = false } = {}) 
  * la corrida entera. Devuelve la última línea (la corrida terminada).
  */
 export async function apiStream(ruta, cuerpo, onLinea) {
+  if (faltaServidor()) {
+    throw new ErrorApi(FALTA_SERVIDOR[getIdioma()] || FALTA_SERVIDOR.es, 0);
+  }
   if (baseInsegura(getBase())) {
     throw new ErrorApi("servidor_inseguro_http", 0);
   }

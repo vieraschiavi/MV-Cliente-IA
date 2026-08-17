@@ -13,6 +13,16 @@ Dos bugs concretos que estos tests impiden que vuelvan:
    usuario por `http://192.168.x.x`. Eso es contenido mixto y el WebView de
    Android lo bloquea por defecto; Capacitor sólo lo habilita con
    `allowMixedContent`. Estaba en `false`: fallaba con un error de red genérico.
+3. **Con el servidor mal configurado, el APK MENTÍA que se había conectado.**
+   Con la dirección vacía, `fetch("" + ruta)` es relativa a `https://localhost`
+   — el propio origen del bundle. El servidor local de Capacitor está en
+   "html5mode" (rutea cualquier ruta sin extensión a `index.html`, para que el
+   router de una sola página ande en `/#/...`), así que `GET /api/salud`
+   devolvía el HTML de la app con status 200 en vez de un error de red.
+   `r.json()` fallaba en silencio (hay un `.catch(() => ({}))` a propósito,
+   para no romper con una respuesta vacía) y `api()` devolvía `{}` como si el
+   pedido hubiera funcionado: "Conexión correcta · vundefined" en pantalla,
+   sin haber hablado con ningún servidor. Se vio en un celular real.
 """
 from __future__ import annotations
 
@@ -165,3 +175,42 @@ def test_el_apk_sigue_sin_permitir_texto_plano_a_internet():
     # Y el chequeo se hace en los DOS caminos de red, no en uno solo.
     assert api.count("baseInsegura(getBase())") >= 2, (
         "baseInsegura tiene que cortar tanto en api() como en apiStream()")
+
+
+def test_sin_direccion_el_apk_no_finge_que_se_conecto():
+    """El falso "Conexión correcta · vundefined".
+
+    Con la dirección vacía, `fetch("" + ruta)` es relativa al propio origen
+    del bundle (`https://localhost`). El servidor local de Capacitor está en
+    "html5mode" — cualquier ruta sin extensión (incluida `/api/salud`) la
+    resuelve devolviendo `index.html` con status 200, para que el router de
+    una sola página ande en `/#/...`. Sin este corte, `api()` recibía ese
+    HTML, `r.json()` fallaba en silencio (`.catch(() => ({}))`, a propósito
+    para no romper con una respuesta vacía) y devolvía `{}` — la pantalla de
+    Ajustes mostraba "conexión correcta" sin haber hablado con nada.
+    """
+    api = (RAIZ / "webapp/frontend/src/api.js").read_text(encoding="utf-8")
+    assert "function faltaServidor()" in api
+    assert "esNativo() && !getBase()" in api, (
+        "faltaServidor() tiene que mirar esNativo(), no cualquier base vacía: "
+        "en la web y en la app de PC una base vacía es NORMAL (relativa al "
+        "propio backend)")
+
+    # El mensaje está en los tres idiomas del producto, no sólo en español.
+    bloque = api.split("const FALTA_SERVIDOR = {", 1)[1].split("};", 1)[0]
+    for idioma in ("es:", "pt:", "en:"):
+        assert idioma in bloque, f"falta el mensaje en {idioma[:-1]}"
+
+    # El corte tiene que estar ANTES del fetch en los dos caminos de red, con
+    # el mismo criterio que baseInsegura (que si no, corre primero y una base
+    # vacía —insegura sólo para http:// contra un host público— la deja pasar
+    # igual, porque "" no matchea el patrón http://).
+    for firma in ("export async function api(", "export async function apiStream("):
+        cuerpo = api.split(firma, 1)[1][:900]
+        pos_guard = cuerpo.find("faltaServidor()")
+        pos_fetch = cuerpo.find("await fetch(")
+        assert pos_guard != -1, f"falta el guard en {firma}"
+        assert pos_fetch != -1, f"no se encontró el fetch de {firma}"
+        assert pos_guard < pos_fetch, (
+            f"{firma}: el guard de faltaServidor() tiene que ir ANTES del "
+            "fetch, si no el falso positivo sigue pasando")
