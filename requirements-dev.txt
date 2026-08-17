@@ -11,3 +11,9 @@ pyinstaller>=6.0
 
 # Generación de los íconos y splash de Android desde assets/brand/.
 pillow>=10.0
+
+# tests/test_instalacion.py valida los .github/workflows/*.yml (claves
+# duplicadas como "env" repetido en un mismo paso tumban el workflow ENTERO
+# antes de programar un solo job, y GitHub no lo muestra en ningún log —
+# build_windows.yml estuvo así varios días sin que nada lo avisara).
+pyyaml>=6.0

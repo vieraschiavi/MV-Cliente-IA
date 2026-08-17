@@ -143,8 +143,17 @@ jobs:
         env:
           # Por `env:` y no interpolado en el `run:`: `${{ }}` se expande como
           # TEXTO antes de que exista el shell, así que un valor con comillas o
-          # `;` se ejecutaría como comando en el runner que publica.
+          # `;` se ejecutaría como comando en el runner que publica. UN SOLO
+          # bloque `env:` por paso — dos bloques separados (uno acá, otro
+          # después del `run:`) es YAML inválido ("'env' is already defined")
+          # y tumbaba el workflow ENTERO antes de programar un solo job: así
+          # estuvo roto varios días sin que ninguna corrida lo mostrara.
           MVVER: ${{ steps.ver.outputs.MVVER }}
+          # Sin firma de código por ahora: no fallar buscando certificado. La
+          # landing avisa del cartel de SmartScreen y publica el SHA-256.
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_REF: ${{ github.ref }}
         run: |
           cd electron
           npm pkg set version=$env:MVVER
@@ -190,12 +199,6 @@ jobs:
                       "../dist/MVClienteIA_Portable$sufijo.zip"
             Remove-Item "dist_installer/*" -Recurse -Force
           }
-        env:
-          # Sin firma de código por ahora: no fallar buscando certificado. La
-          # landing avisa del cartel de SmartScreen y publica el SHA-256.
-          CSC_IDENTITY_AUTO_DISCOVERY: "false"
-          GITHUB_EVENT_NAME: ${{ github.event_name }}
-          GITHUB_REF: ${{ github.ref }}
 
       - name: Armar la edición BAT (la que abre sin ningún .exe)
         # Mismo código y mismo build de React que el instalador: el ZIP se

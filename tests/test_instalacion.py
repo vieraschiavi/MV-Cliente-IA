@@ -264,3 +264,48 @@ def test_el_apk_conecta_solo_sin_pedir_configuracion():
             f"{idioma}.json: sobró la traducción de un aviso que ya no se usa")
         assert "mv-cliente-ia.vercel.app" in d["config"]["servidor_ayuda"], (
             f"{idioma}.json: la ayuda del campo no dice cuál es el default")
+
+
+def test_los_workflows_no_tienen_claves_duplicadas():
+    """`build_windows.yml` tuvo DOS bloques `env:` en el mismo paso ("Construir
+    las ediciones") — uno antes del `run:` y otro después. Es YAML inválido
+    ("'env' is already defined") y GitHub rechaza el workflow ENTERO antes de
+    programar un solo job: ni siquiera el job barato de Linux llega a correr.
+
+    Lo insidioso es que no se ve en ningún lado de este repo ni de la app: el
+    run queda "failure" sin logs (0 jobs), así que `tests/`, `ruff` y la propia
+    lista de corridas de Actions no muestran nada raro — hay que abrir el run
+    en GitHub para leer el mensaje. Estuvo así varios días, publicando cero
+    instaladores de Windows nuevos, sin que nada de este lado lo mostrara.
+
+    Un YAML con una clave repetida en el MISMO mapping no es un error de
+    sintaxis para PyYAML (se queda con la última y sigue) — hay que detectarlo
+    a mano, recorriendo el árbol."""
+    import yaml
+
+    class _CargadorQueNoPerdona(yaml.SafeLoader):
+        pass
+
+    def _mapa_sin_duplicados(cargador, nodo):
+        vistas = {}
+        for nodo_clave, nodo_valor in nodo.value:
+            clave = cargador.construct_object(nodo_clave, deep=False)
+            if clave in vistas:
+                raise ValueError(
+                    f"clave repetida {clave!r} en la línea {nodo_clave.start_mark.line + 1} "
+                    f"(la primera está en la línea {vistas[clave] + 1})")
+            vistas[clave] = nodo_clave.start_mark.line
+            cargador.construct_object(nodo_valor, deep=False)
+        return vistas
+
+    _CargadorQueNoPerdona.add_constructor(
+        yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _mapa_sin_duplicados)
+
+    workflows = sorted((RAIZ / ".github/workflows").glob("*.yml"))
+    assert workflows, "no se encontraron workflows para chequear"
+    for archivo in workflows:
+        try:
+            with archivo.open(encoding="utf-8") as f:
+                yaml.load(f, Loader=_CargadorQueNoPerdona)
+        except ValueError as e:
+            raise AssertionError(f"{archivo.relative_to(RAIZ)}: {e}") from e
