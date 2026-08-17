@@ -87,6 +87,19 @@ TTL_TOKEN = 12 * 3600
 # cuerpo, sin sondeo. El frontend detecta ese caso y no consulta el avance.
 SIN_ESTADO = rutas.en_serverless()
 
+# El `maxDuration` de `vercel.json` (300s) mata la conexión EN SECO si la
+# corrida entera no terminó a tiempo — sin aviso, sin cuerpo de respuesta: al
+# navegador le llega un error de red genérico ("Failed to fetch" o "network
+# error"), indistinguible de un celular con mala señal. Con varias fases de
+# por medio, cada una con uno o más pedidos de IA de hasta 180s, la suma pasa
+# los 300s más seguido de lo que parece — sobre todo con modelos de
+# razonamiento. Este presupuesto (bien por debajo del maxDuration, para dejar
+# margen a la lectura del sitio y al resto del trabajo sin IA) hace que
+# `ProveedorLLM` corte ANTES, con un error prolijo que el pipeline ya sabe
+# convertir en `corrida.estado = "error"` — en vez de que Vercel corte la
+# conexión sin decir nada. Pisable por si 300s cambia algún día.
+PRESUPUESTO_IA_SERVERLESS = int(os.getenv("MVCLIENTE_PRESUPUESTO_IA", "240"))
+
 # En serverless el modo `llm` sólo se ofrece cuando hay ANTHROPIC_API_KEY:
 # sin clave caería en silencio a `web` y el usuario creería que la IA "no
 # busca nada" (pasó con el despliegue de Vercel). Con clave sí corre — el
@@ -987,6 +1000,7 @@ def _ejecutar_sin_estado(entrada: CorridaIn, al_avanzar=None):
         mercado=entrada.mercado,
         pais_base=entrada.pais,
         al_avanzar=al_avanzar,
+        presupuesto_ia=PRESUPUESTO_IA_SERVERLESS,
     )
     # Una línea por corrida en el log del servidor (sin secretos): fue lo
     # que faltó cuando el modo IA "no funcionaba" y no se veía por qué.

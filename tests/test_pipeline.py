@@ -4,6 +4,7 @@ Es la prueba que responde "¿funciona de punta a punta?".
 """
 from __future__ import annotations
 
+import time
 import urllib.parse
 
 from cliente_ia import almacen, exportar, geo, pipeline
@@ -685,6 +686,54 @@ def test_claude_funciona_sin_el_sdk_instalado(monkeypatch):
     assert visto["cabeceras"]["x-api-key"] == "sk-ant-x"
     assert visto["cabeceras"]["anthropic-version"]      # sin versión, 400
     assert visto["cuerpo"]["max_tokens"] == 8000
+
+
+def test_sin_presupuesto_de_tiempo_no_llega_a_llamar_al_proveedor():
+    """Serverless: si ya no queda presupuesto (Vercel igual va a cortar la
+    conexión a los 300s), `_pedir` corta ANTES de llamar — nunca debería
+    intentar un pedido que de movida no puede empezar a tiempo."""
+    from cliente_ia.proveedores.llm import ErrorLLM, ProveedorLLM
+
+    p = ProveedorLLM(clave="sk-ant-x", proveedor="claude", presupuesto=0.01)
+    time.sleep(0.02)                                     # se vence el presupuesto
+
+    def _no_debería_llamarse(*args, **kwargs):
+        raise AssertionError("se llamó al proveedor sin presupuesto de tiempo")
+
+    p._pedir_una_vez = _no_debería_llamarse
+    try:
+        p._pedir("hola")
+    except ErrorLLM as e:
+        assert "tiempo" in str(e).lower()
+    else:
+        raise AssertionError("sin presupuesto tenía que cortar con ErrorLLM")
+
+
+def test_no_reintenta_si_el_presupuesto_no_alcanza_para_otro_intento(monkeypatch):
+    """Un timeout normalmente se reintenta una vez (ver `_pedir`), pero un
+    reintento que de por sí no puede terminar antes del presupuesto es
+    tiempo tirado: mejor cortar con un error claro que dejar que Vercel mate
+    la conexión sin avisar."""
+    from cliente_ia.proveedores.llm import TIMEOUT, ErrorLLM, ProveedorLLM
+
+    # Presupuesto mayor a 0 (deja arrancar el primer intento) pero menor al
+    # TIMEOUT (no alcanza para un reintento completo).
+    p = ProveedorLLM(clave="sk-ant-x", proveedor="claude", presupuesto=TIMEOUT / 2)
+
+    llamadas = []
+
+    def _siempre_timeout(*args, **kwargs):
+        llamadas.append(1)
+        raise TimeoutError("se colgó")
+
+    p._pedir_una_vez = _siempre_timeout
+    try:
+        p._pedir("hola")
+    except ErrorLLM as e:
+        assert len(llamadas) == 1, "no tenía que reintentar sin presupuesto para terminar"
+        assert "presupuesto" in str(e).lower()
+    else:
+        raise AssertionError("sin presupuesto para reintentar tenía que cortar con ErrorLLM")
 
 
 def test_el_error_http_del_proveedor_no_repite_la_clave(monkeypatch):

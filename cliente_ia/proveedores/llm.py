@@ -31,6 +31,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -224,7 +225,7 @@ class ProveedorLLM(Proveedor):
 
     def __init__(self, idioma_base: str = "es", modelo: str = "", clave: str = "",
                  proveedor: str = "claude", endpoint: str = "",
-                 mercado: str = "todos", pais_base: str = ""):
+                 mercado: str = "todos", pais_base: str = "", presupuesto: float = 0):
         self.proveedor = (proveedor or "claude").lower()
         if self.proveedor not in PROVEEDORES_IA:
             raise ErrorLLM(f"Proveedor de IA desconocido: {proveedor}")
@@ -245,6 +246,18 @@ class ProveedorLLM(Proveedor):
         # es "regional" en los prompts: sin esto la competencia se buscaba
         # siempre en Latinoamérica, aunque el cliente vendiera en Alemania.
         self.pais_base = (pais_base or "").strip().upper()
+        # Presupuesto de tiempo TOTAL de la corrida, no por llamada. Existe
+        # sólo para el despliegue serverless: ahí la corrida entera vive
+        # adentro de UNA conexión HTTP que Vercel mata a los 300s en seco
+        # (`vercel.json`), sin aviso — el navegador recibe "network error" a
+        # mitad de una fase, indistinguible de un celular con mala señal. Con
+        # varias fases de por medio (cada una uno o más pedidos de hasta
+        # `TIMEOUT` segundos) la suma pasa 300s más seguido de lo que
+        # parece. Acá adentro se corta ANTES, con un error prolijo que el
+        # pipeline ya sabe mostrar — en vez de que la plataforma corte la
+        # conexión sin decir nada. 0 = sin presupuesto (el programa instalado
+        # y el CLI no tienen este techo: quedan como estaban).
+        self._limite = time.monotonic() + presupuesto if presupuesto > 0 else None
         # Notas informativas (no errores) que el pipeline copia a los avisos
         # de la corrida — p. ej. "ningún competidor tiene base en Uruguay".
         self.notas: list[str] = []
@@ -281,12 +294,28 @@ class ProveedorLLM(Proveedor):
             raise ErrorLLM(f"No se pudo llamar a {self.proveedor}: "
                            f"{type(e).__name__}") from e
 
+    def _sin_presupuesto(self, margen: float = 0) -> bool:
+        """True si ya no queda tiempo (o no alcanza para lo que sigue) dentro
+        del presupuesto total de la corrida. `margen` es lo que hace falta
+        ADEMÁS de este instante — se usa para no arrancar un reintento que de
+        movida no puede terminar antes del límite."""
+        return self._limite is not None and time.monotonic() + margen >= self._limite
+
     def _pedir(self, prompt: str, max_tokens: int = 8000) -> str:
         """Una llamada al modelo, con UN reintento si lo que falló fue un
         timeout. Antes un timeout suelto tiraba la fase — y con el modo IA
         estricto, la corrida entera que el usuario esperó varios minutos.
         Los errores de verdad (clave mala, respuesta truncada) no se
-        reintentan: repetirlos da lo mismo y duplica la espera."""
+        reintentan: repetirlos da lo mismo y duplica la espera.
+
+        Con presupuesto (serverless): antes de llamar y antes de reintentar
+        se chequea que quede tiempo. Sin esto, un reintento después de un
+        timeout de `TIMEOUT` segundos podía por sí solo sumar `2×TIMEOUT` —
+        más que el `maxDuration` entero de la función en Vercel — y la
+        conexión moría en seco en vez de terminar con un error prolijo."""
+        if self._sin_presupuesto():
+            raise ErrorLLM(
+                f"Se acabó el tiempo disponible para esta corrida ({self.proveedor})")
         try:
             return self._pedir_una_vez(prompt, max_tokens)
         except Exception as e:                           # noqa: BLE001
@@ -294,6 +323,12 @@ class ProveedorLLM(Proveedor):
             # sale crudo (APITimeoutError), sin pasar por _post_json.
             if not _es_timeout(e):
                 raise
+            # Un reintento que ya sabemos que no puede terminar antes del
+            # límite es tiempo tirado: mejor cortar acá con un error claro.
+            if self._sin_presupuesto(TIMEOUT):
+                raise ErrorLLM(
+                    f"{self.proveedor} no respondió en {TIMEOUT}s y no queda "
+                    "presupuesto de tiempo para reintentar") from e
             self.notas.append(
                 f"{self.proveedor} no respondió en {TIMEOUT}s; se reintentó "
                 "una vez")

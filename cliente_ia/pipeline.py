@@ -63,7 +63,8 @@ def ejecutar(dominio: str,
              endpoint_ia: str = "",
              modelo_ia: str = "",
              mercado: str = "todos",
-             pais_base: str = "") -> Corrida:
+             pais_base: str = "",
+             presupuesto_ia: float = 0) -> Corrida:
     """
     Corre el AutoGTM completo sobre `dominio` y devuelve la corrida.
 
@@ -78,6 +79,10 @@ def ejecutar(dominio: str,
     `pais_base` es el mercado propio del cliente: el que va primero en las tres
     olas. Vacío significa «deducilo» (del TLD del dominio, y si es genérico del
     idioma de la interfaz).
+
+    `presupuesto_ia` es el techo de segundos para toda la parte de IA de la
+    corrida (0 = sin techo). Sólo lo pasa el servidor serverless, que corta
+    la conexión a los 300s igual: ver `ProveedorLLM._limite`.
     """
     dominio = (dominio or "").strip().lower().removeprefix("https://") \
                                             .removeprefix("http://").rstrip("/")
@@ -127,7 +132,7 @@ def ejecutar(dominio: str,
         # la corrida, ni en el disco, ni en ningún log.
         proveedor = proveedores.construir(modo, corrida.idioma_ui, clave_ia,
                                           proveedor_ia, endpoint_ia, mercado,
-                                          base.codigo, modelo_ia)
+                                          base.codigo, modelo_ia, presupuesto_ia)
         # --- Fase 1 · investigar la empresa -----------------------------
         with _fase(corrida, "investigar", avisar) as paso:
             corrida.empresa = proveedor.investigar(dominio)

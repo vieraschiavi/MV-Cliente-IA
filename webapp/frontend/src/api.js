@@ -357,6 +357,25 @@ function faltaServidor() {
   return esNativo() && !getBase();
 }
 
+// Cuando el servidor termina bien (con o sin error propio) la ÚLTIMA línea
+// NDJSON siempre llega y `lector.read()` devuelve `done: true` — el mensaje
+// de error de una corrida que falló adentro (dominio inválido, la IA
+// devolvió cualquier cosa) viaja COMO datos, no como corte de conexión. Si
+// en cambio la conexión se corta antes de esa última línea (una red móvil
+// que cambia de antena, o el servidor que la mata a la fuerza) `read()`
+// tira un error de bajo nivel del navegador ("network error", "Failed to
+// fetch") que no dice nada de lo que pasó. Acá se traduce a algo accionable
+// — y no se pierden las fases que sí llegaron a pintarse: `onLinea` ya las
+// mostró antes de que la conexión se cortara.
+const CONEXION_CORTADA = {
+  es: "se cortó la conexión antes de terminar la búsqueda; lo que ya se " +
+      "encontró quedó arriba — probá lanzarla de nuevo",
+  pt: "a conexão caiu antes de terminar a busca; o que já foi encontrado " +
+      "ficou acima — tenta lançar de novo",
+  en: "the connection dropped before the search finished; what was already " +
+      "found is shown above — try running it again",
+};
+
 function cabeceras(cuerpo) {
   const token = getToken();
   const owner = getOwner();
@@ -444,22 +463,26 @@ export async function apiStream(ruta, cuerpo, onLinea) {
   const decodificador = new TextDecoder();
   let resto = "";
   let ultima = null;
-  for (;;) {
-    const { done, value } = await lector.read();
-    if (done) break;
-    resto += decodificador.decode(value, { stream: true });
-    let corte;
-    while ((corte = resto.indexOf("\n")) >= 0) {
-      const linea = resto.slice(0, corte).trim();
-      resto = resto.slice(corte + 1);
-      if (!linea) continue;
-      try {
-        ultima = JSON.parse(linea);
-        onLinea(ultima);
-      } catch {
-        // línea partida o basura: se ignora, la siguiente completa trae todo
+  try {
+    for (;;) {
+      const { done, value } = await lector.read();
+      if (done) break;
+      resto += decodificador.decode(value, { stream: true });
+      let corte;
+      while ((corte = resto.indexOf("\n")) >= 0) {
+        const linea = resto.slice(0, corte).trim();
+        resto = resto.slice(corte + 1);
+        if (!linea) continue;
+        try {
+          ultima = JSON.parse(linea);
+          onLinea(ultima);
+        } catch {
+          // línea partida o basura: se ignora, la siguiente completa trae todo
+        }
       }
     }
+  } catch (e) {
+    throw new ErrorApi(CONEXION_CORTADA[getIdioma()] || CONEXION_CORTADA.es, 0);
   }
   return ultima;
 }

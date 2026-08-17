@@ -91,6 +91,7 @@ def test_un_timeout_se_reintenta_una_vez(monkeypatch):
     p = mod_llm.ProveedorLLM.__new__(mod_llm.ProveedorLLM)
     p.proveedor = "claude"
     p.notas = []
+    p._limite = None                                     # sin presupuesto (no serverless)
     intentos = []
 
     def una_vez(prompt, max_tokens=8000):
@@ -111,6 +112,7 @@ def test_un_error_de_clave_no_se_reintenta(monkeypatch):
     p = mod_llm.ProveedorLLM.__new__(mod_llm.ProveedorLLM)
     p.proveedor = "claude"
     p.notas = []
+    p._limite = None                                     # sin presupuesto (no serverless)
     intentos = []
 
     def una_vez(prompt, max_tokens=8000):
