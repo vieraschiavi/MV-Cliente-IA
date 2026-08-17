@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, apiStream, descargar, ErrorApi, esNativo, fmtScore, getBase, getClaveIA, getEmail, getEndpointIA, getModeloIA, getProveedorIA, setEmail, urlSegura } from "../api.js";
+import { api, apiStream, descargar, ErrorApi, fmtScore, getClaveIA, getEmail, getEndpointIA, getModeloIA, getProveedorIA, setEmail, urlSegura } from "../api.js";
 import { Aviso, etiquetasOla, Idioma, Kpis, Ola, Vacio } from "../componentes/Comunes.jsx";
 import { Icono } from "../componentes/Iconos.jsx";
 import { getCorridaId, setCorridaId, setCorridaLocal, useCorrida } from "../estado.js";
@@ -250,8 +250,7 @@ export default function Explorar() {
       setAbierta(r && r.estado === "listo" ? "prospectos" : "investigar");
       traerCupo();                       // la búsqueda real pudo gastar cupo
     } catch (e2) {
-      setErrLanzar(e2.status === 0 && esNativo() && !getBase()
-        ? t("aviso.sin_servidor") : `${t("explorar.error")}: ${e2.message}`);
+      setErrLanzar(`${t("explorar.error")}: ${e2.message}`);
     } finally {
       setLanzando(false);
     }
@@ -275,8 +274,6 @@ export default function Explorar() {
     <>
       <h1 className="page-title">{t("explorar.titulo")}</h1>
       <p className="page-sub">{t("explorar.subtitulo")}</p>
-
-      {esNativo() && !getBase() ? <Aviso>{t("aviso.sin_servidor")}</Aviso> : null}
 
       <form className="card arranque" onSubmit={lanzar}>
         <div className="campo crece">

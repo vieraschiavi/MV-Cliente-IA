@@ -32,8 +32,17 @@ export const esNativo = () =>
   (window.location.protocol === "capacitor:" ||
     Boolean(window.Capacitor?.isNativePlatform?.()));
 
+// La web pública: el mismo backend que sirve mvclienteia.com y valida las
+// licencias (cliente_ia/licencia.py:URL_VALIDACION). Es el default del APK
+// SIN configurar nada — antes quedaba vacío y el usuario tenía que salir a
+// buscar la IP de su propia PC antes de poder tocar un solo botón, aunque lo
+// único que quisiera fuera probar la app. Con un servidor propio en la LAN
+// sigue andando igual: el campo de Ajustes queda editable y lo que se
+// escriba ahí manda, esto es sólo lo que hay ANTES de escribir algo.
+const URL_PUBLICA = "https://mvclienteia.com";
+
 export function getBase() {
-  return localStorage.getItem(KEY_BASE) || (esNativo() ? "" : "");
+  return localStorage.getItem(KEY_BASE) || (esNativo() ? URL_PUBLICA : "");
 }
 export function setBase(url) {
   const limpia = (url || "").trim().replace(/\/+$/, "");

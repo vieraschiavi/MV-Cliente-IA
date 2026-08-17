@@ -214,3 +214,43 @@ def test_sin_direccion_el_apk_no_finge_que_se_conecto():
         assert pos_guard < pos_fetch, (
             f"{firma}: el guard de faltaServidor() tiene que ir ANTES del "
             "fetch, si no el falso positivo sigue pasando")
+
+
+def test_el_apk_conecta_solo_sin_pedir_configuracion():
+    """"quitar eso del servidor en la apk no tiene sentido" — feedback real.
+
+    Antes, sin configurar nada, el APK quedaba mudo hasta que el usuario
+    encontraba y tipeaba la IP de un servidor propio: el primer uso era una
+    pantalla en rojo. Ahora `getBase()` en nativo cae a la web pública
+    (mvclienteia.com, el mismo backend que ya sirve la demo y valida
+    licencias) si no hay nada guardado — anda apenas se instala, y el campo
+    de Ajustes sigue editable para quien quiera su propio servidor en la LAN.
+
+    `faltaServidor()` (el test de arriba) queda como red de segundo nivel:
+    con este default, `getBase()` nunca vuelve a dar vacío en nativo, así que
+    ese guard no debería activarse en el uso normal — pero seguir ahí no
+    cuesta nada y cubre el día en que alguien rompa el default sin querer.
+    """
+    api = (RAIZ / "webapp/frontend/src/api.js").read_text(encoding="utf-8")
+    assert "const URL_PUBLICA = " in api
+    assert '"https://mvclienteia.com"' in api
+
+    bloque = api.split("export function getBase()", 1)[1].split("\n}", 1)[0]
+    assert "URL_PUBLICA" in bloque, (
+        "getBase() tiene que caer a la web pública en nativo cuando no hay "
+        "nada guardado, no a una cadena vacía")
+
+    # El banner "configurá el servidor" y su corte en el catch de Explorar ya
+    # no pueden disparar nunca (getBase() no vuelve a dar vacío en nativo):
+    # dejarlos habría sido código muerto fingiendo una alerta que no puede
+    # pasar. Se sacaron; que no vuelvan sin querer en un merge.
+    explorar = (RAIZ / "webapp/frontend/src/pages/Explorar.jsx").read_text(encoding="utf-8")
+    assert "aviso.sin_servidor" not in explorar
+
+    for idioma in ("es", "pt-BR", "en"):
+        d = json.loads((RAIZ / f"webapp/frontend/src/i18n/{idioma}.json")
+                       .read_text(encoding="utf-8"))
+        assert "sin_servidor" not in d.get("aviso", {}), (
+            f"{idioma}.json: sobró la traducción de un aviso que ya no se usa")
+        assert "mvclienteia.com" in d["config"]["servidor_ayuda"], (
+            f"{idioma}.json: la ayuda del campo no dice cuál es el default")

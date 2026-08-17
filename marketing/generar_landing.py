@@ -106,8 +106,9 @@ TEXTOS: dict[str, dict] = {
              "que ya tenés (3.11 o más nuevo). Trae las dependencias adentro, así que "
              "instala sin internet, e Instalar.bat te deja el acceso directo y el "
              "desinstalador igual que el instalador común."),
-            ("Android · APK", "La lista y los correos en el celular, apuntando a tu servidor "
-             "(Configuración → Dirección del servidor).",
+            ("Android · APK", "La lista y los correos en el celular. Viene conectado a la "
+             "web pública: sólo hace falta la dirección de tu propio servidor si "
+             "preferís correr el motor en tu PC o en tu red.",
              "Descargar el APK", URL_APK,
              "APK directo, no viene de Play Store: al instalarlo habilitá «Instalar apps "
              "desconocidas» para tu navegador. El SHA-256 está publicado junto a la descarga."),
@@ -200,8 +201,9 @@ TEXTOS: dict[str, dict] = {
              "que você já tem (3.11 ou mais novo). Traz as dependências dentro, então "
              "instala sem internet, e o Instalar.bat deixa o atalho e o desinstalador "
              "igual ao instalador comum."),
-            ("Android · APK", "A lista e os e-mails no celular, apontando para o seu servidor "
-             "(Configuração → Endereço do servidor).",
+            ("Android · APK", "A lista e os e-mails no celular. Já vem conectado à web "
+             "pública: o endereço do seu próprio servidor só é necessário se você "
+             "preferir rodar o motor no seu PC ou na sua rede.",
              "Baixar o APK", URL_APK,
              "APK direto, não vem da Play Store: ao instalar, habilite «Instalar apps "
              "desconhecidos» para o seu navegador. O SHA-256 está publicado junto ao download."),
@@ -294,8 +296,9 @@ TEXTOS: dict[str, dict] = {
              "the Python you already have (3.11 or newer). It ships its dependencies "
              "inside, so it installs with no internet, and Instalar.bat leaves you the "
              "shortcut and the uninstaller just like the regular installer."),
-            ("Android · APK", "The list and the emails on your phone, pointing at your "
-             "server (Settings → Server address).",
+            ("Android · APK", "The list and the emails on your phone. Comes connected to "
+             "the public site: your own server address is only needed if you'd "
+             "rather run the engine on your PC or your own network.",
              "Download the APK", URL_APK,
              "Direct APK, not from the Play Store: when installing, allow \"Install "
              "unknown apps\" for your browser. The SHA-256 is published next to the download."),

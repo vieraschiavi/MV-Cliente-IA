@@ -195,7 +195,7 @@
     "subtitulo": "Idioma da interface, servidor e dados do produto.",
     "idioma": "Idioma da interface",
     "servidor": "Endereço do servidor",
-    "servidor_ayuda": "Só é necessário no app Android: é o endereço onde roda o backend (por exemplo http://192.168.1.10:8810). Na web e no app de PC deixe vazio.",
+    "servidor_ayuda": "No APK já vem conectado à web pública (mvclienteia.com). Se você tem seu próprio servidor na rede local (ou o motor rodando no seu PC), coloque o endereço aqui — por exemplo http://192.168.1.10:8810. Na web e no app de PC deixe vazio.",
     "guardar": "Salvar",
     "guardado": "Salvo",
     "probar": "Testar conexão",
@@ -259,7 +259,6 @@
   },
   "aviso": {
     "sintetico": "Dados de demonstração: as empresas e as pessoas desta lista são sintéticas, geradas para testar o fluxo. Mude a origem dos dados para «Ler meu site real» ou «Pesquisa com IA» para trabalhar com informação real.",
-    "sin_servidor": "Configure o endereço do servidor para poder buscar clientes.",
     "avisos_corrida": "A busca terminou, mas algumas fases com IA falharam e foram cobertas com dados sintéticos:"
   },
   "nav_corto": {

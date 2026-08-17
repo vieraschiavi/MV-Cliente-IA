@@ -195,7 +195,7 @@
     "subtitulo": "Interface language, server and product details.",
     "idioma": "Interface language",
     "servidor": "Server address",
-    "servidor_ayuda": "Only needed in the Android app: the address where the backend runs (for example http://192.168.1.10:8810). Leave it empty on web and on the desktop app.",
+    "servidor_ayuda": "The Android app comes connected to the public site (mvclienteia.com) out of the box. If you have your own server on the LAN (or the engine running on your PC), put its address here — for example http://192.168.1.10:8810. Leave it empty on web and on the desktop app.",
     "guardar": "Save",
     "guardado": "Saved",
     "probar": "Test connection",
@@ -259,7 +259,6 @@
   },
   "aviso": {
     "sintetico": "Demo data: the companies and people in this list are synthetic, generated to exercise the flow. Switch the data source to “Read my real website” or “AI research” to work with real information.",
-    "sin_servidor": "Set the server address before searching for customers.",
     "avisos_corrida": "The search finished, but some AI phases failed and were covered with synthetic data:"
   },
   "nav_corto": {
