@@ -777,10 +777,14 @@ class ProveedorLLM(Proveedor):
             f"(local = {nombre_pais}, regional = el resto de {region}, "
             f"mundo = el resto del mundo)\n\n"
             "Cada campaña: `sector` = tipo concreto de organización que COMPRA "
-            "este producto (no rubros vecinos), `dolor` = el problema de ese "
-            "sector que este producto resuelve, `angulo` = UNA frase comercial "
-            "concreta y sin superlativos. Todo en el `idioma` del recorte. "
-            "Devolvé SOLO un array JSON: "
+            "este producto (no rubros vecinos), SIN ciudad ni país adelante "
+            "(\"estudios jurídicos de cobranza\", no \"estudios jurídicos de "
+            "cobranza de Montevideo\": el país de la ola se agrega aparte al "
+            "armar cada búsqueda, y una ciudad metida ahí la vuelve una frase "
+            "tan específica que ningún buscador la matchea), `dolor` = el "
+            "problema de ese sector que este producto resuelve, `angulo` = "
+            "UNA frase comercial concreta y sin superlativos. Todo en el "
+            "`idioma` del recorte. Devolvé SOLO un array JSON: "
             '[{"nivel": "local", "sector": "...", "dolor": "...", "angulo": "..."}]'
         )
         datos = _json_del_texto(self._pedir(prompt, 8000))
