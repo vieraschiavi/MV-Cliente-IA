@@ -8,23 +8,38 @@ name: Instalador OWNER (no se publica)
 # permiso ADENTRO del archivo: publicarla en la Release sería regalar la
 # versión completa a cualquiera que entre a la página de descargas.
 #
-# Para armarla: pestaña Actions → "Instalador OWNER" → Run workflow. Cuando
-# termina, el .exe queda en "Artifacts", abajo del todo en la página del run.
+# Se arma SOLO, en cada push a la rama de trabajo que toque el programa: así
+# siempre hay un instalador owner reciente en "Artifacts" (abajo del todo en
+# la página del run) sin tener que acordarse de lanzarlo a mano.
 #
-# OJO en repo público: el artifact lo puede bajar cualquiera con cuenta de
-# GitHub mientras dure la retención (acá 1 día). Bajalo, y después borrá el
-# run (··· → Delete workflow run) para que no quede a mano de nadie más.
-# Sale de v1.2.1 (mismo motor probado, con los arreglos de seguridad y
-# correctitud de la auditoría, y el sello owner horneado).
+# OJO mientras el repo sea PÚBLICO: el artifact lo puede bajar cualquiera con
+# cuenta de GitHub mientras dure la retención. Es un riesgo acotado (hay que
+# conocer el repo, entrar a Actions y encontrar el run) pero real. Al pasar el
+# repositorio a privado desaparece del todo.
 on:
-  # SÓLO a mano. Antes también se disparaba con un `push` que tocara este
-  # archivo —un atajo para lanzarlo desde una sesión sin permiso de
-  # `workflow_dispatch`— pero no llevaba filtro de rama: un commit en
-  # CUALQUIER rama que rozara este archivo publicaba la edición que abre sin
-  # clave, como artifact que baja cualquiera con cuenta de GitHub mientras
-  # dure la retención. `workflow_dispatch` exige permiso de escritura sobre
-  # el repo, que es exactamente el candado que corresponde acá.
   workflow_dispatch: {}
+  push:
+    # El filtro de RAMA es el candado, y da la misma garantía que el
+    # `workflow_dispatch` que había acá antes: para que un `push` dispare esto
+    # hay que poder escribir en esta rama, o sea tener permiso de escritura
+    # sobre el repo. Un fork no puede — sus PR entran por `pull_request`, que
+    # este workflow no escucha.
+    #
+    # Lo que estaba mal en la versión vieja (y por lo que se pasó a
+    # `workflow_dispatch` a secas) NO era el `push`: era que no llevaba
+    # filtro de rama, así que un commit en CUALQUIER rama que rozara este
+    # archivo armaba la edición que abre sin clave. Con la rama fijada, eso
+    # no puede pasar.
+    branches: ["claude/replicate-explee-kobra-s9sx0s"]
+    # Las mismas rutas que `build_windows.yml`: sólo lo que termina adentro
+    # del instalador. Un cambio de landing o de documentación no gasta ocho
+    # minutos de runner de Windows.
+    paths:
+      - ".github/workflows/owner.yml"
+      - "packaging/**"
+      - "electron/**"
+      - "cliente_ia/**"
+      - "webapp/**"
 
 permissions:
   contents: read              # sólo lee: acá no se publica nada
@@ -189,7 +204,13 @@ jobs:
           path: |
             dist/MVClienteIA_Setup_owner.exe
             dist/MVClienteIA_Setup_owner.exe.sha256
-          retention-days: 1
+          # 30 y no 1: con retención de un día, el instalador owner no estaba
+          # cuando hacía falta salvo que se acabara de pushear algo. El pedido
+          # era "que SIEMPRE haya uno para probar el programa completo".
+          # Mientras el repo sea público esto alarga la ventana en que alguien
+          # con cuenta de GitHub podría bajarlo; al pasarlo a privado, deja de
+          # importar.
+          retention-days: 30
           compression-level: 0     # ya está comprimido; comprimir de nuevo no baja nada
 
       - name: Subir la portable owner
@@ -199,5 +220,5 @@ jobs:
           path: |
             dist/MVClienteIA_Portable_owner.zip
             dist/MVClienteIA_Portable_owner.zip.sha256
-          retention-days: 1
+          retention-days: 30       # mismo motivo que el instalador, arriba
           compression-level: 0
