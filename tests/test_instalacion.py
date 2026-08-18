@@ -291,13 +291,24 @@ def test_el_bundle_publicado_no_lleva_codigo_de_dueno_horneado():
         "el código de dueño horneado tiene que caer a cadena vacía cuando no "
         "se define VITE_MV_OWNER")
 
+    revisados = 0
     for carpeta in ("webapp/frontend/dist/assets", "public/app/assets"):
         for bundle in (RAIZ / carpeta).glob("index-*.js"):
+            revisados += 1
             horneado = _codigo_de_dueno_en(bundle.read_text(encoding="utf-8"))
             assert horneado is None, (
                 f"{carpeta}/{bundle.name} lleva un código de dueño horneado "
                 f"({horneado[:8]}…). Ese bundle NO se puede publicar: "
                 "recompilá sin VITE_MV_OWNER.")
+
+    # Sin esto el test se vuelve un no-op en silencio el día que alguien mueva
+    # `public/app/` o cambie el nombre de los bundles: cero archivos leídos, y
+    # verde igual. `webapp/frontend/dist/` NO se versiona (existe sólo después
+    # de compilar), así que en un checkout limpio el único que se revisa es el
+    # de `public/`, que es justo el que se publica en la web.
+    assert revisados, (
+        "no se revisó ningún bundle: se movieron las carpetas de salida y "
+        "este test dejó de mirar lo que se publica")
 
 
 def _codigo_de_dueno_en(js: str) -> str | None:
