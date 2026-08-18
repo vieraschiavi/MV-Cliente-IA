@@ -27,6 +27,7 @@ Dos bugs concretos que estos tests impiden que vuelvan:
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -264,6 +265,64 @@ def test_el_apk_conecta_solo_sin_pedir_configuracion():
             f"{idioma}.json: sobró la traducción de un aviso que ya no se usa")
         assert "mv-cliente-ia.vercel.app" in d["config"]["servidor_ayuda"], (
             f"{idioma}.json: la ayuda del campo no dice cuál es el default")
+
+
+def test_el_bundle_publicado_no_lleva_codigo_de_dueno_horneado():
+    """El APK/web que se PUBLICA no puede llevar el código de dueño adentro.
+
+    `getOwner()` cae a `VITE_MV_OWNER`, horneado al compilar: es lo que hace
+    que el APK owner abra sin límite sin configurar nada (el equivalente del
+    `edicion.json` del instalador de PC). Pero el bundle de una app web es
+    texto plano — cualquiera con el APK en la mano lo abre con un editor y se
+    lleva el código, y con ese código le saca el cupo al servidor para
+    siempre.
+
+    Por eso el build owner sale como artifact privado de Actions y NUNCA a la
+    Release, y por eso este test mira el bundle REALMENTE COMPILADO que se
+    publica (`webapp/frontend/dist/` y su copia en `public/app/`): que la
+    variable esté sin definir en el CI público es la intención, esto verifica
+    el resultado. Si algún día alguien exporta `VITE_MV_OWNER` en el workflow
+    equivocado, se entera acá y no cuando ya se bajó.
+    """
+    # El valor por defecto tiene que ser vacío en el fuente: si alguien
+    # cablea un código acá, ningún build lo salva.
+    api = (RAIZ / "webapp/frontend/src/api.js").read_text(encoding="utf-8")
+    assert 'import.meta.env?.VITE_MV_OWNER || ""' in api, (
+        "el código de dueño horneado tiene que caer a cadena vacía cuando no "
+        "se define VITE_MV_OWNER")
+
+    for carpeta in ("webapp/frontend/dist/assets", "public/app/assets"):
+        for bundle in (RAIZ / carpeta).glob("index-*.js"):
+            horneado = _codigo_de_dueno_en(bundle.read_text(encoding="utf-8"))
+            assert horneado is None, (
+                f"{carpeta}/{bundle.name} lleva un código de dueño horneado "
+                f"({horneado[:8]}…). Ese bundle NO se puede publicar: "
+                "recompilá sin VITE_MV_OWNER.")
+
+
+def _codigo_de_dueno_en(js: str) -> str | None:
+    """El valor al que cae `getOwner()` en un bundle compilado, o None.
+
+    No alcanza con buscar `getItem("mvcliente_owner")||"algo"`: Vite hoistea
+    TANTO la clave como el valor a identificadores de una o dos letras, así
+    que en el bundle real dice `const Vs="mvcliente_owner",Jh="CODIGO";…
+    getItem(Vs)||Jh`. Una primera versión de este test buscaba el literal
+    pegado y daba verde sobre un bundle envenenado a propósito — un guard que
+    no guardaba nada. Hay que resolver los dos identificadores.
+    """
+    claves = [m.group(1) for m in
+              re.finditer(r'\b([A-Za-z_$][\w$]*)\s*=\s*"mvcliente_owner"', js)]
+    alternativas = "|".join([re.escape(c) for c in claves] + [r'"mvcliente_owner"'])
+    uso = re.search(
+        rf'getItem\(\s*(?:{alternativas})\s*\)\s*\|\|\s*([A-Za-z_$][\w$]*|"[^"]*")',
+        js)
+    if not uso:
+        return None
+    caida = uso.group(1)
+    if caida.startswith('"'):                    # literal pegado ahí mismo
+        return caida[1:-1] or None
+    decl = re.search(rf'\b{re.escape(caida)}\s*=\s*"([^"]*)"', js)
+    return (decl.group(1) or None) if decl else None
 
 
 def test_los_workflows_no_tienen_claves_duplicadas():

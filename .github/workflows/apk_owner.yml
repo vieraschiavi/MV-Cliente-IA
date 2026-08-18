@@ -1,0 +1,160 @@
+name: APK OWNER (no se publica)
+
+# El APK de la edición dueño: el mismo programa, pero con el código de dueño
+# HORNEADO adentro, así abre sin límite de cupo sin tener que escribir nada en
+# Ajustes. Es el equivalente para Android del `edicion.json` que el instalador
+# de PC lleva al lado del motor.
+#
+# Por qué el APK "owner" no es un motor distinto
+# ----------------------------------------------
+# El APK NO lleva el motor adentro: es la app React apuntando a un servidor.
+# La edición la pone el SERVIDOR, no el archivo. Entonces lo único que puede
+# distinguir a un APK owner de uno normal es venir preconfigurado con la
+# credencial que el servidor reconoce — el código de dueño, que viaja en el
+# encabezado `X-MV-Owner` y que el backend compara contra su variable
+# `MVCLIENTE_OWNER` (`webapp/backend/api.py:_es_owner`).
+#
+# Qué hay que tener puesto para que sirva
+# ---------------------------------------
+#   1. Secret del repo `MVCLIENTE_OWNER_CODIGO` → el código que se hornea acá.
+#   2. En el servidor (Vercel), variable de entorno `MVCLIENTE_OWNER` con el
+#      MISMO valor. Sin esto el encabezado no lo reconoce nadie y el APK
+#      queda igual que el público.
+#
+# NO va a la Release, y no es por prolijidad
+# ------------------------------------------
+# El bundle de una app web es TEXTO. Cualquiera con este APK en la mano lo
+# descomprime y lee el código de dueño con un editor — y con ese código le
+# saca el cupo al servidor para siempre, desde cualquier navegador. Por eso
+# sale como artifact del run (hay que estar identificado en GitHub para
+# bajarlo) y nunca al canal público de descargas.
+# `tests/test_instalacion.py::test_el_bundle_publicado_no_lleva_codigo_de_dueno_horneado`
+# vigila que el bundle que SÍ se publica no lo lleve nunca.
+on:
+  workflow_dispatch: {}
+  push:
+    # El filtro de RAMA es el candado: para disparar esto hay que poder
+    # escribir en la rama de trabajo, o sea tener permiso de escritura sobre
+    # el repo. Un fork no puede — sus PR entran por `pull_request`, que este
+    # workflow no escucha. Mismo criterio que `owner.yml`.
+    branches: ["claude/replicate-explee-kobra-s9sx0s"]
+    paths:
+      - '.github/workflows/apk_owner.yml'
+      - 'webapp/frontend/**'
+      - 'android/**'
+      - 'capacitor.config.json'
+      - 'package.json'
+
+permissions:
+  contents: read              # sólo lee: acá no se publica nada
+
+concurrency:
+  group: apk-owner-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Comprobar que estén los secrets
+        # Cortar acá con un mensaje claro y no veinte minutos después con un
+        # APK que parece owner y no lo es.
+        env:
+          CODIGO: ${{ secrets.MVCLIENTE_OWNER_CODIGO }}
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$CODIGO" ]; then
+            echo "::error::Falta el secret MVCLIENTE_OWNER_CODIGO."
+            echo "Es el código de dueño que se hornea en el APK. Generá uno largo:"
+            echo "  python3 -c 'import secrets; print(secrets.token_urlsafe(32))'"
+            echo "Guardalo como secret del repo Y como variable MVCLIENTE_OWNER"
+            echo "en el servidor (Vercel). Tienen que ser el MISMO valor."
+            exit 1
+          fi
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::Falta ANDROID_KEYSTORE_BASE64 (ver .github/workflows/apk.yml)."
+            exit 1
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/mvclienteia.jks"
+
+      - name: Instalar dependencias
+        run: |
+          npm install
+          cd webapp/frontend && npm ci
+
+      - name: Compilar la web CON el código horneado y sincronizar Capacitor
+        # `VITE_MV_OWNER` es lo único que distingue este build del público:
+        # `webapp/frontend/src/api.js:getOwner()` cae a ese valor cuando el
+        # usuario no escribió ninguno en Ajustes.
+        env:
+          VITE_MV_OWNER: ${{ secrets.MVCLIENTE_OWNER_CODIGO }}
+        run: npm run sync:android
+
+      - name: Verificar que el código haya quedado horneado DE VERDAD
+        # Sin esto, un cambio en el nombre de la variable o en `getOwner()`
+        # produciría un APK que se llama owner y se comporta como el público:
+        # el fallo sería silencioso y sólo se notaría al usarlo. Se comprueba
+        # sobre el bundle COMPILADO, no sobre el fuente.
+        env:
+          CODIGO: ${{ secrets.MVCLIENTE_OWNER_CODIGO }}
+        run: |
+          BUNDLE=$(ls webapp/frontend/dist/assets/index-*.js | head -1)
+          if ! grep -qF "$CODIGO" "$BUNDLE"; then
+            echo "::error::El código de dueño NO quedó en el bundle ($BUNDLE)."
+            echo "Revisá que api.js siga leyendo import.meta.env.VITE_MV_OWNER."
+            exit 1
+          fi
+          echo "OK: el bundle del APK owner lleva el código horneado"
+
+      - name: Construir el APK de release firmado
+        env:
+          MVCLIENTE_KEYSTORE: ${{ runner.temp }}/mvclienteia.jks
+          MVCLIENTE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          MVCLIENTE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          MVCLIENTE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease --no-daemon
+        working-directory: android
+
+      - name: Comprobar que el APK no sea depurable
+        # Mismo control que el APK público: un APK depurable deja sacar el
+        # localStorage entero con adb, y ahí viven la clave del modelo, la del
+        # SMTP y las de X y LinkedIn. En el owner importa MÁS, no menos:
+        # además lleva el código de dueño.
+        run: |
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          AAPT=$(find "$ANDROID_HOME/build-tools" -name aapt2 | sort | tail -1)
+          if "$AAPT" dump badging "$APK" 2>/dev/null | grep -q "application-debuggable"; then
+            echo "::error::El APK quedó marcado como depurable"; exit 1
+          fi
+          echo "OK: el APK owner de release no es depurable"
+
+      - name: Nombrar el APK y calcular SHA-256
+        run: |
+          cp android/app/build/outputs/apk/release/app-release.apk MVClienteIA_owner.apk
+          sha256sum MVClienteIA_owner.apk > MVClienteIA_owner.apk.sha256
+          cat MVClienteIA_owner.apk.sha256
+
+      - name: Subir el APK owner
+        uses: actions/upload-artifact@v4
+        with:
+          name: MVClienteIA_owner_apk
+          path: |
+            MVClienteIA_owner.apk
+            MVClienteIA_owner.apk.sha256
+          # 30 días, igual que el instalador owner de Windows: con retención
+          # de un día no está cuando hace falta, que era justo el problema.
+          retention-days: 30
+          compression-level: 0     # un APK ya es un ZIP

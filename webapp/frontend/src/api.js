@@ -276,8 +276,26 @@ export function activarLicencia(clave) {
   return api("/api/licencia", { metodo: "POST", cuerpo: { clave } });
 }
 
+// Código de dueño HORNEADO al compilar (`VITE_MV_OWNER`). Es lo que hace que
+// el APK owner abra sin límite sin tener que escribir nada en Ajustes — el
+// equivalente del `edicion.json` que el instalador de PC lleva al lado del
+// motor.
+//
+// Igual que aquel sello, esto sólo puede viajar en un build que NO se
+// publica: el bundle de una app web es texto, así que cualquiera con el APK
+// en la mano lo saca con un editor. Por eso el build público lo deja vacío
+// (`tests/test_instalacion.py` lo verifica sobre el bundle compilado) y el
+// del owner sale como artifact privado de Actions, nunca en la Release.
+//
+// `?.` y no acceso directo: fuera de Vite —los scripts de verificación en
+// Node que importan este módulo— `import.meta.env` no existe.
+const OWNER_HORNEADO = import.meta.env?.VITE_MV_OWNER || "";
+
 export function getOwner() {
-  return localStorage.getItem(KEY_OWNER) || "";
+  // Lo que el usuario escriba en Ajustes gana sobre lo horneado: así una
+  // copia owner se puede apuntar a otro servidor con otro código sin tener
+  // que recompilarla.
+  return localStorage.getItem(KEY_OWNER) || OWNER_HORNEADO;
 }
 export function setOwner(codigo) {
   const limpio = (codigo || "").trim();
