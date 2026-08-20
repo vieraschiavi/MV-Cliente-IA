@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Generado por packaging/generar_iconos.py: es el medio del
+     degradado de assets/brand/mv_icon.svg. No editar a mano. -->
 <resources>
-    <!-- Navy de la marca: el mismo token navy-950 del tema web. -->
-    <color name="ic_launcher_background">#0A1020</color>
+    <color name="ic_launcher_background">#143151</color>
 </resources>
