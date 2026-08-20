@@ -601,3 +601,96 @@ def test_una_corrida_vieja_con_un_campo_extra_no_da_500(cliente, monkeypatch, tm
     c = almacen.cargar("vieja01")
     assert c is not None and len(c.prospectos) == 1
     assert c.prospectos[0].nombre == "ACME"
+
+
+def _pago_falso(monkeypatch, **campos):
+    """Simula la respuesta de la API de pagos de MercadoPago."""
+    import io
+    import json as _json
+
+    base = {"status": "approved", "transaction_amount": 6000.0,
+            "external_reference": "mvcliente:licencia",
+            "payer": {"email": "comprador@empresa.com"}}
+    base.update(campos)
+
+    def _urlopen(peticion, timeout=0):
+        assert "api.mercadopago.com/v1/payments/" in peticion.full_url
+        return io.BytesIO(_json.dumps(base).encode())
+
+    monkeypatch.setattr("urllib.request.urlopen", _urlopen)
+
+
+def test_pagar_entrega_la_licencia_sola(monkeypatch):
+    """Pagar tiene que ENTREGAR la licencia, no dejar al cliente escribiendo
+    un correo para pedirla.
+
+    Antes el cliente pagaba, MercadoPago lo devolvía a `/?pago=ok` y ahí
+    terminaba todo: sin webhook, sin clave emitida y sin forma de que el
+    programa se enterara. Ahora el `payment_id` de la vuelta se cambia por la
+    clave, verificándolo contra MercadoPago — sin guardar nada, que es lo que
+    permite hacerlo en un backend sin estado.
+    """
+    from cliente_ia import licencia
+    from webapp.backend import api
+
+    secreto = "secreto-de-prueba-del-test"
+    monkeypatch.setenv("MVCLIENTE_LICENCIA_SECRETO", secreto)
+    monkeypatch.setenv("MERCADOPAGO_ACCESS_TOKEN", "TEST-token")
+    _pago_falso(monkeypatch)
+
+    cliente = TestClient(api.app)
+    r = cliente.post("/api/pago/licencia", json={"payment_id": "1234567890"})
+    assert r.status_code == 200, r.text
+    d = r.json()
+
+    # La clave que sale tiene que ser VÁLIDA para el mismo servidor, y estar
+    # a nombre del que pagó — no de cualquiera.
+    comprobada = licencia.verificar(d["clave"], secreto)
+    assert comprobada["ok"] is True, comprobada
+    assert comprobada["email"] == "comprador@empresa.com"
+    assert d["email"] == "comprador@empresa.com"
+
+    # Y sirve de verdad para lo que se compró: sin cupo y sin correo.
+    from cliente_ia import modelos
+    monkeypatch.setattr(api, "SIN_ESTADO", True)
+    monkeypatch.setattr(api, "CUPO_GRATIS", 1)
+    api._cupo_por_ip.clear()
+    api._cupo_por_email.clear()
+    monkeypatch.setattr(api.pipeline, "ejecutar",
+                        lambda dominio, **kw: modelos.Corrida(
+                            id="fake04", dominio=dominio, estado="listo"))
+    corrida = {"dominio": "mvkobranzaia.com", "modo": "web", "prospectos": 5,
+               "licencia_clave": d["clave"]}
+    for _ in range(3):
+        assert cliente.post("/api/corridas", json=corrida).status_code == 200
+    assert cliente.get("/api/cupo").json()["usadas"] == 0
+
+
+def test_no_se_saca_licencia_sin_haber_pagado_de_verdad(monkeypatch):
+    """Las cuatro formas de pedir una licencia sin haberla comprado. Si
+    alguna pasara, el candado no existe y el producto se regala."""
+    from webapp.backend import api
+
+    monkeypatch.setenv("MVCLIENTE_LICENCIA_SECRETO", "secreto-de-prueba-del-test")
+    monkeypatch.setenv("MERCADOPAGO_ACCESS_TOKEN", "TEST-token")
+    cliente = TestClient(api.app)
+    pedido = {"payment_id": "1234567890"}
+
+    # 1. Pago no aprobado (pendiente o rechazado).
+    for estado in ("pending", "rejected", "in_process"):
+        _pago_falso(monkeypatch, status=estado)
+        assert cliente.post("/api/pago/licencia", json=pedido).status_code == 402
+
+    # 2. Pagó menos que el precio: cobrarse $1 de otra cosa no da licencia.
+    _pago_falso(monkeypatch, transaction_amount=1.0)
+    assert cliente.post("/api/pago/licencia", json=pedido).status_code == 402
+
+    # 3. Un pago real, aprobado y por el monto, pero de OTRO cobro de la
+    #    misma cuenta de MercadoPago.
+    _pago_falso(monkeypatch, external_reference="otra-cosa")
+    assert cliente.post("/api/pago/licencia", json=pedido).status_code == 422
+
+    # 4. Sin número de pago, o inventado.
+    assert cliente.post("/api/pago/licencia", json={"payment_id": ""}).status_code == 422
+    assert cliente.post("/api/pago/licencia",
+                        json={"payment_id": "no-numerico"}).status_code == 422

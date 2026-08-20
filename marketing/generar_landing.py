@@ -132,6 +132,11 @@ TEXTOS: dict[str, dict] = {
                       "Actualizaciones incluidas"],
         "plan_pago_cta": "Comprar con MercadoPago",
         "plan_pago_error": "No se pudo iniciar el pago. Probá de nuevo en un rato o escribinos a vieraschiavi@gmail.com.",
+        "pago_ok_h": "¡Listo! Tu licencia está activa",
+        "pago_ok_p": "Esta es tu clave. Copiala y pegala en Configuración → «Clave de licencia», tanto en la app de PC como en el celular. Guardala: te la volvemos a mostrar si entrás de nuevo con el mismo enlace de pago.",
+        "pago_ok_copiar": "Copiar clave",
+        "pago_ok_copiado": "Copiada",
+        "pago_error": "No pudimos confirmar el pago todavía. Si MercadoPago ya te lo aprobó, esperá un minuto y recargá esta página. Si sigue igual, escribinos a vieraschiavi@gmail.com con el número de pago.",
         "cierre_h": "Pegá tu enlace y mirá qué sale",
         "cierre_p": "La demo corre con datos sintéticos: no tenés que entregar nada para ver "
                     "cómo funciona el flujo completo.",
@@ -227,6 +232,11 @@ TEXTOS: dict[str, dict] = {
                       "Atualizações incluídas"],
         "plan_pago_cta": "Comprar com MercadoPago",
         "plan_pago_error": "Não foi possível iniciar o pagamento. Tente de novo em instantes ou escreva para vieraschiavi@gmail.com.",
+        "pago_ok_h": "Pronto! Sua licença está ativa",
+        "pago_ok_p": "Esta é a sua chave. Copie e cole em Configurações → «Chave de licença», tanto no app de PC quanto no celular. Guarde-a: mostramos de novo se você voltar pelo mesmo link de pagamento.",
+        "pago_ok_copiar": "Copiar chave",
+        "pago_ok_copiado": "Copiada",
+        "pago_error": "Ainda não conseguimos confirmar o pagamento. Se o MercadoPago já aprovou, espere um minuto e recarregue esta página. Se continuar, escreva para vieraschiavi@gmail.com com o número do pagamento.",
         "cierre_h": "Cole seu link e veja o que sai",
         "cierre_p": "A demo roda com dados sintéticos: você não precisa entregar nada para ver "
                     "o fluxo completo funcionando.",
@@ -322,6 +332,11 @@ TEXTOS: dict[str, dict] = {
                       "Updates included"],
         "plan_pago_cta": "Buy with MercadoPago",
         "plan_pago_error": "Could not start the payment. Try again in a bit or write to vieraschiavi@gmail.com.",
+        "pago_ok_h": "Done! Your license is active",
+        "pago_ok_p": "This is your key. Copy it and paste it into Settings → “License key”, both in the desktop app and on your phone. Keep it: we show it again if you come back through the same payment link.",
+        "pago_ok_copiar": "Copy key",
+        "pago_ok_copiado": "Copied",
+        "pago_error": "We could not confirm the payment yet. If MercadoPago already approved it, wait a minute and reload this page. If it persists, write to vieraschiavi@gmail.com with the payment number.",
         "cierre_h": "Drop your link and see what comes out",
         "cierre_p": "The demo runs on synthetic data: you don't have to hand anything over to "
                     "see the whole flow work.",
@@ -422,6 +437,21 @@ section{padding:64px 0;border-top:1px solid var(--line)}
 .plan b{display:block;font-size:15px;margin-bottom:10px}
 .plan .precio{font-size:34px;font-weight:800;letter-spacing:-.5px}
 .plan .precio-nota{display:block;color:var(--faint);font-size:12px;margin:4px 0 12px}
+/* `hidden` lo aplica el navegador con `display:none`, pero CUALQUIER regla de
+   autor con `display` le gana — y `.btn` pone `inline-flex`. Sin esto, el
+   botón «copiar clave» seguía a la vista después de un pago rechazado,
+   ofreciendo copiar una clave que no existe. Lo encontró la prueba en
+   navegador, no la lectura del código. */
+[hidden]{display:none !important}
+/* La clave que se entrega al volver del pago. `word-break` porque son ~120
+   caracteres sin espacios y en un celular se sale de la pantalla. */
+.pago-vuelta{margin:28px auto 0;max-width:640px;padding:20px 22px;border-radius:14px;
+  border:1px solid var(--green-deep);background:rgba(92,181,49,.08);text-align:left}
+.pago-vuelta h3{margin:0 0 8px;font-size:19px}
+.pago-vuelta p{margin:0 0 14px;color:var(--faint);font-size:14px;line-height:1.55}
+.pago-vuelta code{display:block;padding:12px 14px;border-radius:10px;background:#0b1220;
+  color:#e8eef7;font-size:13px;word-break:break-all;margin-bottom:14px;user-select:all}
+.pago-vuelta code.pago-falla{background:transparent;color:var(--amber);padding:0;user-select:auto}
 .plan ul{margin:0 0 16px;padding-left:18px;color:var(--muted);font-size:13.5px}
 .plan li{margin-bottom:6px}
 
@@ -604,6 +634,18 @@ def render(idioma: str) -> str:
               data-error="{_esc(t['plan_pago_error'])}">{_esc(t['plan_pago_cta'])}</button>
     </article>
   </div>
+
+  <!-- La clave que se entrega al volver del pago. Oculta salvo que la URL
+       traiga ?pago=ok — ver el script del final. -->
+  <div class="pago-vuelta" id="pago-vuelta" hidden
+       data-error="{_esc(t['pago_error'])}"
+       data-error-h="{_esc(t['plan_pago_error'])}">
+    <h3 data-titulo>{_esc(t['pago_ok_h'])}</h3>
+    <p>{_esc(t['pago_ok_p'])}</p>
+    <code data-clave>…</code>
+    <button class="btn btn-a" type="button" data-copiar hidden
+            data-listo="{_esc(t['pago_ok_copiado'])}">{_esc(t['pago_ok_copiar'])}</button>
+  </div>
 </div></section>
 
 <script>
@@ -630,6 +672,51 @@ document.querySelectorAll("[data-pay]").forEach(function (btn) {{
       }});
   }});
 }});
+
+/* La vuelta del pago. Antes acá no había NADA: MercadoPago devolvía al
+   cliente a /?pago=ok y se terminaba la historia — había pagado y no tenía
+   forma de habilitar el programa salvo mandar un correo a mano.
+
+   El `payment_id` que viene en la URL es el comprobante: el backend lo
+   verifica contra MercadoPago y devuelve la clave firmada. Nada se guarda,
+   así que volver a entrar con el mismo enlace la muestra otra vez. */
+(function () {{
+  var p = new URLSearchParams(window.location.search);
+  if (p.get("pago") !== "ok") return;
+  var pid = p.get("payment_id") || p.get("collection_id");
+  var caja = document.getElementById("pago-vuelta");
+  if (!caja) return;
+  caja.hidden = false;
+  var salida = caja.querySelector("[data-clave]");
+  var titulo = caja.querySelector("[data-titulo]");
+  var fallo = function (msg) {{
+    titulo.textContent = caja.getAttribute("data-error-h");
+    salida.textContent = msg;
+    salida.classList.add("pago-falla");
+  }};
+  if (!pid) {{ fallo(caja.getAttribute("data-error")); return; }}
+  fetch("/api/pago/licencia", {{
+    method: "POST",
+    headers: {{ "content-type": "application/json" }},
+    body: JSON.stringify({{ payment_id: pid }}),
+  }})
+    .then(function (r) {{ return r.json().then(function (d) {{ return {{ ok: r.ok, d: d }}; }}); }})
+    .then(function (res) {{
+      if (!res.ok || !res.d || !res.d.clave) {{
+        fallo((res.d && res.d.detail) || caja.getAttribute("data-error"));
+        return;
+      }}
+      salida.textContent = res.d.clave;
+      var b = caja.querySelector("[data-copiar]");
+      b.hidden = false;
+      b.addEventListener("click", function () {{
+        navigator.clipboard.writeText(res.d.clave).then(function () {{
+          b.textContent = b.getAttribute("data-listo");
+        }});
+      }});
+    }})
+    .catch(function () {{ fallo(caja.getAttribute("data-error")); }});
+}})();
 </script>
 
 <section class="cierre"><div class="wrap">

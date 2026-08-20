@@ -391,11 +391,18 @@ def checkout(datos: CheckoutIn, request: Request):
     cuerpo = {
         "items": [{"title": plan["titulo"], "quantity": 1,
                    "unit_price": float(plan["uyu"]), "currency_id": "UYU"}],
+        # `payment_id` en la vuelta: es lo que convierte el pago en la clave,
+        # sin que el servidor tenga que guardar NADA (ver `/api/pago/licencia`).
+        # MercadoPago lo agrega solo a la URL de éxito, pero se pide explícito
+        # para no depender de ese comportamiento.
         "back_urls": {"success": f"{origen}/?pago=ok",
                       "pending": f"{origen}/?pago=pendiente",
                       "failure": f"{origen}/?pago=error"},
         "auto_return": "approved",
         "statement_descriptor": "MV CLIENTE IA",
+        # Para poder comprobar después que el pago es POR ESTO y no por otra
+        # cosa cobrada con la misma cuenta.
+        "external_reference": f"mvcliente:{datos.plan}",
     }
     peticion = urllib.request.Request(
         "https://api.mercadopago.com/checkout/preferences",
@@ -411,6 +418,95 @@ def checkout(datos: CheckoutIn, request: Request):
     if not url:
         raise HTTPException(502, "MercadoPago no devolvió la URL de pago")
     return {"url": url}
+
+
+# Cuántos meses dura la licencia que se emite al pagar.
+MESES_LICENCIA = int(os.getenv("MVCLIENTE_MESES_LICENCIA", "12"))
+
+
+class PagoIn(BaseModel):
+    # El id que MercadoPago pone en la URL de vuelta. Es el comprobante.
+    payment_id: str = Field(default="", max_length=64)
+
+
+@app.post("/api/pago/licencia")
+def licencia_por_pago(datos: PagoIn):
+    """Devuelve la clave de licencia del comprador a cambio de su `payment_id`.
+
+    Cierra el agujero que hacía que pagar no sirviera de nada: hasta acá, el
+    cliente pagaba, MercadoPago lo devolvía a `/?pago=ok` y ahí terminaba
+    todo — no había webhook, no se emitía ninguna clave y tenía que escribir
+    un correo a mano para que le mandaran una.
+
+    Por qué el `payment_id` y no un webhook con base de datos: este backend
+    corre sin estado (Vercel), así que no hay dónde guardar "fulano pagó".
+    Pero no hace falta — el pago YA está guardado, en MercadoPago. El
+    `payment_id` es el comprobante, se verifica contra su API con el token
+    del dueño y de ahí sale todo: si está aprobado, cuánto se pagó y el
+    correo del comprador. Como no se guarda nada, además funciona si el
+    cliente pierde la clave: vuelve a pedirla con el mismo id.
+
+    Tres controles, y los tres importan:
+      · el pago tiene que estar APROBADO (no pendiente ni rechazado),
+      · por el monto del plan (si no, se paga $1 de otra cosa y se pide la
+        licencia con ese id),
+      · y con nuestra `external_reference` (que sea un pago de ESTE producto
+        y no otro cobro de la misma cuenta de MercadoPago).
+    """
+    pid = datos.payment_id.strip()
+    if not pid.isdigit():
+        raise HTTPException(422, "Falta el número de pago de MercadoPago.")
+
+    token = os.getenv("MERCADOPAGO_ACCESS_TOKEN", "")
+    if not token:
+        raise HTTPException(503, "El pago no está configurado en este servidor.")
+
+    peticion = urllib.request.Request(
+        f"https://api.mercadopago.com/v1/payments/{pid}",
+        headers={"Authorization": f"Bearer {token}"})
+    try:
+        with urllib.request.urlopen(peticion, timeout=20) as r:
+            pago = json.load(r)
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            raise HTTPException(404, "Ese número de pago no existe.") from e
+        raise HTTPException(502, f"MercadoPago respondió {e.code}") from e
+    except Exception as e:                              # noqa: BLE001
+        raise HTTPException(502, "No se pudo consultar el pago.") from e
+
+    estado = pago.get("status")
+    if estado != "approved":
+        # 402 y no 400: el cliente no hizo nada mal, el pago todavía no está.
+        raise HTTPException(402,
+            "El pago figura como «{}». Cuando MercadoPago lo apruebe, "
+            "volvé a intentar desde el enlace de vuelta.".format(estado or "?"))
+
+    plan = PLANES["licencia"]
+    pagado = float(pago.get("transaction_amount") or 0)
+    if pagado + 0.01 < float(plan["uyu"]):
+        raise HTTPException(402, "El monto pagado no cubre la licencia.")
+
+    referencia = str(pago.get("external_reference") or "")
+    if not referencia.startswith("mvcliente:"):
+        raise HTTPException(422, "Ese pago no corresponde a este producto.")
+
+    correo = str((pago.get("payer") or {}).get("email") or "").strip().lower()
+    if not _EMAIL_RE.match(correo):
+        raise HTTPException(502, "El pago no trae el correo del comprador.")
+
+    try:
+        clave = licencia.emitir(correo, meses=MESES_LICENCIA)
+    except ValueError as e:
+        # Falta MVCLIENTE_LICENCIA_SECRETO: el servidor no puede FIRMAR. Se
+        # dice claro en vez de devolver una clave que después no valide.
+        raise HTTPException(503,
+            "El servidor no puede emitir licencias todavía. Escribinos y te "
+            "la mandamos a mano.") from e
+
+    print(f"[licencia] emitida por pago {pid} a {correo} "
+          f"por {MESES_LICENCIA} meses", flush=True)
+    datos_clave = licencia.verificar(clave)
+    return {"clave": clave, "email": correo, "vence": datos_clave.get("vence", "")}
 
 
 class AnalisisIn(BaseModel):
