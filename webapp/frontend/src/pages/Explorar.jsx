@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, apiStream, descargar, ErrorApi, fmtScore, getClaveIA, getEmail, getEndpointIA, getModeloIA, getProveedorIA, setEmail, urlSegura } from "../api.js";
+import { api, apiStream, descargar, ErrorApi, fmtScore, getClaveIA, getEmail, getEndpointIA, getLicenciaClave, getModeloIA, getProveedorIA, setEmail, urlSegura } from "../api.js";
 import { Aviso, etiquetasOla, Idioma, Kpis, Ola, Vacio } from "../componentes/Comunes.jsx";
 import { Icono } from "../componentes/Iconos.jsx";
 import { getCorridaId, setCorridaId, setCorridaLocal, useCorrida } from "../estado.js";
@@ -221,6 +221,10 @@ export default function Explorar() {
           ? { clave_ia: getClaveIA(), proveedor_ia: getProveedorIA(),
               endpoint_ia: getEndpointIA(), modelo_ia: getModeloIA(getProveedorIA()) }
           : {}),
+        // La licencia del comprador: en el APK y en la web es lo que lo
+        // exime del cupo gratis (el .exe la activa contra su disco, pero
+        // el backend serverless no guarda estado — ver api.js:getLicenciaClave).
+        ...(getLicenciaClave() ? { licencia_clave: getLicenciaClave() } : {}),
       };
       let r;
       if (salud?.sin_estado) {

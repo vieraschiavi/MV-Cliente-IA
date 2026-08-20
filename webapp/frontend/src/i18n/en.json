@@ -255,7 +255,9 @@
     "lic_activar": "Activate licence",
     "lic_activada": "Licence activated. Real searches are unlocked.",
     "lic_ayuda": "The key arrives by email with your purchase. Paste it once and it stays saved on this computer.",
-    "lic_owner_nota": "This copy is the owner edition: no key, no expiry."
+    "lic_owner_nota": "This copy is the owner edition: no key, no expiry.",
+    "licencia": "License key (if you bought it)",
+    "licencia_ayuda": "If you bought the program, paste the key you received here: the Android app and the web get unlimited searches, same as the desktop app. It stays on this device only and travels with each search; the server verifies its signature."
   },
   "aviso": {
     "sintetico": "Demo data: the companies and people in this list are synthetic, generated to exercise the flow. Switch the data source to “Read my real website” or “AI research” to work with real information.",

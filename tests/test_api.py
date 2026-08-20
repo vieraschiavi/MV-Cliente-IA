@@ -400,6 +400,67 @@ def test_clave_de_ia_propia_no_gasta_cupo_ni_pide_correo(monkeypatch):
     assert r.status_code == 402
 
 
+def test_el_que_pago_no_gasta_cupo_en_la_web_ni_en_el_apk(monkeypatch):
+    """El comprador tiene que funcionar igual en el APK que en el .exe.
+
+    Antes no era así, y era un agujero de PRODUCTO, no de código: la licencia
+    sólo la entendía el programa INSTALADO (guarda estado en disco), y
+    `POST /api/licencia` contesta 400 en serverless — "La web no usa
+    licencias". El APK habla con ese backend, así que quien pagaba y usaba el
+    celular seguía contra el cupo gratis, exactamente igual que alguien que
+    no pagó nada.
+
+    Se prueban las tres puntas que importan: la licencia válida no gasta
+    cupo, una clave inventada NO desbloquea (si no, el candado no existe), y
+    una vencida tampoco.
+    """
+    from cliente_ia import licencia, modelos
+    from webapp.backend import api
+
+    secreto = "secreto-de-prueba-del-test"
+    monkeypatch.setenv("MVCLIENTE_LICENCIA_SECRETO", secreto)
+    monkeypatch.setattr(api, "SIN_ESTADO", True)
+    monkeypatch.setattr(api, "CUPO_GRATIS", 1)
+    api._cupo_por_ip.clear()
+    api._cupo_por_email.clear()
+
+    monkeypatch.setattr(api.pipeline, "ejecutar",
+                        lambda dominio, **kw: modelos.Corrida(
+                            id="fake03", dominio=dominio, estado="listo"))
+
+    clave = licencia.emitir("comprador@empresa.com", meses=12, secreto=secreto)
+    cliente = TestClient(api.app)
+    base = {"dominio": "mvkobranzaia.com", "modo": "web", "prospectos": 5}
+
+    # 1. Con licencia: sin correo, y más veces que el cupo. No descuenta.
+    con_licencia = {**base, "licencia_clave": clave}
+    for _ in range(3):
+        assert cliente.post("/api/corridas", json=con_licencia).status_code == 200
+    assert cliente.get("/api/cupo").json()["usadas"] == 0
+
+    # 2. Una clave inventada no puede desbloquear nada: cae al cupo gratis y
+    #    se agota igual que sin licencia.
+    trucha = {**base, "licencia_clave": "no.esunaclavereal",
+              "email": "otro@empresa.com"}
+    assert cliente.post("/api/corridas", json=trucha).status_code == 200
+    assert cliente.post("/api/corridas", json=trucha).status_code == 402
+
+    # 3. Y una licencia VENCIDA tampoco (firma válida, fecha pasada).
+    api._cupo_por_ip.clear()
+    api._cupo_por_email.clear()
+    # La cookie firmada de cupo también cuenta (`_cupo_usado` la lee), y el
+    # TestClient la arrastra entre pedidos: sin limpiarla, el paso 2 dejaba
+    # el cupo agotado y este bloque medía eso en vez de la licencia vencida.
+    cliente.cookies.clear()
+    vencida = licencia.emitir("expirado@empresa.com", meses=-1, secreto=secreto)
+    assert licencia.verificar(vencida, secreto)["ok"] is False, (
+        "la licencia de prueba tenía que estar vencida")
+    con_vencida = {**base, "licencia_clave": vencida,
+                   "email": "expirado@empresa.com"}
+    assert cliente.post("/api/corridas", json=con_vencida).status_code == 200
+    assert cliente.post("/api/corridas", json=con_vencida).status_code == 402
+
+
 def test_corrida_de_mil_prospectos(cliente):
     """El selector va en tramos hasta 1000: la API tiene que aceptarlo y el
     demo entregarlo entero (con 12 intentos de nombre único llegaba a 996)."""

@@ -109,11 +109,26 @@ jobs:
           fi
           echo "OK: el APK de release no es depurable"
 
-      - name: Nombrar el APK y calcular SHA-256
+      - name: Construir el AAB (el formato que exige Play Store)
+        # Google Play NO acepta APK para publicar una app nueva: exige Android
+        # App Bundle (.aab), del que Play genera después los APK por
+        # dispositivo. El .apk se sigue armando porque es lo que se baja e
+        # instala a mano desde la Release (fuera de Play).
+        env:
+          MVCLIENTE_KEYSTORE: ${{ runner.temp }}/mvclienteia.jks
+          MVCLIENTE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          MVCLIENTE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          MVCLIENTE_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew bundleRelease --no-daemon
+        working-directory: android
+
+      - name: Nombrar el APK y el AAB, y calcular SHA-256
         run: |
           cp android/app/build/outputs/apk/release/app-release.apk MVClienteIA.apk
+          cp android/app/build/outputs/bundle/release/app-release.aab MVClienteIA.aab
           sha256sum MVClienteIA.apk > MVClienteIA.apk.sha256
-          cat MVClienteIA.apk.sha256
+          sha256sum MVClienteIA.aab > MVClienteIA.aab.sha256
+          cat MVClienteIA.apk.sha256 MVClienteIA.aab.sha256
 
       - name: Leer versión del paquete
         id: ver
@@ -150,3 +165,5 @@ jobs:
           files: |
             MVClienteIA.apk
             MVClienteIA.apk.sha256
+            MVClienteIA.aab
+            MVClienteIA.aab.sha256

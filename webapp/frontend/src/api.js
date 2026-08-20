@@ -276,6 +276,26 @@ export function activarLicencia(clave) {
   return api("/api/licencia", { metodo: "POST", cuerpo: { clave } });
 }
 
+// La clave de licencia del que COMPRÓ, guardada en este dispositivo.
+//
+// El programa instalado la activa contra su propio disco (`POST /api/licencia`),
+// pero el APK y la web hablan con el backend serverless, que no guarda estado
+// y contesta 400 a ese endpoint. Por eso acá la clave se guarda del lado del
+// cliente y viaja EN CADA corrida, igual que la clave de IA: el servidor
+// verifica su firma HMAC contra su propio secreto en cada pedido
+// (`api.py:_licencia_activa`). Sin esto, quien pagaba y usaba el celular
+// seguía contra el cupo gratis igual que alguien que no pagó.
+const KEY_LICENCIA = "mvcliente_licencia";
+
+export function getLicenciaClave() {
+  return localStorage.getItem(KEY_LICENCIA) || "";
+}
+export function setLicenciaClave(clave) {
+  const limpia = (clave || "").trim();
+  if (limpia) localStorage.setItem(KEY_LICENCIA, limpia);
+  else localStorage.removeItem(KEY_LICENCIA);
+}
+
 // Código de dueño HORNEADO al compilar (`VITE_MV_OWNER`). Es lo que hace que
 // el APK owner abra sin límite sin tener que escribir nada en Ajustes — el
 // equivalente del `edicion.json` que el instalador de PC lleva al lado del

@@ -2,8 +2,8 @@ import React, { useEffect, useState } from "react";
 import {
   api, esNativo, getBase, getClaveIA, getEndpointIA, getModeloIA, getModelosActualizado,
   getModelosDisponibles, getOwner, getProveedorIA, activarLicencia, getLicencia,
-  getLinkedIn, getSmtp, getX, listarModelosIA, PROVEEDORES_CON_LISTA_DE_MODELOS,
-  setBase, setClaveIA, setEndpointIA, setLinkedIn, setModeloIA, setModelosDisponibles,
+  getLicenciaClave, getLinkedIn, getSmtp, getX, listarModelosIA, PROVEEDORES_CON_LISTA_DE_MODELOS,
+  setBase, setClaveIA, setEndpointIA, setLicenciaClave, setLinkedIn, setModeloIA, setModelosDisponibles,
   setOwner, setProveedorIA, setSmtp, setToken, setX,
 } from "../api.js";
 import { SelectorIdioma } from "../App.jsx";
@@ -249,6 +249,7 @@ export default function Configuracion({ onSalir }) {
   const [verClave, setVerClave] = useState(false);
   const [avisoClave, setAvisoClave] = useState("");
   const [owner, setOwnerLocal] = useState(getOwner());
+  const [licenciaClave, setLicenciaLocal] = useState(getLicenciaClave());
   const [proveedor, setProveedorLocal] = useState(getProveedorIA());
   const [endpoint, setEndpointLocal] = useState(getEndpointIA());
   // El modelo puntual dentro del proveedor (regula el consumo de tokens de
@@ -306,6 +307,7 @@ export default function Configuracion({ onSalir }) {
     // El código de dueño se guarda junto: viaja como encabezado y exime del
     // cupo gratis de la web (se valida en el servidor contra MVCLIENTE_OWNER).
     setOwner(owner);
+    setLicenciaClave(licenciaClave);
     setAvisoClave(clave.trim() || owner.trim()
       ? t("config.clave_guardada") : t("config.clave_borrada"));
     setTimeout(() => setAvisoClave(""), 2500);
@@ -422,6 +424,16 @@ export default function Configuracion({ onSalir }) {
                  onChange={(e) => setOwnerLocal(e.target.value)} />
         </div>
         <p className="nota" style={{ marginTop: 0 }}>{t("config.owner_ayuda")}</p>
+        {/* La licencia del comprador. El .exe la activa contra su disco, pero
+            el APK y la web hablan con el backend sin estado — ahí la clave se
+            guarda en el dispositivo y viaja con cada corrida. */}
+        <div className="campo crece" style={{ margin: "12px 0 6px" }}>
+          <label htmlFor="licencia">{t("config.licencia")} <i>({t("explorar.opcional")})</i></label>
+          <input id="licencia" type={verClave ? "text" : "password"} value={licenciaClave}
+                 autoCapitalize="none" autoCorrect="off" autoComplete="off"
+                 onChange={(e) => setLicenciaLocal(e.target.value)} />
+        </div>
+        <p className="nota" style={{ marginTop: 0 }}>{t("config.licencia_ayuda")}</p>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
           <button className="btn" type="submit">{t("config.guardar")}</button>
           <button className="btn ghost" type="button" onClick={() => setVerClave(!verClave)}>

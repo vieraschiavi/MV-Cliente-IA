@@ -255,7 +255,9 @@
     "lic_activar": "Activar licencia",
     "lic_activada": "Licencia activada. Ya podés usar las búsquedas reales.",
     "lic_ayuda": "La clave llega por correo con la compra. Se pega una sola vez y queda guardada en esta computadora.",
-    "lic_owner_nota": "Esta copia es la edición del dueño: sin clave y sin vencimiento."
+    "lic_owner_nota": "Esta copia es la edición del dueño: sin clave y sin vencimiento.",
+    "licencia": "Clave de licencia (si compraste)",
+    "licencia_ayuda": "Si compraste el programa, pegá acá la clave que te llegó: el APK y la web quedan sin límite de búsquedas, igual que la app de PC. Vive sólo en este dispositivo y viaja con cada búsqueda; el servidor verifica su firma."
   },
   "aviso": {
     "sintetico": "Datos de demostración: las empresas y las personas de esta lista son sintéticas, generadas para probar el flujo. Cambiá el origen de datos a «Leer mi sitio real» o «Investigación con IA» para trabajar con información real.",

@@ -229,6 +229,31 @@ def _es_owner(request: Request) -> bool:
         request.headers.get("x-mv-owner", ""), owner)
 
 
+def _licencia_activa(clave: str) -> bool:
+    """¿La clave que mandó el cliente es una licencia válida y sin vencer?
+
+    Es lo que hace que el APK (y la web) de un COMPRADOR funcionen igual que
+    el programa de PC. Sin esto, quien pagaba y usaba el celular seguía
+    contra el cupo gratis: la licencia sólo la entendía la copia instalada,
+    porque `POST /api/licencia` guarda estado en disco y en serverless
+    contesta 400.
+
+    Acá no se guarda nada: la clave viene firmada con HMAC sobre el secreto
+    del servidor y se verifica en cada pedido, igual que la clave de IA. Sin
+    `MVCLIENTE_LICENCIA_SECRETO` en el entorno, `licencia.verificar` devuelve
+    `ok: False` y esto no desbloquea nada — falla cerrado, que es lo que
+    corresponde cuando lo que está en juego es el cobro.
+    """
+    if not (clave or "").strip():
+        return False
+    try:
+        return bool(licencia.verificar(clave)["ok"])
+    except Exception:                                # noqa: BLE001
+        # Una clave malformada no puede tumbar la corrida: se trata como
+        # "no tiene licencia" y sigue el camino del cupo gratis.
+        return False
+
+
 def _cupo_usado(request: Request) -> int:
     de_cookie = 0
     crudo = request.cookies.get(_COOKIE_CUPO, "")
@@ -937,6 +962,17 @@ class CorridaIn(BaseModel):
     # Clave de IA pegada por el usuario en Configuración. Vale para esta
     # corrida: no se guarda, no se loguea y no entra en la corrida.
     clave_ia: str = Field(default="", max_length=300)
+    # Clave de LICENCIA del que compró. Es lo que hace que el APK y la web
+    # de un comprador funcionen igual que el programa de PC.
+    #
+    # Antes esto no existía y el resultado era un agujero de producto: la
+    # licencia sólo la entendía el programa INSTALADO (que guarda estado en
+    # disco), y `POST /api/licencia` contesta 400 en serverless — "La web no
+    # usa licencias". O sea que quien pagaba y usaba el APK seguía contra el
+    # cupo gratis, igual que alguien que no pagó nada. La firma se verifica
+    # contra el secreto del SERVIDOR (`licencia.verificar`), así que el
+    # cliente no puede fabricarse una.
+    licencia_clave: str = Field(default="", max_length=600)
     # Qué modelo hay detrás de la clave: claude | openai | gemini | copilot |
     # grok. Copilot es Azure OpenAI y necesita además la URL del endpoint.
     proveedor_ia: str = "claude"
@@ -1046,7 +1082,10 @@ def crear_corrida(entrada: CorridaIn, request: Request, stream: int = 0):
         usadas = 0
         correo = entrada.email.strip().lower()
         cuenta = (entrada.modo != "demo" and not _es_owner(request)
-                  and not entrada.clave_ia)
+                  and not entrada.clave_ia
+                  # El que PAGÓ no gasta cupo ni tiene que dejar el correo:
+                  # su licencia vale lo mismo en el APK que en el .exe.
+                  and not _licencia_activa(entrada.licencia_clave))
         if cuenta:
             if not _EMAIL_RE.match(correo):
                 raise HTTPException(422,
