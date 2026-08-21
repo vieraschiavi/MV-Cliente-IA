@@ -510,6 +510,92 @@ def licencia_por_pago(datos: PagoIn):
     return {"clave": clave, "email": correo, "vence": datos_clave.get("vence", "")}
 
 
+# ---------------------------------------------------------------------------
+# Demo bajo pedido
+# ---------------------------------------------------------------------------
+# La demo dejó de ser pública y descargable a propósito. Una demo abierta
+# regala el artefacto de ingeniería —el .exe se descompila, el bundle del APK
+# es texto— y no deja rastro de quién lo miró. Pedirla por formulario da tres
+# cosas que la descarga libre no da: sólo se muestra el RESULTADO y no el
+# artefacto, se separa al prospecto serio del competidor curioso, y la reunión
+# 1:1 permite vender mientras se muestra en vez de que miren solos y se vayan.
+#
+# El aviso llega por correo al dueño. El SMTP es del SERVIDOR (no el del
+# usuario, como en el envío de campañas): son credenciales del dueño puestas
+# por entorno.
+SMTP_SERVIDOR = {
+    "host": os.getenv("MVCLIENTE_SMTP_HOST", ""),
+    "puerto": int(os.getenv("MVCLIENTE_SMTP_PUERTO", "587")),
+    "usuario": os.getenv("MVCLIENTE_SMTP_USUARIO", ""),
+    "clave": os.getenv("MVCLIENTE_SMTP_CLAVE", ""),
+    "ssl": os.getenv("MVCLIENTE_SMTP_SSL", "") == "1",
+}
+# Enlace para que el visitante agende la reunión (Calendly, Google Calendar…).
+# Vacío = el formulario dice que se lo contacta por correo, sin prometer una
+# agenda que no existe.
+URL_AGENDA = os.getenv("MVCLIENTE_URL_AGENDA", "")
+
+
+class DemoIn(BaseModel):
+    nombre: str = Field(min_length=3, max_length=120)
+    empresa: str = Field(min_length=2, max_length=120)
+    pais: str = Field(min_length=2, max_length=60)
+    email: str = Field(min_length=5, max_length=200)
+    mensaje: str = Field(default="", max_length=1000)
+
+
+@app.post("/api/demo/solicitar")
+def solicitar_demo(datos: DemoIn, request: Request):
+    """Un pedido de demo: se lo avisa al dueño por correo.
+
+    Nunca se pierde un interesado: si el SMTP no está configurado o falla, NO
+    se devuelve un error genérico — se responde `enviado: false` con el correo
+    del dueño para que la persona escriba directo, y el pedido queda en el log
+    del servidor. Un formulario que traga un prospecto en silencio es peor que
+    no tener formulario.
+    """
+    correo = datos.email.strip().lower()
+    if not _EMAIL_RE.match(correo):
+        raise HTTPException(422, "El correo no parece válido.")
+
+    cuerpo = (
+        "Nuevo pedido de demo de MV Cliente IA\n\n"
+        f"Nombre:  {datos.nombre.strip()}\n"
+        f"Empresa: {datos.empresa.strip()}\n"
+        f"País:    {datos.pais.strip()}\n"
+        f"Correo:  {correo}\n"
+        f"Cuándo:  {datetime.now(UTC).isoformat(timespec='seconds')}\n"
+        + (f"\nMensaje:\n{datos.mensaje.strip()}\n" if datos.mensaje.strip() else "")
+    )
+    # Queda en el log del servidor pase lo que pase con el correo.
+    print(f"[demo] pedido de {correo} ({datos.empresa.strip()}, "
+          f"{datos.pais.strip()})", flush=True)
+
+    if not (SMTP_SERVIDOR["host"] and SMTP_SERVIDOR["usuario"]):
+        return {"enviado": False, "contacto": OWNER_EMAIL, "agenda": URL_AGENDA}
+
+    try:
+        from email.message import EmailMessage
+        msg = EmailMessage()
+        msg["Subject"] = f"Demo: {datos.empresa.strip()} ({datos.pais.strip()})"
+        msg["From"] = SMTP_SERVIDOR["usuario"]
+        msg["To"] = OWNER_EMAIL
+        # Para poder contestarle apretando «responder».
+        msg["Reply-To"] = correo
+        msg.set_content(cuerpo)
+        servidor = _conectar_smtp(SmtpIn(**SMTP_SERVIDOR))
+        try:
+            servidor.send_message(msg)
+        finally:
+            servidor.quit()
+    except Exception as e:                              # noqa: BLE001
+        # El tipo del fallo, nunca la clave del SMTP.
+        print(f"[demo] no se pudo avisar por correo: {type(e).__name__}", flush=True)
+        return {"enviado": False, "contacto": OWNER_EMAIL, "agenda": URL_AGENDA}
+
+    return {"enviado": True, "contacto": OWNER_EMAIL, "agenda": URL_AGENDA}
+
+
 # Repo del que se leen las descargas. Se puede pisar por entorno si el
 # proyecto cambia de casa.
 REPO_DESCARGAS = os.getenv("MVCLIENTE_REPO", "vieraschiavi/MV-Cliente-IA")

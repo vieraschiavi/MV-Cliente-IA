@@ -783,3 +783,84 @@ def test_si_una_fuente_falla_el_panel_muestra_la_otra(monkeypatch):
     d = r.json()
     assert d["descargas"] is None and "error_descargas" in d
     assert d["cobros"] is not None            # la que sí anduvo, se muestra
+
+
+def test_el_pedido_de_demo_avisa_al_dueno(monkeypatch):
+    """La demo dejó de ser pública: se pide por formulario y el dueño se
+    entera por correo, con los datos para decidir si vale una reunión."""
+    from webapp.backend import api
+
+    monkeypatch.setattr(api, "SMTP_SERVIDOR", {
+        "host": "smtp.example.com", "puerto": 587,
+        "usuario": "avisos@example.com", "clave": "x", "ssl": False})
+
+    enviados = []
+
+    class _Servidor:
+        def send_message(self, msg): enviados.append(msg)
+        def quit(self): pass
+
+    monkeypatch.setattr(api, "_conectar_smtp", lambda smtp: _Servidor())
+    cliente = TestClient(api.app)
+    r = cliente.post("/api/demo/solicitar", json={
+        "nombre": "Ana Pérez", "empresa": "Estudio Contable SRL",
+        "pais": "Uruguay", "email": "ana@estudio.com.uy",
+        "mensaje": "Quiero verlo para cobranzas"})
+    assert r.status_code == 200, r.text
+    assert r.json()["enviado"] is True
+
+    assert len(enviados) == 1
+    msg = enviados[0]
+    assert msg["To"] == api.OWNER_EMAIL
+    # Responder al aviso tiene que escribirle AL INTERESADO, no a uno mismo.
+    assert msg["Reply-To"] == "ana@estudio.com.uy"
+    cuerpo = msg.get_content()
+    for dato in ("Ana Pérez", "Estudio Contable SRL", "Uruguay", "ana@estudio.com.uy"):
+        assert dato in cuerpo, dato
+
+
+def test_si_el_correo_falla_no_se_pierde_el_interesado(monkeypatch):
+    """Un formulario que se traga un prospecto en silencio es PEOR que no
+    tener formulario: la persona cree que la van a contactar y nadie la
+    contacta nunca. Si el SMTP falla o no está configurado, se le devuelve
+    el correo del dueño para que escriba directo."""
+    from webapp.backend import api
+
+    cliente = TestClient(api.app)
+    pedido = {"nombre": "Juan Gómez", "empresa": "Fintech SA", "pais": "Chile",
+              "email": "juan@fintech.cl"}
+
+    # 1. SMTP sin configurar.
+    monkeypatch.setattr(api, "SMTP_SERVIDOR",
+                        {"host": "", "puerto": 587, "usuario": "", "clave": "", "ssl": False})
+    r = cliente.post("/api/demo/solicitar", json=pedido)
+    assert r.status_code == 200                      # NO es un error del visitante
+    assert r.json()["enviado"] is False
+    assert r.json()["contacto"] == api.OWNER_EMAIL
+
+    # 2. SMTP configurado pero que revienta al conectar.
+    monkeypatch.setattr(api, "SMTP_SERVIDOR", {
+        "host": "smtp.example.com", "puerto": 587,
+        "usuario": "avisos@example.com", "clave": "x", "ssl": False})
+
+    def _explota(smtp): raise OSError("no hay ruta al host")
+    monkeypatch.setattr(api, "_conectar_smtp", _explota)
+    r = cliente.post("/api/demo/solicitar", json=pedido)
+    assert r.status_code == 200
+    assert r.json()["enviado"] is False
+    assert r.json()["contacto"] == api.OWNER_EMAIL
+
+
+def test_el_pedido_de_demo_valida_lo_que_hace_falta_para_contactar(monkeypatch):
+    """Sin nombre, empresa, país o un correo válido el pedido no sirve: no se
+    puede ni evaluar al prospecto ni contestarle."""
+    from webapp.backend import api
+
+    cliente = TestClient(api.app)
+    completo = {"nombre": "Ana Pérez", "empresa": "Estudio SRL",
+                "pais": "Uruguay", "email": "ana@estudio.com.uy"}
+    for campo in ("nombre", "empresa", "pais"):
+        incompleto = {**completo, campo: ""}
+        assert cliente.post("/api/demo/solicitar", json=incompleto).status_code == 422, campo
+    malo = {**completo, "email": "esto-no-es-un-correo"}
+    assert cliente.post("/api/demo/solicitar", json=malo).status_code == 422

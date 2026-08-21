@@ -28,7 +28,7 @@ escribe los correos — Uruguay → LATAM → mundo, en es/pt/en.
 | 4 | Video demo propio, voz humana rioplatense (es-UY), pt/en nativas, sin lag, mostrando TODOS los dashboards (incl. competencia y análisis) | ✅ | videos 71/79/72 s servidos en producción |
 | 5 | Campo de clave de IA en la app | ✅ | Configuración → Investigación con IA |
 | 6 | Multi-proveedor: Claude / ChatGPT / Gemini / Copilot (Azure) | ✅ | verificado vivo con claves falsas (401/400 firmados por proveedor); Claude por REST en la app de PC |
-| 7 | Descargables PC + Android estilo Kobra (seguridad, SHA-256) | ✅ | Release v1.0.0 al día; landing enlaza `releases/latest` |
+| 7 | Descargables PC + Android estilo Kobra (seguridad, SHA-256) | ✅ | Release v1.0.0 al día con su SHA-256. Desde 2026-08-21 la landing YA NO los enlaza: son el canal de entrega de quien compra (ver «La demo del programa instalado NO es pública») |
 | 8 | Instalador con elección de disco/carpeta, iconos, desinstalador, panel de marca; edición portable 100 % en el disco elegido | ✅ | build 23 success; NSIS es/pt/en |
 | 9 | Puertos sin choques (PC) | ✅ | puerto libre + reintentos en Electron/lanzador |
 | 10 | Búsqueda con IA relevante al rubro real (no catálogo) | ✅ | perfil, competencia, campañas y prospectos desde el texto real del sitio |
@@ -67,8 +67,10 @@ rama que puede desaparecer es un interruptor de apagado silencioso.
 **El repositorio pasó a ser PÚBLICO (2026-08-08).** Tres consecuencias:
 
 1. **Las descargas de los clientes ya funcionan.** Los enlaces
-   `releases/latest/download/…` que usa la landing dejaron de dar 404 a quien
-   no tiene sesión de GitHub — era el bloqueo que impedía vender.
+   `releases/latest/download/…` dejaron de dar 404 a quien no tiene sesión de
+   GitHub — era el bloqueo que impedía vender. (Desde el 2026-08-21 la landing
+   ya no los publica: se le pasan a quien compra. La Release sigue siendo el
+   canal, no la vidriera.)
 2. **GitHub Actions es gratis e ilimitado** en repos públicos con runners
    estándar. La cuota que tenía frenados todos los workflows deja de aplicar.
 3. **La edición `owner` se desactivó.** Lleva el permiso adentro del `.exe` y
@@ -148,6 +150,42 @@ porque **cambia de dónde despliega Vercel** (ver abajo).
    revisar qué rama tiene Vercel como «Production Branch» antes de cambiar la
    de por defecto. Hasta entonces `automerge.yml` no hace nada (no falla: no
    encuentra PR y sale limpio).
+
+10. **`MVCLIENTE_SMTP_HOST` / `_PUERTO` / `_USUARIO` / `_CLAVE` / `_SSL` en
+    Vercel** — con esto el formulario de demo (ver abajo) te avisa por correo
+    apenas alguien pide acceso, con `Reply-To` puesto en quien lo pidió: le
+    contestás apretando «responder». **Sin esto el formulario igual funciona**:
+    responde `enviado:false`, le muestra a la persona tu correo directo y deja
+    el pedido en el log del servidor — nunca se traga un prospecto en silencio.
+    Pero el aviso automático no sale, así que hay que mirar los logs.
+11. **`MVCLIENTE_URL_AGENDA` en Vercel (opcional)** — el enlace de tu agenda
+    (Calendly, Google Calendar). Si está, después de mandar el formulario
+    aparece el botón «Agendar ahora» y la persona reserva sola. Vacío = no se
+    ofrece ninguna agenda, que es lo correcto: no prometer un recurso que no
+    existe.
+
+## La demo del programa instalado NO es pública (2026-08-21)
+
+Hasta este cambio la landing colgaba los cuatro binarios con enlace directo
+—instalador de Windows, portable, edición BAT y APK, todos en su variante
+demo de 14 días—. Cualquiera que abriera la página se llevaba **el artefacto
+de ingeniería entero** y no quedaba registro de quién.
+
+Ahora:
+
+- **La landing no enlaza ni un binario.** Lo cubre
+  `tests/test_instalacion.py::test_la_landing_no_ofrece_descargar_ningun_binario`,
+  que mira el HTML generado (no el generador: el bug volvería agregando un
+  ítem a `desc_items` y el `.py` se seguiría leyendo igual de bien).
+- **Lo que se muestra solo es el resultado, no el producto:** el visitante
+  abre la app en el navegador, con datos sintéticos y sin instalar nada.
+- **La demo completa se pide** en la sección `#demo` (nombre completo,
+  empresa, país y correo obligatorios) y se muestra en una reunión 1:1 — que
+  además es una oportunidad de vender mientras mostrás, no de que miren solos
+  y se vayan.
+- **Los binarios se siguen publicando en la Release** (`build_windows.yml` y
+  `apk.yml`, cada uno con su SHA-256): son el canal de entrega de quien compra
+  la licencia. Lo que cambió es a quién se le ofrecen.
 
 ## Cómo re-verificar todo (5 min)
 

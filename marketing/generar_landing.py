@@ -22,22 +22,17 @@ RAIZ = Path(__file__).resolve().parent.parent
 DESTINO = RAIZ / "landing"
 SITIO = "https://mvclienteia.com"
 
-# Canal estable de descargas: la Release del repo, que publican los workflows
-# de Actions (build_windows.yml y apk.yml). "latest" apunta siempre a la
-# última versión, así la landing no se toca en cada release. Junto a cada
-# archivo viaja su .sha256 para verificar la integridad de la descarga.
-DESCARGAS = "https://github.com/vieraschiavi/MV-Cliente-IA/releases/latest/download"
-# Se enlaza la edición DEMO (14 días con todo abierto, sin clave). La otra
-# —`MVClienteIA_Setup.exe`, sin sufijo— pide la clave de licencia al abrir: se
-# la manda el dueño a quien compra, no se ofrece acá. Enlazarla en la landing
-# haría que un visitante instale un programa que no puede usar.
-URL_EXE = f"{DESCARGAS}/MVClienteIA_Setup_demo.exe"
-URL_ZIP = f"{DESCARGAS}/MVClienteIA_Portable_demo.zip"
-# La edición sin ningún .exe, para las empresas que no dejan abrir programas
-# descargados. Mismo producto y misma interfaz: la abre un .bat usando el
-# Python que ya está en la máquina.
-URL_BAT = f"{DESCARGAS}/MVClienteIA_BAT_demo.zip"
-URL_APK = f"{DESCARGAS}/MVClienteIA.apk"
+# La landing YA NO enlaza descargas. Acá vivían las URLs de la Release —el
+# instalador de Windows, el portable, la edición BAT y el APK, todos en su
+# variante demo— y bastaba con abrir la página para llevarse el producto
+# entero sin dejar ni un nombre: la demo pública regalaba el artefacto de
+# ingeniería, no el resultado. Los binarios se siguen publicando en la Release
+# (los arman build_windows.yml y apk.yml, cada uno con su .sha256) porque son
+# el canal de entrega de quien compra la licencia; lo que cambió es que ya no
+# se ofrecen a cualquiera que pase. El visitante prueba la app en el navegador
+# —con datos sintéticos, sin instalar nada— y para ver el producto completo
+# pide una demo uno a uno por el formulario de #demo.
+#
 # Sentinela: en render() se reemplaza por la ruta relativa a /app/.
 APP = "@APP@"
 
@@ -50,7 +45,7 @@ TEXTOS: dict[str, dict] = {
         "titulo": "MV Cliente IA · Encontrá tus próximos clientes",
         "desc": "Pegá el enlace de tu producto: la IA investiga tu empresa, encuentra a tus "
                 "compradores, ubica a los decisores y escribe los correos.",
-        "nav": ["Cómo funciona", "Video", "Idiomas", "Descargar", "Precios"],
+        "nav": ["Cómo funciona", "Video", "Idiomas", "Probar", "Demo", "Precios"],
         "hero_k": "Prospección automática, 24/7",
         "hero_h1": ["¿Sin clientes? Meses construyendo,", "todavía $0 de ingresos."],
         "hero_p": "El problema nunca fue el producto — eran las ventas. Pegá el enlace de tu "
@@ -59,8 +54,9 @@ TEXTOS: dict[str, dict] = {
                   "automático, incluso mientras dormís. Vos aparecés y cerrás.",
         "hero_cta": "Probar con mi sitio",
         "hero_cta2": "Ver cómo funciona",
-        "hero_nota": "Corre en tu navegador, en tu PC (Windows) y en tu celular (Android). "
-                     "La demo usa datos sintéticos: se prueba sin entregar nada.",
+        "hero_nota": "Probalo ahora mismo en el navegador, con datos sintéticos y sin "
+                     "entregar nada. Las versiones de PC (Windows) y Android vienen con la "
+                     "licencia; el producto completo se muestra en una demo uno a uno.",
         "pasos_h": "Seis pasos, uno detrás del otro",
         "pasos_p": "Es el mismo recorrido que haría un equipo de ventas en dos semanas — con "
                    "la diferencia de que acá termina antes de que te sirvas un café.",
@@ -80,39 +76,32 @@ TEXTOS: dict[str, dict] = {
         "idiomas_p": "La interfaz la elegís vos. El correo no: sale en español, portugués o "
                      "inglés según el país del decisor. A Brasil se le escribe en portugués "
                      "aunque vos trabajes en español.",
-        "desc_h": "Donde te quede cómodo",
-        "desc_p": "El mismo producto, la misma interfaz, en los tres lados.",
+        "desc_h": "Probalo en el navegador",
+        "desc_p": "La misma interfaz que en PC y en Android, corriendo acá mismo.",
         "desc_items": [
-            ("Navegador", "Nada que instalar. Entrás y buscás.",
+            ("Navegador", "Nada que instalar. Entrás y ves cómo trabaja el agente.",
              "Abrir la app", APP,
-             "La misma interfaz que en PC y Android."),
-            ("PC · Windows", "Instalador propio con desinstalador en «Agregar o quitar "
-             "programas», sin permisos de administrador y en el disco que elijas (D:\\, "
-             "un disco externo): el programa y sus datos quedan juntos ahí. El "
-             "motor corre en tu máquina: "
-             "los datos no salen.",
-             "Descargar la prueba de 14 días", URL_EXE,
-             "Catorce días con todo abierto y sin poner ninguna clave. Después seguís "
-             "con la demo sintética, y la licencia se compra desde Precios. Instalador "
-             "sin firma de código: si SmartScreen avisa, «Más información → Ejecutar de "
-             "todas formas». El SHA-256 está publicado junto a la descarga.",
-             "Versión portable (ZIP)", URL_ZIP,
-             "100% en el disco que elijas: descomprimí el ZIP donde quieras (D:\\, un "
-             "pendrive), ejecutá MVClienteIA.exe y listo — sin instalador, sin archivos "
-             "temporales en C:, con corridas y exports guardados en la misma carpeta.",
-             "Versión sin .exe (BAT)", URL_BAT,
-             "Si en tu empresa no dejan abrir programas descargados: el mismo producto y "
-             "la misma interfaz, pero lo abre un .bat en tu navegador usando el Python "
-             "que ya tenés (3.11 o más nuevo). Trae las dependencias adentro, así que "
-             "instala sin internet, e Instalar.bat te deja el acceso directo y el "
-             "desinstalador igual que el instalador común."),
-            ("Android · APK", "La lista y los correos en el celular. Viene conectado a la "
-             "web pública: sólo hace falta la dirección de tu propio servidor si "
-             "preferís correr el motor en tu PC o en tu red.",
-             "Descargar el APK", URL_APK,
-             "APK directo, no viene de Play Store: al instalarlo habilitá «Instalar apps "
-             "desconocidas» para tu navegador. El SHA-256 está publicado junto a la descarga."),
+             "La misma interfaz que en PC y Android. Para ver el producto completo "
+             "—instalado, con tus datos y sin límite— pedí una demo por acá abajo."),
         ],
+        "demo_h": "La demo completa se muestra en vivo",
+        "demo_p": "El programa instalado —PC y Android, con tus datos y sin límite— no se "
+                  "descarga desde acá: te lo mostramos en una reunión de 30 minutos, uno a "
+                  "uno, con tu propio sitio como ejemplo. Dejá tus datos y coordinamos.",
+        "demo_nombre": "Nombre completo",
+        "demo_empresa": "Empresa",
+        "demo_pais": "País",
+        "demo_email": "Correo de trabajo",
+        "demo_mensaje": "Qué vendés y a quién (opcional)",
+        "demo_cta": "Pedir la demo",
+        "demo_enviando": "Enviando…",
+        "demo_ok": "Pedido recibido. Te escribimos a tu correo para coordinar el horario.",
+        "demo_agenda": "Agendar ahora",
+        "demo_manual": "No pudimos enviar el aviso automático. Escribinos directo a",
+        "demo_error": "No se pudo enviar el pedido. Probá de nuevo o escribinos a "
+                      "vieraschiavi@gmail.com.",
+        "demo_nota": "Usamos tus datos sólo para coordinar la demo. No los compartimos con "
+                     "nadie y no te suscribimos a nada.",
         "precios_h": "Precios",
         "precios_p": "La web es la prueba: demo sintética ilimitada y 3 búsquedas reales gratis "
                      "por visitante, con tu propia clave de IA (Claude, ChatGPT, Gemini o "
@@ -152,7 +141,7 @@ TEXTOS: dict[str, dict] = {
         "titulo": "MV Cliente IA · Encontre seus próximos clientes",
         "desc": "Cole o link do seu produto: a IA pesquisa sua empresa, encontra seus "
                 "compradores, localiza os decisores e escreve os e-mails.",
-        "nav": ["Como funciona", "Vídeo", "Idiomas", "Baixar", "Preços"],
+        "nav": ["Como funciona", "Vídeo", "Idiomas", "Testar", "Demo", "Preços"],
         "hero_k": "Prospecção automática, 24/7",
         "hero_h1": ["Sem clientes? Meses construindo,", "e ainda R$0 de receita."],
         "hero_p": "O problema nunca foi o produto — eram as vendas. Cole o link do seu site e o "
@@ -161,8 +150,9 @@ TEXTOS: dict[str, dict] = {
                   "enquanto você dorme. Você só aparece e fecha.",
         "hero_cta": "Testar com meu site",
         "hero_cta2": "Ver como funciona",
-        "hero_nota": "Roda no navegador, no seu PC (Windows) e no celular (Android). "
-                     "A demo usa dados sintéticos: dá para testar sem entregar nada.",
+        "hero_nota": "Teste agora mesmo no navegador, com dados sintéticos e sem entregar "
+                     "nada. As versões de PC (Windows) e Android vêm com a licença; o produto "
+                     "completo é mostrado numa demo um a um.",
         "pasos_h": "Seis passos, um atrás do outro",
         "pasos_p": "É o mesmo caminho que um time de vendas faria em duas semanas — só que "
                    "aqui termina antes do seu café ficar pronto.",
@@ -182,37 +172,32 @@ TEXTOS: dict[str, dict] = {
         "idiomas_p": "A interface você escolhe. O e-mail não: sai em espanhol, português ou "
                      "inglês conforme o país do decisor. Para o Brasil se escreve em português "
                      "mesmo que você trabalhe em espanhol.",
-        "desc_h": "Onde for mais confortável",
-        "desc_p": "O mesmo produto, a mesma interface, nos três lugares.",
+        "desc_h": "Teste no navegador",
+        "desc_p": "A mesma interface do PC e do Android, rodando aqui mesmo.",
         "desc_items": [
-            ("Navegador", "Nada para instalar. Entra e busca.",
+            ("Navegador", "Nada para instalar. Entra e vê como o agente trabalha.",
              "Abrir o app", APP,
-             "A mesma interface do PC e do Android."),
-            ("PC · Windows", "Instalador próprio com desinstalador em «Adicionar ou remover "
-             "programas», sem permissões de administrador. O motor roda na sua máquina: "
-             "os dados não saem.",
-             "Baixar o teste de 14 dias", URL_EXE,
-             "Catorze dias com tudo aberto e sem colocar nenhuma chave. Depois você "
-             "continua com a demo sintética, e a licença se compra em Preços. Instalador "
-             "sem assinatura de código: se o SmartScreen avisar, «Mais informações → "
-             "Executar assim mesmo». O SHA-256 está publicado junto ao download.",
-             "Versão portátil (ZIP)", URL_ZIP,
-             "100% no disco que você escolher: descompacte o ZIP onde quiser (D:\\, um "
-             "pendrive), execute MVClienteIA.exe e pronto — sem instalador, sem arquivos "
-             "temporários em C:, com buscas e exports salvos na mesma pasta.",
-             "Versão sem .exe (BAT)", URL_BAT,
-             "Se na sua empresa não deixam abrir programas baixados: o mesmo produto e a "
-             "mesma interface, mas quem abre é um .bat, no seu navegador, usando o Python "
-             "que você já tem (3.11 ou mais novo). Traz as dependências dentro, então "
-             "instala sem internet, e o Instalar.bat deixa o atalho e o desinstalador "
-             "igual ao instalador comum."),
-            ("Android · APK", "A lista e os e-mails no celular. Já vem conectado à web "
-             "pública: o endereço do seu próprio servidor só é necessário se você "
-             "preferir rodar o motor no seu PC ou na sua rede.",
-             "Baixar o APK", URL_APK,
-             "APK direto, não vem da Play Store: ao instalar, habilite «Instalar apps "
-             "desconhecidos» para o seu navegador. O SHA-256 está publicado junto ao download."),
+             "A mesma interface do PC e do Android. Para ver o produto completo "
+             "—instalado, com seus dados e sem limite— peça uma demo aqui embaixo."),
         ],
+        "demo_h": "A demo completa é apresentada ao vivo",
+        "demo_p": "O programa instalado —PC e Android, com seus dados e sem limite— não é "
+                  "baixado daqui: mostramos numa reunião de 30 minutos, um a um, usando o seu "
+                  "próprio site como exemplo. Deixe seus dados e combinamos o horário.",
+        "demo_nombre": "Nome completo",
+        "demo_empresa": "Empresa",
+        "demo_pais": "País",
+        "demo_email": "E-mail de trabalho",
+        "demo_mensaje": "O que você vende e para quem (opcional)",
+        "demo_cta": "Pedir a demo",
+        "demo_enviando": "Enviando…",
+        "demo_ok": "Pedido recebido. Escrevemos para o seu e-mail para combinar o horário.",
+        "demo_agenda": "Agendar agora",
+        "demo_manual": "Não conseguimos enviar o aviso automático. Escreva direto para",
+        "demo_error": "Não foi possível enviar o pedido. Tente de novo ou escreva para "
+                      "vieraschiavi@gmail.com.",
+        "demo_nota": "Usamos seus dados só para combinar a demo. Não compartilhamos com "
+                     "ninguém e não inscrevemos você em nada.",
         "precios_h": "Preços",
         "precios_p": "A web é o teste: demo sintética ilimitada e 3 buscas reais grátis por "
                      "visitante, com a sua própria chave de IA (Claude, ChatGPT, Gemini ou "
@@ -252,7 +237,7 @@ TEXTOS: dict[str, dict] = {
         "titulo": "MV SearchCostumer AI · Find your next customers",
         "desc": "Drop your product link: the AI researches your company, finds your buyers, "
                 "locates the decision makers and writes the emails.",
-        "nav": ["How it works", "Video", "Languages", "Download", "Pricing"],
+        "nav": ["How it works", "Video", "Languages", "Try it", "Demo", "Pricing"],
         "hero_k": "Automatic prospecting, 24/7",
         "hero_h1": ["No customers? Months building,", "still $0 in revenue."],
         "hero_p": "The problem was never the product — it was sales. Drop your website link and "
@@ -261,8 +246,9 @@ TEXTOS: dict[str, dict] = {
                   "sleep. You just show up and close.",
         "hero_cta": "Try it with my site",
         "hero_cta2": "See how it works",
-        "hero_nota": "Runs in your browser, on your PC (Windows) and on your phone (Android). "
-                     "The demo uses synthetic data: evaluate it without handing anything over.",
+        "hero_nota": "Try it right now in your browser, on synthetic data, without handing "
+                     "anything over. The PC (Windows) and Android builds come with the "
+                     "licence; the full product is shown in a one-to-one demo.",
         "pasos_h": "Six steps, one after another",
         "pasos_p": "It's the same path a sales team would walk in two weeks — except this one "
                    "finishes before your coffee does.",
@@ -282,37 +268,33 @@ TEXTOS: dict[str, dict] = {
         "idiomas_p": "You pick the interface language. The email's isn't yours to pick: it goes "
                      "out in Spanish, Portuguese or English depending on the decision maker's "
                      "country. Brazil gets Portuguese even if you work in Spanish.",
-        "desc_h": "Wherever suits you",
-        "desc_p": "The same product and the same interface, in all three places.",
+        "desc_h": "Try it in your browser",
+        "desc_p": "The same interface as on desktop and Android, running right here.",
         "desc_items": [
-            ("Browser", "Nothing to install. Open it and search.",
+            ("Browser", "Nothing to install. Open it and watch the agent work.",
              "Open the app", APP,
-             "The same interface as on PC and Android."),
-            ("PC · Windows", "Its own installer with an uninstaller in \"Add or remove "
-             "programs\", no admin rights needed. The engine runs on your machine; data "
-             "stays put.",
-             "Download the 14-day trial", URL_EXE,
-             "Fourteen days with everything unlocked and no key to enter. After that you "
-             "keep the synthetic demo, and the licence is bought from Pricing. The "
-             "installer isn't code-signed: if SmartScreen warns you, \"More info → "
-             "Run anyway\". The SHA-256 is published next to the download.",
-             "Portable version (ZIP)", URL_ZIP,
-             "100% on the drive you choose: unzip it anywhere (D:\\, a USB stick), run "
-             "MVClienteIA.exe and that's it — no installer, no temp files on C:, with "
-             "searches and exports stored in that same folder.",
-             "No-.exe version (BAT)", URL_BAT,
-             "For companies that don't allow running downloaded programs: the same "
-             "product and the same interface, but a .bat opens it in your browser using "
-             "the Python you already have (3.11 or newer). It ships its dependencies "
-             "inside, so it installs with no internet, and Instalar.bat leaves you the "
-             "shortcut and the uninstaller just like the regular installer."),
-            ("Android · APK", "The list and the emails on your phone. Comes connected to "
-             "the public site: your own server address is only needed if you'd "
-             "rather run the engine on your PC or your own network.",
-             "Download the APK", URL_APK,
-             "Direct APK, not from the Play Store: when installing, allow \"Install "
-             "unknown apps\" for your browser. The SHA-256 is published next to the download."),
+             "The same interface as on desktop and Android. To see the full product "
+             "—installed, with your data and no limits— request a demo below."),
         ],
+        "demo_h": "The full demo is shown live",
+        "demo_p": "The installed program —desktop and Android, on your data with no limits— "
+                  "isn't downloadable from here: we walk you through it in a 30-minute "
+                  "one-to-one call, using your own site as the example. Leave your details "
+                  "and we'll set up a time.",
+        "demo_nombre": "Full name",
+        "demo_empresa": "Company",
+        "demo_pais": "Country",
+        "demo_email": "Work email",
+        "demo_mensaje": "What you sell and to whom (optional)",
+        "demo_cta": "Request the demo",
+        "demo_enviando": "Sending…",
+        "demo_ok": "Request received. We'll email you to set up a time.",
+        "demo_agenda": "Book a time now",
+        "demo_manual": "We couldn't send the automatic notice. Write to us directly at",
+        "demo_error": "The request couldn't be sent. Try again or write to "
+                      "vieraschiavi@gmail.com.",
+        "demo_nota": "We use your details only to set up the demo. We don't share them with "
+                     "anyone and we don't subscribe you to anything.",
         "precios_h": "Pricing",
         "precios_p": "The web is the trial: unlimited synthetic demo and 3 free real searches "
                      "per visitor, with your own AI key (Claude, ChatGPT, Gemini or Copilot). "
@@ -367,15 +349,30 @@ h1,h2,h3{margin:0;line-height:1.12;letter-spacing:-.02em;text-wrap:balance}
 
 nav{position:sticky;top:0;z-index:30;background:rgba(10,16,32,.85);backdrop-filter:blur(10px);
   border-bottom:1px solid var(--line)}
-nav .wrap{display:flex;align-items:center;gap:16px;height:62px}
-.brand{display:flex;align-items:center;gap:10px;font-weight:800}
+nav .wrap{display:flex;align-items:center;gap:12px;height:62px;padding:0 16px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;flex:none;white-space:nowrap}
 .brand img{width:30px;height:30px;border-radius:8px;display:block}
 .brand b{font-size:15px}
-.nlinks{display:flex;gap:2px;margin-left:12px}
-.nlinks a{color:var(--muted);font-size:13.5px;font-weight:600;padding:7px 11px;border-radius:8px}
+.nlinks{display:flex;gap:2px;margin-left:8px}
+.nlinks a{color:var(--muted);font-size:13.5px;font-weight:600;padding:7px 8px;border-radius:8px;
+  white-space:nowrap}
 .nlinks a:hover{color:#fff;background:rgba(255,255,255,.06)}
-@media(max-width:860px){.nlinks{display:none}}
-.right{margin-left:auto;display:flex;align-items:center;gap:10px}
+/* La barra tiene alto fijo (62px) y no envuelve: si los enlaces no entran,
+   se esconden enteros en vez de partirse en dos líneas. Pasó al agregar
+   «Pedir demo»: con seis enlaces, «Cómo funciona» se cortaba en dos y el
+   botón verde se salía de la pantalla. Seis enlaces entran justo en los
+   1032px útiles de .wrap, así que abajo de 1080 se ocultan (el contenido
+   sigue a un scroll de distancia). */
+@media(max-width:1080px){.nlinks{display:none}}
+.right{margin-left:auto;display:flex;align-items:center;gap:8px;flex:none}
+nav .right .btn{padding:10px 14px}
+/* En un celular no entran el nombre largo del producto, el selector de idioma
+   y un botón de cuatro palabras: el botón pasa a la etiqueta corta (la misma
+   del menú) y el nombre se queda en el isotipo. Sin esto la barra medía 519px
+   en una pantalla de 320 y arrastraba scroll horizontal a TODA la página. */
+.cta-corto{display:none}
+@media(max-width:640px){.cta-largo{display:none}.cta-corto{display:inline}}
+@media(max-width:430px){.brand b{display:none}}
 .lang{display:flex;gap:2px;background:rgba(255,255,255,.06);border:1px solid var(--line2);
   border-radius:8px;padding:3px}
 .lang a{color:var(--faint);font-size:11.5px;font-weight:800;padding:5px 9px;border-radius:6px;
@@ -384,7 +381,7 @@ nav .wrap{display:flex;align-items:center;gap:16px;height:62px}
 
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:750;
   font-size:14px;border-radius:9px;padding:11px 18px;border:1px solid transparent;
-  transition:transform .12s}
+  transition:transform .12s;white-space:nowrap}
 .btn:hover{transform:translateY(-1px)}
 .btn-a{background:var(--green);color:var(--green-ink);box-shadow:0 6px 20px rgba(0,200,150,.25)}
 .btn-o{background:transparent;color:#fff;border-color:var(--line2)}
@@ -455,6 +452,26 @@ section{padding:64px 0;border-top:1px solid var(--line)}
 .plan ul{margin:0 0 16px;padding-left:18px;color:var(--muted);font-size:13.5px}
 .plan li{margin-bottom:6px}
 
+/* Pedido de demo. El producto instalado no se descarga de acá: se muestra en
+   una reunión. Un .exe público es el artefacto de ingeniería entero servido a
+   quien quiera copiarlo, y no deja rastro de quién se lo llevó. */
+.demo-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;
+  max-width:760px;background:var(--navy2);border:1px solid var(--line);border-radius:16px;
+  padding:24px}
+.demo-form label{display:block;font-size:12.5px;font-weight:700;color:var(--muted);
+  margin-bottom:6px}
+.demo-form input,.demo-form textarea{width:100%;box-sizing:border-box;background:var(--navy3);
+  border:1px solid var(--line2);border-radius:10px;padding:11px 13px;color:#fff;
+  font:inherit;font-size:14px}
+.demo-form input:focus,.demo-form textarea:focus{outline:none;border-color:var(--green)}
+.demo-form textarea{min-height:88px;resize:vertical}
+.demo-ancho{grid-column:1/-1}
+.demo-form .btn{justify-self:start}
+.demo-nota{color:var(--faint);font-size:12.5px;line-height:1.55;margin:0}
+.demo-estado{margin:0;font-size:14px;line-height:1.55;color:var(--green)}
+.demo-estado.mal{color:var(--amber)}
+.demo-estado a{color:inherit;text-decoration:underline}
+
 .cierre{text-align:center;background:linear-gradient(180deg,transparent,rgba(0,200,150,.07))}
 .cierre .sec-p{margin-left:auto;margin-right:auto}
 footer{border-top:1px solid var(--line);padding:30px 0 46px;color:var(--faint);font-size:12.5px}
@@ -471,8 +488,6 @@ def _esc(t: str) -> str:
 # una fuente de iconos a nadie. Antes acá había un emoji (⬇) y en cada sistema
 # operativo salía de otro color, al lado de un botón de la paleta Kobra.
 _TRAZOS = {
-    "descargar": '<path d="M12 3.6v11.2"/><path d="m7.6 10.4 4.4 4.4 4.4-4.4"/>'
-                 '<path d="M4.4 19.6h15.2"/>',
     "flecha": '<path d="M4.4 12h15.2"/><path d="m13.6 5.6 6.4 6.4-6.4 6.4"/>',
 }
 
@@ -510,29 +525,23 @@ def render(idioma: str) -> str:
     pasos = "\n".join(
         f'<article class="paso"><div class="n">{i}</div><b>{_esc(n)}</b><p>{_esc(d)}</p></article>'
         for i, (n, d) in enumerate(t["pasos"], 1))
-    def _tarjeta_descarga(n, d, cta, href, nota, *extra):
-        if href == APP:
-            enlace = (f'<a class="btn btn-o" href="{base}app/">{_esc(cta)}'
-                      f'{_ico("flecha")}</a>')
-        else:
-            enlace = (f'<a class="btn btn-o" href="{href}" rel="noreferrer">'
-                      f'{_ico("descargar")}{_esc(cta)}</a>')
-        cuerpo = f'{enlace}<small>{_esc(nota)}</small>'
-        # Descargas secundarias, de a tres datos (texto, enlace, nota): la
-        # edición portable y la edición BAT, que no trae ningún .exe.
-        for i in range(0, len(extra), 3):
-            cta2, href2, nota2 = extra[i:i + 3]
-            cuerpo += (f'<a class="btn btn-o" href="{href2}" rel="noreferrer">'
-                       f'{_ico("descargar")}{_esc(cta2)}</a>'
-                       f'<small>{_esc(nota2)}</small>')
-        return f'<article class="d"><b>{_esc(n)}</b><p>{_esc(d)}</p>{cuerpo}</article>'
+    def _tarjeta_descarga(n, d, cta, href, nota):
+        # `href` sólo puede ser el sentinela APP: acá ya no se enlazan binarios
+        # (ver el comentario de APP arriba). Si alguna vez vuelve una descarga
+        # a esta sección, que sea con la decisión tomada a propósito y no por
+        # una rama muerta que quedó lista para usarse sin pensarlo.
+        assert href == APP, "la sección de descargas ya no enlaza binarios"
+        enlace = (f'<a class="btn btn-o" href="{base}app/">{_esc(cta)}'
+                  f'{_ico("flecha")}</a>')
+        return (f'<article class="d"><b>{_esc(n)}</b><p>{_esc(d)}</p>'
+                f'{enlace}<small>{_esc(nota)}</small></article>')
 
     descargas = "\n".join(_tarjeta_descarga(*item) for item in t["desc_items"])
     items_gratis = "".join(f"<li>{_esc(x)}</li>" for x in t["plan_gratis"])
     items_pago = "".join(f"<li>{_esc(x)}</li>" for x in t["plan_pago"])
     enlaces = "".join(
         f'<a href="#{ancla}">{_esc(txt)}</a>'
-        for ancla, txt in zip(("pasos", "video", "idiomas", "descargar", "precios"),
+        for ancla, txt in zip(("pasos", "video", "idiomas", "descargar", "demo", "precios"),
                               t["nav"], strict=True))
 
     # El aviso «todavía no está publicado» sólo tiene sentido mientras el
@@ -567,7 +576,8 @@ def render(idioma: str) -> str:
     <b>{t['marca_html']}</b></a>
   <div class="nlinks">{enlaces}</div>
   <div class="right">{_selector(idioma, base)}
-    <a class="btn btn-a" href="{app}">{_esc(t['hero_cta'])}</a></div>
+    <a class="btn btn-a" href="{app}"><span class="cta-largo">{_esc(t['hero_cta'])}</span>
+      <span class="cta-corto">{_esc(t['nav'][3])}</span></a></div>
 </div></nav>
 
 <header class="hero"><div class="wrap">
@@ -612,6 +622,40 @@ def render(idioma: str) -> str:
   <h2 class="sec-h">{_esc(t['desc_h'])}</h2>
   <p class="sec-p">{_esc(t['desc_p'])}</p>
   <div class="desc">{descargas}</div>
+</div></section>
+
+<!-- Pedido de demo. Antes acá colgaban los enlaces directos al instalador de
+     Windows, al portable, a la edición BAT y al APK: cualquiera se llevaba el
+     producto entero sin dejar nombre. Ahora la demo del programa instalado se
+     da en vivo — filtra al curioso del prospecto y deja registro de quién
+     pidió acceso, con qué correo y desde qué empresa. -->
+<section id="demo"><div class="wrap">
+  <h2 class="sec-h">{_esc(t['demo_h'])}</h2>
+  <p class="sec-p">{_esc(t['demo_p'])}</p>
+  <form class="demo-form" id="demo-form" novalidate
+        data-error="{_esc(t['demo_error'])}"
+        data-ok="{_esc(t['demo_ok'])}"
+        data-manual="{_esc(t['demo_manual'])}"
+        data-agenda="{_esc(t['demo_agenda'])}"
+        data-enviando="{_esc(t['demo_enviando'])}">
+    <div><label for="demo-nombre">{_esc(t['demo_nombre'])}</label>
+      <input id="demo-nombre" name="nombre" type="text" required minlength="3"
+             maxlength="120" autocomplete="name"></div>
+    <div><label for="demo-empresa">{_esc(t['demo_empresa'])}</label>
+      <input id="demo-empresa" name="empresa" type="text" required minlength="2"
+             maxlength="120" autocomplete="organization"></div>
+    <div><label for="demo-pais">{_esc(t['demo_pais'])}</label>
+      <input id="demo-pais" name="pais" type="text" required minlength="2"
+             maxlength="60" autocomplete="country-name"></div>
+    <div><label for="demo-email">{_esc(t['demo_email'])}</label>
+      <input id="demo-email" name="email" type="email" required maxlength="200"
+             autocomplete="email"></div>
+    <div class="demo-ancho"><label for="demo-mensaje">{_esc(t['demo_mensaje'])}</label>
+      <textarea id="demo-mensaje" name="mensaje" maxlength="1000"></textarea></div>
+    <button class="btn btn-a demo-ancho" type="submit">{_esc(t['demo_cta'])}</button>
+    <p class="demo-estado demo-ancho" id="demo-estado" role="status" aria-live="polite" hidden></p>
+    <p class="demo-nota demo-ancho">{_esc(t['demo_nota'])}</p>
+  </form>
 </div></section>
 
 <section id="precios"><div class="wrap">
@@ -716,6 +760,76 @@ document.querySelectorAll("[data-pay]").forEach(function (btn) {{
       }});
     }})
     .catch(function () {{ fallo(caja.getAttribute("data-error")); }});
+}})();
+
+/* El pedido de demo. El backend puede responder `enviado:false` sin ser un
+   error: significa que no pudo avisar por correo, y entonces devuelve el
+   contacto directo. Mostrarlo como falla haría abandonar a alguien que ya
+   escribió sus datos, así que se le da la dirección y, si existe, la agenda. */
+(function () {{
+  var form = document.getElementById("demo-form");
+  if (!form) return;
+  var estado = document.getElementById("demo-estado");
+  var btn = form.querySelector("button[type=submit]");
+  var etiqueta = btn.textContent;
+  var decir = function (texto, mal, extras) {{
+    estado.hidden = false;
+    estado.classList.toggle("mal", !!mal);
+    estado.textContent = texto;
+    (extras || []).forEach(function (nodo) {{
+      if (!nodo) return;
+      estado.appendChild(document.createTextNode(" "));
+      estado.appendChild(nodo);
+    }});
+  }};
+  form.addEventListener("submit", function (ev) {{
+    ev.preventDefault();
+    if (!form.checkValidity()) {{ form.reportValidity(); return; }}
+    var datos = {{}};
+    ["nombre", "empresa", "pais", "email", "mensaje"].forEach(function (k) {{
+      datos[k] = (form.elements[k].value || "").trim();
+    }});
+    btn.disabled = true; btn.textContent = form.getAttribute("data-enviando");
+    fetch("/api/demo/solicitar", {{
+      method: "POST",
+      headers: {{ "content-type": "application/json" }},
+      body: JSON.stringify(datos),
+    }})
+      .then(function (r) {{ return r.json().then(function (d) {{ return {{ ok: r.ok, d: d }}; }}); }})
+      .then(function (res) {{
+        if (!res.ok) {{
+          btn.disabled = false; btn.textContent = etiqueta;
+          decir((res.d && res.d.detail) || form.getAttribute("data-error"), true);
+          return;
+        }}
+        var agenda = null;
+        if (res.d && res.d.agenda) {{
+          agenda = document.createElement("a");
+          agenda.href = res.d.agenda;
+          agenda.target = "_blank";
+          agenda.rel = "noreferrer";
+          agenda.textContent = form.getAttribute("data-agenda");
+        }}
+        if (res.d && res.d.enviado) {{
+          form.reset();
+          btn.textContent = etiqueta;
+          decir(form.getAttribute("data-ok"), false, [agenda]);
+        }} else {{
+          /* El aviso no salió, pero la persona ya escribió sus datos: se le
+             da el correo directo Y la agenda. Dejarla con "algo falló" sería
+             perder justo al prospecto que se tomó el trabajo de completar. */
+          btn.disabled = false; btn.textContent = etiqueta;
+          var mail = document.createElement("a");
+          mail.href = "mailto:" + ((res.d && res.d.contacto) || "");
+          mail.textContent = (res.d && res.d.contacto) || "";
+          decir(form.getAttribute("data-manual"), true, [mail, agenda]);
+        }}
+      }})
+      .catch(function () {{
+        btn.disabled = false; btn.textContent = etiqueta;
+        decir(form.getAttribute("data-error"), true);
+      }});
+  }});
 }})();
 </script>
 

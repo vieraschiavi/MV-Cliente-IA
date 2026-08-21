@@ -379,3 +379,49 @@ def test_los_workflows_no_tienen_claves_duplicadas():
                 yaml.load(f, Loader=_CargadorQueNoPerdona)
         except ValueError as e:
             raise AssertionError(f"{archivo.relative_to(RAIZ)}: {e}") from e
+
+
+# --- la demo del programa instalado no se regala -----------------------------
+
+def test_la_landing_no_ofrece_descargar_ningun_binario():
+    """El instalador, el portable, la edición BAT y el APK estuvieron colgados
+    de la landing con enlace directo: cualquiera se llevaba el producto entero
+    sin dejar un nombre. Ahora el visitante prueba la app en el navegador y el
+    programa instalado se muestra en una demo uno a uno.
+
+    Se mira la salida generada, no el generador: el bug volvería agregando un
+    ítem a `desc_items`, y ahí el .py sigue leyéndose igual de bien.
+    """
+    binarios = re.compile(r"https?://[^\"']*\.(?:exe|zip|apk|aab|msi)\b", re.I)
+    paginas = [RAIZ / "landing" / "index.html",
+               RAIZ / "landing" / "pt" / "index.html",
+               RAIZ / "landing" / "en" / "index.html",
+               RAIZ / "public" / "index.html",
+               RAIZ / "public" / "pt" / "index.html",
+               RAIZ / "public" / "en" / "index.html"]
+    revisadas = 0
+    for p in paginas:
+        if not p.exists():       # public/ lo arma el build; landing/ el generador
+            continue
+        revisadas += 1
+        hallados = sorted(set(binarios.findall(p.read_text(encoding="utf-8"))))
+        assert not hallados, (
+            f"{p.relative_to(RAIZ)} vuelve a enlazar binarios: {hallados}. "
+            "La demo del programa instalado se da en vivo (sección #demo).")
+    assert revisadas, "no se generó ninguna página: corré marketing.generar_landing"
+
+
+def test_el_formulario_de_demo_pide_los_datos_que_filtran():
+    """Sin nombre, empresa y país el formulario no filtra nada: deja de ser un
+    registro de quién pidió acceso y pasa a ser un buzón anónimo."""
+    for sufijo in ("", "pt/", "en/"):
+        p = RAIZ / "landing" / sufijo / "index.html"
+        if not p.exists():
+            continue
+        html = p.read_text(encoding="utf-8")
+        assert 'id="demo-form"' in html, f"{p.relative_to(RAIZ)}: falta el formulario"
+        assert "/api/demo/solicitar" in html, (
+            f"{p.relative_to(RAIZ)}: el formulario no le pide la demo al backend")
+        for campo in ("nombre", "empresa", "pais", "email"):
+            assert re.search(rf'name="{campo}"[^>]*\brequired\b', html), (
+                f"{p.relative_to(RAIZ)}: «{campo}» no es obligatorio")

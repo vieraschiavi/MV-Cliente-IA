@@ -37,15 +37,30 @@ h1,h2,h3{margin:0;line-height:1.12;letter-spacing:-.02em;text-wrap:balance}
 
 nav{position:sticky;top:0;z-index:30;background:rgba(10,16,32,.85);backdrop-filter:blur(10px);
   border-bottom:1px solid var(--line)}
-nav .wrap{display:flex;align-items:center;gap:16px;height:62px}
-.brand{display:flex;align-items:center;gap:10px;font-weight:800}
+nav .wrap{display:flex;align-items:center;gap:12px;height:62px;padding:0 16px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;flex:none;white-space:nowrap}
 .brand img{width:30px;height:30px;border-radius:8px;display:block}
 .brand b{font-size:15px}
-.nlinks{display:flex;gap:2px;margin-left:12px}
-.nlinks a{color:var(--muted);font-size:13.5px;font-weight:600;padding:7px 11px;border-radius:8px}
+.nlinks{display:flex;gap:2px;margin-left:8px}
+.nlinks a{color:var(--muted);font-size:13.5px;font-weight:600;padding:7px 8px;border-radius:8px;
+  white-space:nowrap}
 .nlinks a:hover{color:#fff;background:rgba(255,255,255,.06)}
-@media(max-width:860px){.nlinks{display:none}}
-.right{margin-left:auto;display:flex;align-items:center;gap:10px}
+/* La barra tiene alto fijo (62px) y no envuelve: si los enlaces no entran,
+   se esconden enteros en vez de partirse en dos líneas. Pasó al agregar
+   «Pedir demo»: con seis enlaces, «Cómo funciona» se cortaba en dos y el
+   botón verde se salía de la pantalla. Seis enlaces entran justo en los
+   1032px útiles de .wrap, así que abajo de 1080 se ocultan (el contenido
+   sigue a un scroll de distancia). */
+@media(max-width:1080px){.nlinks{display:none}}
+.right{margin-left:auto;display:flex;align-items:center;gap:8px;flex:none}
+nav .right .btn{padding:10px 14px}
+/* En un celular no entran el nombre largo del producto, el selector de idioma
+   y un botón de cuatro palabras: el botón pasa a la etiqueta corta (la misma
+   del menú) y el nombre se queda en el isotipo. Sin esto la barra medía 519px
+   en una pantalla de 320 y arrastraba scroll horizontal a TODA la página. */
+.cta-corto{display:none}
+@media(max-width:640px){.cta-largo{display:none}.cta-corto{display:inline}}
+@media(max-width:430px){.brand b{display:none}}
 .lang{display:flex;gap:2px;background:rgba(255,255,255,.06);border:1px solid var(--line2);
   border-radius:8px;padding:3px}
 .lang a{color:var(--faint);font-size:11.5px;font-weight:800;padding:5px 9px;border-radius:6px;
@@ -54,7 +69,7 @@ nav .wrap{display:flex;align-items:center;gap:16px;height:62px}
 
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:750;
   font-size:14px;border-radius:9px;padding:11px 18px;border:1px solid transparent;
-  transition:transform .12s}
+  transition:transform .12s;white-space:nowrap}
 .btn:hover{transform:translateY(-1px)}
 .btn-a{background:var(--green);color:var(--green-ink);box-shadow:0 6px 20px rgba(0,200,150,.25)}
 .btn-o{background:transparent;color:#fff;border-color:var(--line2)}
@@ -125,6 +140,26 @@ section{padding:64px 0;border-top:1px solid var(--line)}
 .plan ul{margin:0 0 16px;padding-left:18px;color:var(--muted);font-size:13.5px}
 .plan li{margin-bottom:6px}
 
+/* Pedido de demo. El producto instalado no se descarga de acá: se muestra en
+   una reunión. Un .exe público es el artefacto de ingeniería entero servido a
+   quien quiera copiarlo, y no deja rastro de quién se lo llevó. */
+.demo-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;
+  max-width:760px;background:var(--navy2);border:1px solid var(--line);border-radius:16px;
+  padding:24px}
+.demo-form label{display:block;font-size:12.5px;font-weight:700;color:var(--muted);
+  margin-bottom:6px}
+.demo-form input,.demo-form textarea{width:100%;box-sizing:border-box;background:var(--navy3);
+  border:1px solid var(--line2);border-radius:10px;padding:11px 13px;color:#fff;
+  font:inherit;font-size:14px}
+.demo-form input:focus,.demo-form textarea:focus{outline:none;border-color:var(--green)}
+.demo-form textarea{min-height:88px;resize:vertical}
+.demo-ancho{grid-column:1/-1}
+.demo-form .btn{justify-self:start}
+.demo-nota{color:var(--faint);font-size:12.5px;line-height:1.55;margin:0}
+.demo-estado{margin:0;font-size:14px;line-height:1.55;color:var(--green)}
+.demo-estado.mal{color:var(--amber)}
+.demo-estado a{color:inherit;text-decoration:underline}
+
 .cierre{text-align:center;background:linear-gradient(180deg,transparent,rgba(0,200,150,.07))}
 .cierre .sec-p{margin-left:auto;margin-right:auto}
 footer{border-top:1px solid var(--line);padding:30px 0 46px;color:var(--faint);font-size:12.5px}
@@ -136,9 +171,10 @@ footer p{max-width:78ch;margin:0 0 10px}
 <nav><div class="wrap">
   <a class="brand" href="../"><img src="../mv_icon.png" alt="MV SearchCostumer AI">
     <b>MV SearchCostumer <span class="gr">AI</span></b></a>
-  <div class="nlinks"><a href="#pasos">How it works</a><a href="#video">Video</a><a href="#idiomas">Languages</a><a href="#descargar">Download</a><a href="#precios">Pricing</a></div>
+  <div class="nlinks"><a href="#pasos">How it works</a><a href="#video">Video</a><a href="#idiomas">Languages</a><a href="#descargar">Try it</a><a href="#demo">Demo</a><a href="#precios">Pricing</a></div>
   <div class="right"><div class="lang"><a href="../">ES</a><a href="../pt/">PT</a><a href="../en/" class="on">EN</a></div>
-    <a class="btn btn-a" href="../app/">Try it with my site</a></div>
+    <a class="btn btn-a" href="../app/"><span class="cta-largo">Try it with my site</span>
+      <span class="cta-corto">Try it</span></a></div>
 </div></nav>
 
 <header class="hero"><div class="wrap">
@@ -149,7 +185,7 @@ footer p{max-width:78ch;margin:0 0 10px}
     <a class="btn btn-a" href="../app/">Try it with my site<svg class="ico" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.4 12h15.2"/><path d="m13.6 5.6 6.4 6.4-6.4 6.4"/></svg></a>
     <a class="btn btn-o" href="#pasos">See how it works</a>
   </div>
-  <small>Runs in your browser, on your PC (Windows) and on your phone (Android). The demo uses synthetic data: evaluate it without handing anything over.</small>
+  <small>Try it right now in your browser, on synthetic data, without handing anything over. The PC (Windows) and Android builds come with the licence; the full product is shown in a one-to-one demo.</small>
 </div></header>
 
 <section id="pasos"><div class="wrap">
@@ -185,11 +221,43 @@ footer p{max-width:78ch;margin:0 0 10px}
 </div></section>
 
 <section id="descargar"><div class="wrap">
-  <h2 class="sec-h">Wherever suits you</h2>
-  <p class="sec-p">The same product and the same interface, in all three places.</p>
-  <div class="desc"><article class="d"><b>Browser</b><p>Nothing to install. Open it and search.</p><a class="btn btn-o" href="../app/">Open the app<svg class="ico" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.4 12h15.2"/><path d="m13.6 5.6 6.4 6.4-6.4 6.4"/></svg></a><small>The same interface as on PC and Android.</small></article>
-<article class="d"><b>PC · Windows</b><p>Its own installer with an uninstaller in "Add or remove programs", no admin rights needed. The engine runs on your machine; data stays put.</p><a class="btn btn-o" href="https://github.com/vieraschiavi/MV-Cliente-IA/releases/latest/download/MVClienteIA_Setup_demo.exe" rel="noreferrer"><svg class="ico" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3.6v11.2"/><path d="m7.6 10.4 4.4 4.4 4.4-4.4"/><path d="M4.4 19.6h15.2"/></svg>Download the 14-day trial</a><small>Fourteen days with everything unlocked and no key to enter. After that you keep the synthetic demo, and the licence is bought from Pricing. The installer isn't code-signed: if SmartScreen warns you, "More info → Run anyway". The SHA-256 is published next to the download.</small><a class="btn btn-o" href="https://github.com/vieraschiavi/MV-Cliente-IA/releases/latest/download/MVClienteIA_Portable_demo.zip" rel="noreferrer"><svg class="ico" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3.6v11.2"/><path d="m7.6 10.4 4.4 4.4 4.4-4.4"/><path d="M4.4 19.6h15.2"/></svg>Portable version (ZIP)</a><small>100% on the drive you choose: unzip it anywhere (D:\, a USB stick), run MVClienteIA.exe and that's it — no installer, no temp files on C:, with searches and exports stored in that same folder.</small><a class="btn btn-o" href="https://github.com/vieraschiavi/MV-Cliente-IA/releases/latest/download/MVClienteIA_BAT_demo.zip" rel="noreferrer"><svg class="ico" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3.6v11.2"/><path d="m7.6 10.4 4.4 4.4 4.4-4.4"/><path d="M4.4 19.6h15.2"/></svg>No-.exe version (BAT)</a><small>For companies that don't allow running downloaded programs: the same product and the same interface, but a .bat opens it in your browser using the Python you already have (3.11 or newer). It ships its dependencies inside, so it installs with no internet, and Instalar.bat leaves you the shortcut and the uninstaller just like the regular installer.</small></article>
-<article class="d"><b>Android · APK</b><p>The list and the emails on your phone. Comes connected to the public site: your own server address is only needed if you'd rather run the engine on your PC or your own network.</p><a class="btn btn-o" href="https://github.com/vieraschiavi/MV-Cliente-IA/releases/latest/download/MVClienteIA.apk" rel="noreferrer"><svg class="ico" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3.6v11.2"/><path d="m7.6 10.4 4.4 4.4 4.4-4.4"/><path d="M4.4 19.6h15.2"/></svg>Download the APK</a><small>Direct APK, not from the Play Store: when installing, allow "Install unknown apps" for your browser. The SHA-256 is published next to the download.</small></article></div>
+  <h2 class="sec-h">Try it in your browser</h2>
+  <p class="sec-p">The same interface as on desktop and Android, running right here.</p>
+  <div class="desc"><article class="d"><b>Browser</b><p>Nothing to install. Open it and watch the agent work.</p><a class="btn btn-o" href="../app/">Open the app<svg class="ico" viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4.4 12h15.2"/><path d="m13.6 5.6 6.4 6.4-6.4 6.4"/></svg></a><small>The same interface as on desktop and Android. To see the full product —installed, with your data and no limits— request a demo below.</small></article></div>
+</div></section>
+
+<!-- Pedido de demo. Antes acá colgaban los enlaces directos al instalador de
+     Windows, al portable, a la edición BAT y al APK: cualquiera se llevaba el
+     producto entero sin dejar nombre. Ahora la demo del programa instalado se
+     da en vivo — filtra al curioso del prospecto y deja registro de quién
+     pidió acceso, con qué correo y desde qué empresa. -->
+<section id="demo"><div class="wrap">
+  <h2 class="sec-h">The full demo is shown live</h2>
+  <p class="sec-p">The installed program —desktop and Android, on your data with no limits— isn't downloadable from here: we walk you through it in a 30-minute one-to-one call, using your own site as the example. Leave your details and we'll set up a time.</p>
+  <form class="demo-form" id="demo-form" novalidate
+        data-error="The request couldn't be sent. Try again or write to vieraschiavi@gmail.com."
+        data-ok="Request received. We'll email you to set up a time."
+        data-manual="We couldn't send the automatic notice. Write to us directly at"
+        data-agenda="Book a time now"
+        data-enviando="Sending…">
+    <div><label for="demo-nombre">Full name</label>
+      <input id="demo-nombre" name="nombre" type="text" required minlength="3"
+             maxlength="120" autocomplete="name"></div>
+    <div><label for="demo-empresa">Company</label>
+      <input id="demo-empresa" name="empresa" type="text" required minlength="2"
+             maxlength="120" autocomplete="organization"></div>
+    <div><label for="demo-pais">Country</label>
+      <input id="demo-pais" name="pais" type="text" required minlength="2"
+             maxlength="60" autocomplete="country-name"></div>
+    <div><label for="demo-email">Work email</label>
+      <input id="demo-email" name="email" type="email" required maxlength="200"
+             autocomplete="email"></div>
+    <div class="demo-ancho"><label for="demo-mensaje">What you sell and to whom (optional)</label>
+      <textarea id="demo-mensaje" name="mensaje" maxlength="1000"></textarea></div>
+    <button class="btn btn-a demo-ancho" type="submit">Request the demo</button>
+    <p class="demo-estado demo-ancho" id="demo-estado" role="status" aria-live="polite" hidden></p>
+    <p class="demo-nota demo-ancho">We use your details only to set up the demo. We don't share them with anyone and we don't subscribe you to anything.</p>
+  </form>
 </div></section>
 
 <section id="precios"><div class="wrap">
@@ -294,6 +362,76 @@ document.querySelectorAll("[data-pay]").forEach(function (btn) {
       });
     })
     .catch(function () { fallo(caja.getAttribute("data-error")); });
+})();
+
+/* El pedido de demo. El backend puede responder `enviado:false` sin ser un
+   error: significa que no pudo avisar por correo, y entonces devuelve el
+   contacto directo. Mostrarlo como falla haría abandonar a alguien que ya
+   escribió sus datos, así que se le da la dirección y, si existe, la agenda. */
+(function () {
+  var form = document.getElementById("demo-form");
+  if (!form) return;
+  var estado = document.getElementById("demo-estado");
+  var btn = form.querySelector("button[type=submit]");
+  var etiqueta = btn.textContent;
+  var decir = function (texto, mal, extras) {
+    estado.hidden = false;
+    estado.classList.toggle("mal", !!mal);
+    estado.textContent = texto;
+    (extras || []).forEach(function (nodo) {
+      if (!nodo) return;
+      estado.appendChild(document.createTextNode(" "));
+      estado.appendChild(nodo);
+    });
+  };
+  form.addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    if (!form.checkValidity()) { form.reportValidity(); return; }
+    var datos = {};
+    ["nombre", "empresa", "pais", "email", "mensaje"].forEach(function (k) {
+      datos[k] = (form.elements[k].value || "").trim();
+    });
+    btn.disabled = true; btn.textContent = form.getAttribute("data-enviando");
+    fetch("/api/demo/solicitar", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(datos),
+    })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (res) {
+        if (!res.ok) {
+          btn.disabled = false; btn.textContent = etiqueta;
+          decir((res.d && res.d.detail) || form.getAttribute("data-error"), true);
+          return;
+        }
+        var agenda = null;
+        if (res.d && res.d.agenda) {
+          agenda = document.createElement("a");
+          agenda.href = res.d.agenda;
+          agenda.target = "_blank";
+          agenda.rel = "noreferrer";
+          agenda.textContent = form.getAttribute("data-agenda");
+        }
+        if (res.d && res.d.enviado) {
+          form.reset();
+          btn.textContent = etiqueta;
+          decir(form.getAttribute("data-ok"), false, [agenda]);
+        } else {
+          /* El aviso no salió, pero la persona ya escribió sus datos: se le
+             da el correo directo Y la agenda. Dejarla con "algo falló" sería
+             perder justo al prospecto que se tomó el trabajo de completar. */
+          btn.disabled = false; btn.textContent = etiqueta;
+          var mail = document.createElement("a");
+          mail.href = "mailto:" + ((res.d && res.d.contacto) || "");
+          mail.textContent = (res.d && res.d.contacto) || "";
+          decir(form.getAttribute("data-manual"), true, [mail, agenda]);
+        }
+      })
+      .catch(function () {
+        btn.disabled = false; btn.textContent = etiqueta;
+        decir(form.getAttribute("data-error"), true);
+      });
+  });
 })();
 </script>
 
