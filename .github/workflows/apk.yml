@@ -142,6 +142,31 @@ jobs:
         run: ./gradlew bundleRelease --no-daemon
         working-directory: android
 
+      - name: Verificar que el APK lleve el código de ESTE commit
+        # Durante días la Release tuvo un APK viejo —sin desbloqueo por
+        # licencia y apuntando a un dominio que no resolvía— y nadie se
+        # enteró: el workflow fallaba antes de publicar, así que el asset
+        # anterior seguía pegado al tag y parecía vigente. Bajarlo y mirarlo
+        # por dentro fue la única forma de descubrirlo.
+        #
+        # Esto lo vuelve imposible de repetir en silencio: se abre el APK
+        # recién construido y se comprueba que su bundle traiga marcas que
+        # SÓLO existen en el código actual. Si no están, el APK está mal
+        # armado y no se publica.
+        run: |
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          BUNDLE=$(unzip -Z1 "$APK" 'assets/public/assets/index-*.js' | head -1)
+          if [ -z "$BUNDLE" ]; then
+            echo "::error::El APK no trae el bundle de la app."; exit 1
+          fi
+          for marca in "mv-cliente-ia.vercel.app" "licencia_clave"; do
+            if ! unzip -p "$APK" "$BUNDLE" | grep -qF "$marca"; then
+              echo "::error::El APK no contiene «$marca»: se armó de un build viejo."
+              exit 1
+            fi
+          done
+          echo "OK: el APK lleva el código actual ($BUNDLE)"
+
       - name: Nombrar el APK y el AAB, y calcular SHA-256
         run: |
           cp android/app/build/outputs/apk/release/app-release.apk MVClienteIA.apk
