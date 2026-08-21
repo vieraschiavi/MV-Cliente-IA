@@ -21,7 +21,8 @@
     "analisis": "Analysis",
     "historial": "History",
     "configuracion": "Settings",
-    "metricas": "Metrics"
+    "metricas": "Metrics",
+    "panel": "Dashboard"
   },
   "login": {
     "subtitulo": "Find your next customers",
@@ -396,5 +397,20 @@
     "afin_alta": "same industry",
     "afin_media": "close industry",
     "afin_baja": "different industry"
+  },
+  "panel": {
+    "titulo": "Owner dashboard",
+    "subtitulo": "Sales, revenue and downloads. The numbers come from MercadoPago and GitHub, not from a counter of our own.",
+    "sin_codigo": "Set your owner code in Settings to see this dashboard.",
+    "actualizar": "Refresh",
+    "clientes": "Customers",
+    "ventas": "{{n}} sales",
+    "recaudado": "Revenue",
+    "este_mes": "{{monto}} this month",
+    "descargas": "Downloads",
+    "ultimas_ventas": "Latest sales",
+    "monto": "Amount",
+    "por_archivo": "Downloads per file",
+    "hay_mas": "There are more payments than fit on one page: totals cover the latest 100."
   }
 }

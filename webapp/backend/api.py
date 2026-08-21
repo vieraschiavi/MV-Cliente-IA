@@ -47,6 +47,7 @@ import threading
 import time
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -507,6 +508,124 @@ def licencia_por_pago(datos: PagoIn):
           f"por {MESES_LICENCIA} meses", flush=True)
     datos_clave = licencia.verificar(clave)
     return {"clave": clave, "email": correo, "vence": datos_clave.get("vence", "")}
+
+
+# Repo del que se leen las descargas. Se puede pisar por entorno si el
+# proyecto cambia de casa.
+REPO_DESCARGAS = os.getenv("MVCLIENTE_REPO", "vieraschiavi/MV-Cliente-IA")
+
+
+def _descargas_github() -> dict:
+    """Cuántas veces se bajó cada archivo publicado, y el total.
+
+    Sale de la API pública de GitHub: no hay que guardar ni contar nada acá.
+    Es la única fuente que sabe de verdad cuántos instaladores y APK se
+    bajaron, porque las descargas no pasan por este servidor.
+    """
+    peticion = urllib.request.Request(
+        f"https://api.github.com/repos/{REPO_DESCARGAS}/releases",
+        headers={"accept": "application/vnd.github+json",
+                 "user-agent": "mv-cliente-ia"})
+    with urllib.request.urlopen(peticion, timeout=15) as r:
+        publicaciones = json.load(r)
+
+    por_archivo: dict[str, int] = {}
+    for pub in publicaciones if isinstance(publicaciones, list) else []:
+        for a in pub.get("assets") or []:
+            nombre = str(a.get("name", ""))
+            if nombre.endswith(".sha256"):
+                continue                       # el hash no es una descarga
+            por_archivo[nombre] = por_archivo.get(nombre, 0) + int(a.get("download_count") or 0)
+
+    def _suma(*trozos: str) -> int:
+        return sum(n for arch, n in por_archivo.items()
+                   if any(t in arch for t in trozos))
+
+    return {
+        "total": sum(por_archivo.values()),
+        "por_archivo": dict(sorted(por_archivo.items(), key=lambda kv: -kv[1])),
+        "android": _suma(".apk", ".aab"),
+        "pc": _suma(".exe", "Portable", "BAT"),
+    }
+
+
+def _cobros_mercadopago(token: str) -> dict:
+    """Los pagos de la cuenta: cuántos, de quién y cuánta plata.
+
+    Igual que las descargas, no se guarda nada: MercadoPago ya es la base de
+    datos de las ventas y es la ÚNICA fuente que no se puede desincronizar
+    de la realidad. Se piden los últimos y se agregan acá.
+    """
+    peticion = urllib.request.Request(
+        "https://api.mercadopago.com/v1/payments/search"
+        "?sort=date_created&criteria=desc&limit=100",
+        headers={"Authorization": f"Bearer {token}"})
+    with urllib.request.urlopen(peticion, timeout=20) as r:
+        datos = json.load(r)
+
+    aprobados, total, compradores = [], 0.0, set()
+    mes = datetime.now(UTC).strftime("%Y-%m")
+    del_mes = 0.0
+    for p in datos.get("results") or []:
+        if p.get("status") != "approved":
+            continue
+        monto = float(p.get("transaction_amount") or 0)
+        correo = str((p.get("payer") or {}).get("email") or "")
+        cuando = str(p.get("date_approved") or "")[:10]
+        total += monto
+        compradores.add(correo.lower())
+        if cuando[:7] == mes:
+            del_mes += monto
+        aprobados.append({"fecha": cuando, "monto": monto, "email": correo,
+                          "id": str(p.get("id", ""))})
+
+    return {
+        "ventas": len(aprobados),
+        "clientes": len(compradores),
+        "recaudado": round(total, 2),
+        "recaudado_mes": round(del_mes, 2),
+        "moneda": "UYU",
+        "ultimos": aprobados[:20],
+        # El total que reporta MercadoPago puede ser mayor que lo que entra
+        # en una página: se dice, en vez de que el número parezca completo.
+        "hay_mas": int((datos.get("paging") or {}).get("total") or 0) > len(datos.get("results") or []),
+    }
+
+
+@app.get("/api/panel")
+def panel_del_dueno(request: Request):
+    """Cuántos clientes, cuántas descargas y cuánta plata. Sólo para el dueño.
+
+    Se arma con las dos fuentes que YA tienen el dato —GitHub cuenta las
+    descargas, MercadoPago las ventas— en vez de montar una base de datos
+    que habría que mantener sincronizada con las dos y que en serverless
+    además no tendría dónde vivir.
+
+    Va detrás del código de dueño (`X-MV-Owner`), igual que la exención de
+    cupo. Si alguna fuente falla, se devuelve el resto con el motivo al lado
+    en vez de tumbar el panel entero: saber la mitad sirve, un 500 no.
+    """
+    if not _es_owner(request):
+        raise HTTPException(403, "Este panel es sólo para el dueño.")
+
+    salida: dict = {"generado": datetime.now(UTC).isoformat(timespec="seconds")}
+    try:
+        salida["descargas"] = _descargas_github()
+    except Exception as e:                              # noqa: BLE001
+        salida["descargas"] = None
+        salida["error_descargas"] = f"No se pudieron leer las descargas ({type(e).__name__})"
+
+    token = os.getenv("MERCADOPAGO_ACCESS_TOKEN", "")
+    if not token:
+        salida["cobros"] = None
+        salida["error_cobros"] = "Falta MERCADOPAGO_ACCESS_TOKEN en el servidor."
+    else:
+        try:
+            salida["cobros"] = _cobros_mercadopago(token)
+        except Exception as e:                          # noqa: BLE001
+            salida["cobros"] = None
+            salida["error_cobros"] = f"No se pudieron leer los pagos ({type(e).__name__})"
+    return salida
 
 
 class AnalisisIn(BaseModel):

@@ -21,7 +21,8 @@
     "analisis": "Análisis",
     "historial": "Historial",
     "configuracion": "Configuración",
-    "metricas": "Métricas"
+    "metricas": "Métricas",
+    "panel": "Panel"
   },
   "login": {
     "subtitulo": "Encontrá tus próximos clientes",
@@ -396,5 +397,20 @@
     "afin_alta": "mismo rubro",
     "afin_media": "rubro cercano",
     "afin_baja": "rubro distinto"
+  },
+  "panel": {
+    "titulo": "Panel del dueño",
+    "subtitulo": "Ventas, plata y descargas del producto. Los números salen de MercadoPago y de GitHub, no de un contador propio.",
+    "sin_codigo": "Poné tu código de dueño en Configuración para ver este panel.",
+    "actualizar": "Actualizar",
+    "clientes": "Clientes",
+    "ventas": "{{n}} ventas",
+    "recaudado": "Recaudado",
+    "este_mes": "{{monto}} este mes",
+    "descargas": "Descargas",
+    "ultimas_ventas": "Últimas ventas",
+    "monto": "Monto",
+    "por_archivo": "Descargas por archivo",
+    "hay_mas": "Hay más pagos de los que entran en una página: los totales son de los últimos 100."
   }
 }

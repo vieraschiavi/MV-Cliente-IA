@@ -694,3 +694,92 @@ def test_no_se_saca_licencia_sin_haber_pagado_de_verdad(monkeypatch):
     assert cliente.post("/api/pago/licencia", json={"payment_id": ""}).status_code == 422
     assert cliente.post("/api/pago/licencia",
                         json={"payment_id": "no-numerico"}).status_code == 422
+
+
+def test_el_panel_del_dueno_no_lo_ve_nadie_mas(monkeypatch):
+    """El panel muestra cuánta plata entró y los correos de los compradores.
+    Si se pudiera abrir sin el código, cualquiera vería la facturación."""
+    from webapp.backend import api
+
+    monkeypatch.setenv("MVCLIENTE_OWNER", "codigo-secreto-del-test")
+    cliente = TestClient(api.app)
+
+    assert cliente.get("/api/panel").status_code == 403
+    assert cliente.get("/api/panel",
+                       headers={"X-MV-Owner": "no-es-el-codigo"}).status_code == 403
+
+
+def test_el_panel_junta_descargas_y_plata_sin_guardar_nada(monkeypatch):
+    """Las dos fuentes ya tienen el dato: GitHub cuenta las descargas y
+    MercadoPago las ventas. El panel las agrega; no hay base de datos que
+    pueda quedar desincronizada de la realidad."""
+    import io
+    import json as _json
+
+    from webapp.backend import api
+
+    monkeypatch.setenv("MVCLIENTE_OWNER", "codigo-secreto-del-test")
+    monkeypatch.setenv("MERCADOPAGO_ACCESS_TOKEN", "TEST-token")
+
+    publicaciones = [{"assets": [
+        {"name": "MVClienteIA.apk", "download_count": 30},
+        {"name": "MVClienteIA.apk.sha256", "download_count": 999},   # no cuenta
+        {"name": "MVClienteIA_Setup.exe", "download_count": 12},
+        {"name": "MVClienteIA_BAT_demo.zip", "download_count": 5},
+    ]}]
+    pagos = {"paging": {"total": 2}, "results": [
+        {"status": "approved", "transaction_amount": 6000.0, "id": 1,
+         "date_approved": "2026-08-20T10:00:00Z",
+         "payer": {"email": "uno@empresa.com"}},
+        {"status": "rejected", "transaction_amount": 6000.0, "id": 2,
+         "date_approved": "2026-08-20T11:00:00Z",
+         "payer": {"email": "trucho@empresa.com"}},
+    ]}
+
+    def _urlopen(peticion, timeout=0):
+        url = peticion.full_url
+        if "api.github.com" in url:
+            return io.BytesIO(_json.dumps(publicaciones).encode())
+        if "api.mercadopago.com" in url:
+            return io.BytesIO(_json.dumps(pagos).encode())
+        raise AssertionError(f"pidió una URL inesperada: {url}")
+
+    monkeypatch.setattr("urllib.request.urlopen", _urlopen)
+    cliente = TestClient(api.app)
+    d = cliente.get("/api/panel", headers={"X-MV-Owner": "codigo-secreto-del-test"}).json()
+
+    # Descargas: los .sha256 NO son descargas del producto.
+    assert d["descargas"]["total"] == 47, d["descargas"]
+    assert d["descargas"]["android"] == 30
+    assert d["descargas"]["pc"] == 17
+
+    # Plata: un pago RECHAZADO no es una venta ni un cliente.
+    assert d["cobros"]["ventas"] == 1
+    assert d["cobros"]["clientes"] == 1
+    assert d["cobros"]["recaudado"] == 6000.0
+    assert d["cobros"]["ultimos"][0]["email"] == "uno@empresa.com"
+
+
+def test_si_una_fuente_falla_el_panel_muestra_la_otra(monkeypatch):
+    """Un panel que devuelve 500 porque GitHub tardó no sirve de nada:
+    saber la mitad sirve. Se devuelve lo que se pudo, con el motivo al lado."""
+    import io
+    import json as _json
+
+    from webapp.backend import api
+
+    monkeypatch.setenv("MVCLIENTE_OWNER", "codigo-secreto-del-test")
+    monkeypatch.setenv("MERCADOPAGO_ACCESS_TOKEN", "TEST-token")
+
+    def _urlopen(peticion, timeout=0):
+        if "api.github.com" in peticion.full_url:
+            raise TimeoutError("github no contestó")
+        return io.BytesIO(_json.dumps({"results": [], "paging": {"total": 0}}).encode())
+
+    monkeypatch.setattr("urllib.request.urlopen", _urlopen)
+    cliente = TestClient(api.app)
+    r = cliente.get("/api/panel", headers={"X-MV-Owner": "codigo-secreto-del-test"})
+    assert r.status_code == 200
+    d = r.json()
+    assert d["descargas"] is None and "error_descargas" in d
+    assert d["cobros"] is not None            # la que sí anduvo, se muestra

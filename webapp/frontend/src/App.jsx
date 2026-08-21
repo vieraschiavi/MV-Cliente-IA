@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { api, getToken, setToken } from "./api.js";
+import { api, getOwner, getToken, setToken } from "./api.js";
 import { Icono } from "./componentes/Iconos.jsx";
 import { IDIOMAS, cambiarIdioma, getIdioma, t } from "./i18n/index.js";
 
@@ -12,6 +12,7 @@ import Explorar from "./pages/Explorar.jsx";
 import Historial from "./pages/Historial.jsx";
 import Login from "./pages/Login.jsx";
 import Metricas from "./pages/Metricas.jsx";
+import Panel from "./pages/Panel.jsx";
 import Prospectos from "./pages/Prospectos.jsx";
 
 // `ico` es el nombre de un trazo de componentes/Iconos.jsx, no un emoji: el
@@ -25,6 +26,10 @@ const NAV = [
   { ruta: "/analisis", ico: "barras", clave: "nav.analisis" },
   { ruta: "/metricas", ico: "tendencia", clave: "nav.metricas" },
   { ruta: "/historial", ico: "reloj", clave: "nav.historial" },
+  // Sólo para el dueño: mide el NEGOCIO (ventas, plata, descargas), no
+  // las campañas del cliente. Sin código de dueño ni se ofrece el enlace,
+  // y el backend contesta 403 igual.
+  { ruta: "/panel", ico: "escudo", clave: "nav.panel", soloDueno: true },
   { ruta: "/configuracion", ico: "ajustes", clave: "nav.configuracion" },
 ];
 
@@ -74,7 +79,7 @@ function Sidebar() {
   return (
     <aside className="sidebar">
       <Marca />
-      {NAV.map((n) => (
+      {NAV.filter((n) => !n.soloDueno || getOwner()).map((n) => (
         <button
           key={n.ruta}
           onClick={() => nav(n.ruta)}
@@ -140,6 +145,7 @@ export default function App() {
           <Route path="/analisis" element={<Analisis />} />
           <Route path="/metricas" element={<Metricas />} />
           <Route path="/historial" element={<Historial />} />
+          <Route path="/panel" element={<Panel />} />
           <Route path="/configuracion" element={<Configuracion onSalir={() => setToken(null)} />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
