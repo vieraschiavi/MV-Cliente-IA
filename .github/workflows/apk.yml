@@ -77,8 +77,17 @@ jobs:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
           if [ -z "$KEYSTORE_B64" ]; then
-            echo "::error::Falta el secret ANDROID_KEYSTORE_BASE64 (y sus contraseñas)."
-            echo "Generá el keystore una vez y guardalo como secret:"
+            echo "::error::ANDROID_KEYSTORE_BASE64 llegó VACÍO a este paso."
+            echo ""
+            echo "SI YA LO CARGASTE, mirá primero la PESTAÑA. Es la causa más"
+            echo "común y la más difícil de ver: en Settings -> Secrets and"
+            echo "variables hay TRES sub-pestañas (Actions / Codespaces /"
+            echo "Dependabot) y las tres muestran el mismo título «secretos del"
+            echo "repositorio». Actions SÓLO lee los de su propia pestaña:"
+            echo "  https://github.com/${GITHUB_REPOSITORY}/settings/secrets/actions"
+            echo "Si esa lista aparece vacía, están cargados en otra pestaña."
+            echo ""
+            echo "Si de verdad no existe, generá el keystore UNA vez:"
             echo "  keytool -genkeypair -v -keystore mvclienteia.jks -keyalg RSA \\"
             echo "          -keysize 4096 -validity 10000 -alias mvclienteia"
             echo "  base64 -w0 mvclienteia.jks   # -> secret ANDROID_KEYSTORE_BASE64"
@@ -87,7 +96,18 @@ jobs:
             echo "actualización sobre las instalaciones existentes."
             exit 1
           fi
-          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/mvclienteia.jks"
+          # Que decodifique de verdad. Pegar el base64 con saltos de línea o
+          # espacios da un .jks corrupto y el error recién aparece en Gradle,
+          # a veinte pasos de acá y sin decir que el problema era el pegado.
+          if ! echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/mvclienteia.jks" 2>/dev/null; then
+            echo "::error::El secret ANDROID_KEYSTORE_BASE64 no es base64 válido."
+            echo "Tiene que ser UNA sola línea, sin saltos ni espacios."
+            exit 1
+          fi
+          if [ ! -s "$RUNNER_TEMP/mvclienteia.jks" ]; then
+            echo "::error::El keystore decodificado quedó vacío."; exit 1
+          fi
+          echo "OK: keystore listo ($(stat -c%s "$RUNNER_TEMP/mvclienteia.jks") bytes)"
 
       - name: Construir el APK de release firmado
         env:
