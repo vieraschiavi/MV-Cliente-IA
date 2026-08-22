@@ -186,6 +186,10 @@ class Email:
     landing_url: str = ""
     video_url: str = ""                       # vacío = no hay video que ofrecer
     banner_url: str = ""
+    # El formulario de pedido de demo (`landing#demo`): es el destino del
+    # botón, porque el programa instalado ya no se descarga de la web.
+    demo_url: str = ""
+    captura_url: str = ""                     # segunda imagen: el producto real
     campana_id: str = ""
     palabras: int = 0
 

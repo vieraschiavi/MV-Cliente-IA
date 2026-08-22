@@ -29,6 +29,14 @@ soporta flexbox ni hojas de estilo embebidas, y el banner es una imagen para
 que se vea igual en Gmail, Outlook y Apple Mail. Como la mitad de la gente
 lee con las imágenes bloqueadas, **todo lo que dice el banner también está en
 el texto**: sin imágenes el correo se entiende igual.
+
+El ancho de la tarjeta se maneja con el patrón de la *ghost table*: la tabla
+real va con `width="100%"` y `max-width:600px`, y adentro de un comentario
+condicional `[if mso]` viaja una tabla de 600 px fijos que sólo ve Outlook —
+que no entiende `max-width` y, sin eso, estira el correo a lo ancho de la
+ventana. Antes la tabla llevaba `width="600"` a secas: en un celular de 375 px
+el correo medía 624 y se leía moviéndolo de costado. Lo encontró una captura
+del correo renderizado, no la lectura del HTML.
 """
 from __future__ import annotations
 
@@ -51,41 +59,43 @@ PLANTILLAS: dict[str, dict[str, str]] = {
             "lo que suele aparecer después es {dolor_min}.\n\n"
             "{producto} {propuesta_corta}\n\n"
             "{diferencial}\n\n"
-            "¿Tenés 15 minutos esta semana o la que viene para que te lo muestre "
-            "sobre una cartera de ejemplo? Si no es para vos, decime a quién le "
-            "sirve más y no te escribo de nuevo.\n\n"
+            "¿Querés que te lo muestre sobre el caso de {empresa_prospecto}? Son 30 "
+            "minutos, uno a uno, y la demo se pide desde el sitio. Si no es para "
+            "vos, decime a quién le sirve más y no te escribo de nuevo.\n\n"
             "Saludos,\n{firma}"
         ),
         "seguimiento": (
             "Hola {nombre_pila}: te dejo esto arriba de todo por si se te "
             "perdió. La pregunta concreta es una sola — ¿hoy en {empresa_prospecto} "
             "el orden de la cartera lo decide un criterio común o cada gestor el "
-            "suyo? Si es lo segundo, la demo son 15 minutos.\n\n"
+            "suyo? Si es lo segundo, la demo son 30 minutos.\n\n"
             "Saludos,\n{firma}"
         ),
         # Enlaces, en texto plano — se pegan antes de la firma.
         "linea_video": "Video ({idioma_nombre}): {video_url}",
         "linea_sitio": "Más detalle: {landing_url}",
+        "linea_demo": "Pedir la demo (30 min, con tu propio caso): {demo_url}",
         # HTML
-        "boton": "Ver cómo funciona",
+        "boton": "Pedir la demo",
+        "boton_sitio": "Ver el sitio",
         "boton_video": "▸ Mirar el video",
+        "pie_demo": "La demo es una reunión de 30 minutos, uno a uno, con tu "
+                    "propio caso de ejemplo. Se pide desde el formulario del sitio.",
+        "alt_captura": "{producto} — la lista de clientes potenciales, priorizada",
         "alt_banner": "{producto} — tus próximos clientes, encontrados por vos",
         "pie_html": "Te escribo porque {empresa_prospecto} encaja con lo que hacemos. "
                     "Si preferís que no te escriba más, respondeme «bajá» y listo.",
         # LinkedIn
+        # Sin URLs adentro: los enlaces que EXISTEN se pegan como bloque
+        # aparte (ver `_bloque_enlaces`). Antes había dos plantillas —una con
+        # video y otra con el sitio— y si no había ni sitio ni video quedaba
+        # "Más detalle acá:" seguido de nada.
         "linkedin": (
             "Hola {nombre_pila}, vi que {empresa_prospecto} {senal}. "
             "En {sector_min} eso suele venir con {dolor_min}.\n\n"
             "{producto} {propuesta_corta}\n\n"
-            "Te dejo el video por si te sirve: {video_url}\n"
-            "¿Charlamos 15 minutos esta semana?"
-        ),
-        "linkedin_sin_video": (
-            "Hola {nombre_pila}, vi que {empresa_prospecto} {senal}. "
-            "En {sector_min} eso suele venir con {dolor_min}.\n\n"
-            "{producto} {propuesta_corta}\n\n"
-            "Más detalle acá: {landing_url}\n"
-            "¿Charlamos 15 minutos esta semana?"
+            "Si querés verlo sobre el caso de {empresa_prospecto}, la demo son "
+            "30 minutos y se pide desde el sitio."
         ),
         "linkedin_nota": (
             "Hola {nombre_pila}, trabajo en {producto}: {propuesta_muy_corta} "
@@ -101,22 +111,27 @@ PLANTILLAS: dict[str, dict[str, str]] = {
             "{sector_min}, o que costuma vir depois é {dolor_min}.\n\n"
             "{producto} {propuesta_corta}\n\n"
             "{diferencial}\n\n"
-            "Você tem 15 minutos esta semana ou na próxima para eu mostrar sobre "
-            "uma carteira de exemplo? Se não for para você, me diga para quem faz "
-            "mais sentido e não escrevo de novo.\n\n"
+            "Quer que eu mostre sobre o caso da {empresa_prospecto}? São 30 minutos, "
+            "um a um, e a demo se pede pelo site. Se não for para você, me diga "
+            "para quem faz mais sentido e não escrevo de novo.\n\n"
             "Abraço,\n{firma}"
         ),
         "seguimiento": (
             "Olá, {nombre_pila}! Subindo este e-mail caso tenha se perdido. "
             "A pergunta é uma só — hoje na {empresa_prospecto} a ordem da carteira "
             "segue um critério comum ou cada operador segue o seu? Se for a segunda, "
-            "a demo leva 15 minutos.\n\n"
+            "a demo leva 30 minutos.\n\n"
             "Abraço,\n{firma}"
         ),
         "linea_video": "Vídeo ({idioma_nombre}): {video_url}",
         "linea_sitio": "Mais detalhes: {landing_url}",
-        "boton": "Ver como funciona",
+        "linea_demo": "Pedir a demo (30 min, com o seu próprio caso): {demo_url}",
+        "boton": "Pedir a demo",
+        "boton_sitio": "Ver o site",
         "boton_video": "▸ Assistir ao vídeo",
+        "pie_demo": "A demo é uma reunião de 30 minutos, um a um, com o seu "
+                    "próprio caso de exemplo. Peça pelo formulário do site.",
+        "alt_captura": "{producto} — a lista de clientes potenciais, priorizada",
         "alt_banner": "{producto} — seus próximos clientes, encontrados para você",
         "pie_html": "Escrevo porque a {empresa_prospecto} combina com o que fazemos. "
                     "Se preferir não receber mais, responda «sair» e pronto.",
@@ -124,15 +139,8 @@ PLANTILLAS: dict[str, dict[str, str]] = {
             "Olá, {nombre_pila}! Vi que a {empresa_prospecto} {senal}. "
             "Em {sector_min} isso costuma vir com {dolor_min}.\n\n"
             "{producto} {propuesta_corta}\n\n"
-            "Deixo o vídeo, caso ajude: {video_url}\n"
-            "Podemos conversar 15 minutos esta semana?"
-        ),
-        "linkedin_sin_video": (
-            "Olá, {nombre_pila}! Vi que a {empresa_prospecto} {senal}. "
-            "Em {sector_min} isso costuma vir com {dolor_min}.\n\n"
-            "{producto} {propuesta_corta}\n\n"
-            "Mais detalhes aqui: {landing_url}\n"
-            "Podemos conversar 15 minutos esta semana?"
+            "Se quiser ver sobre o caso da {empresa_prospecto}, a demo leva 30 "
+            "minutos e é pedida pelo site."
         ),
         "linkedin_nota": (
             "Olá, {nombre_pila}! Trabalho na {producto}: {propuesta_muy_corta} "
@@ -148,22 +156,27 @@ PLANTILLAS: dict[str, dict[str, str]] = {
             "{sector_min}, what usually follows is {dolor_min}.\n\n"
             "{producto} {propuesta_corta}\n\n"
             "{diferencial}\n\n"
-            "Do you have 15 minutes this week or next so I can show you on a sample "
-            "book? If this isn't your call, tell me who it is and I won't email you "
-            "again.\n\n"
+            "Want me to show you on {empresa_prospecto}'s own case? It's 30 minutes, "
+            "one to one, and the demo is requested from the site. If this isn't "
+            "your call, tell me who it is and I won't email you again.\n\n"
             "Best,\n{firma}"
         ),
         "seguimiento": (
             "Hi {nombre_pila} — bumping this in case it got buried. One question: "
             "at {empresa_prospecto} today, does the order of the collections book "
             "follow a shared rule, or does each agent pick their own? If it's the "
-            "second, the demo takes 15 minutes.\n\n"
+            "second, the demo takes 30 minutes.\n\n"
             "Best,\n{firma}"
         ),
         "linea_video": "Video ({idioma_nombre}): {video_url}",
         "linea_sitio": "More detail: {landing_url}",
-        "boton": "See how it works",
+        "linea_demo": "Request the demo (30 min, on your own case): {demo_url}",
+        "boton": "Request the demo",
+        "boton_sitio": "See the site",
         "boton_video": "▸ Watch the video",
+        "pie_demo": "The demo is a 30-minute one-to-one call using your own "
+                    "case as the example. Request it from the form on the site.",
+        "alt_captura": "{producto} — your prospect list, already prioritised",
         "alt_banner": "{producto} — your next customers, found for you",
         "pie_html": "I'm writing because {empresa_prospecto} fits what we do. "
                     "If you'd rather not hear from me again, reply “stop” and that's it.",
@@ -171,15 +184,8 @@ PLANTILLAS: dict[str, dict[str, str]] = {
             "Hi {nombre_pila} — I saw that {empresa_prospecto} {senal}. "
             "In {sector_min} that usually comes with {dolor_min}.\n\n"
             "{producto} {propuesta_corta}\n\n"
-            "Here's the video in case it helps: {video_url}\n"
-            "Worth 15 minutes this week?"
-        ),
-        "linkedin_sin_video": (
-            "Hi {nombre_pila} — I saw that {empresa_prospecto} {senal}. "
-            "In {sector_min} that usually comes with {dolor_min}.\n\n"
-            "{producto} {propuesta_corta}\n\n"
-            "More detail here: {landing_url}\n"
-            "Worth 15 minutes this week?"
+            "If you'd like to see it on {empresa_prospecto}'s own case, the demo "
+            "takes 30 minutes and is requested from the site."
         ),
         "linkedin_nota": (
             "Hi {nombre_pila} — I work on {producto}: {propuesta_muy_corta} "
@@ -263,25 +269,37 @@ _HTML = """\
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
        style="background:#f4f6fa;padding:24px 12px;">
 <tr><td align="center">
-  <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"
-         style="width:600px;max-width:100%;background:#ffffff;border-radius:14px;
+  <!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0"
+      border="0"><tr><td><![endif]-->
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+         style="max-width:600px;background:#ffffff;border-radius:14px;
                 overflow:hidden;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
 {banner}
     <tr><td style="padding:26px 30px 6px;">
       <div style="font-size:15px;line-height:1.6;color:#1c2b42;">{parrafos}</div>
     </td></tr>
     <tr><td style="padding:14px 30px 4px;">
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td
-        style="background:#00c896;border-radius:9px;">
-        <a href="{landing_url}" style="display:inline-block;padding:13px 26px;color:#062018;
-           font-size:15px;font-weight:700;text-decoration:none;">{boton}</a>
-      </td></tr></table>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+        <td style="background:#00c896;border-radius:9px;">
+          <a href="{demo_url}" style="display:inline-block;padding:13px 26px;color:#062018;
+             font-size:15px;font-weight:700;text-decoration:none;">{boton}</a>
+        </td>
+        <td style="padding-left:14px;">
+          <a href="{landing_url}" style="font-size:14px;font-weight:600;color:#0a8f6c;
+             text-decoration:none;">{boton_sitio}</a>
+        </td>
+      </tr></table>
     </td></tr>
 {bloque_video}
-    <tr><td style="padding:20px 30px 26px;">
+{bloque_captura}
+    <tr><td style="padding:20px 30px 6px;">
+      <p style="margin:0;font-size:12.5px;line-height:1.6;color:#5b6b80;">{pie_demo}</p>
+    </td></tr>
+    <tr><td style="padding:6px 30px 26px;">
       <p style="margin:0;font-size:12px;line-height:1.6;color:#8a99ad;">{pie}</p>
     </td></tr>
   </table>
+  <!--[if mso]></td></tr></table><![endif]-->
 </td></tr></table>
 </body>
 </html>"""
@@ -299,6 +317,47 @@ _BLOQUE_VIDEO = """\
       <span style="font-size:13px;color:#8a99ad;"> · {idioma_nombre}</span>
     </td></tr>"""
 
+# La segunda imagen: una captura REAL del producto trabajando (la lista de
+# prospectos priorizada). El banner dice de qué se trata; la captura muestra
+# lo que la persona se lleva. Va enlazada al formulario de demo, que es la
+# acción que se le pide.
+_BLOQUE_CAPTURA = """\
+    <tr><td style="padding:16px 30px 0;">
+      <a href="{destino}"><img src="{captura_url}" width="540" alt="{alt}"
+         style="display:block;width:100%;max-width:540px;height:auto;border:0;
+                border-radius:10px;"></a>
+    </td></tr>"""
+
+
+def _con_enlaces(texto: str, plantilla: dict, contexto: dict,
+                 video_url: str, landing_url: str, demo_url: str,
+                 antes_del_ultimo: bool) -> str:
+    """Pega el bloque de enlaces al texto, con UNA línea por URL que exista.
+
+    Antes cada plantilla traía las URLs adentro, y había dos versiones —con
+    video y sin video— para elegir. Con un sitio sin configurar quedaba «Más
+    detalle acá:» seguido de nada: la plantilla no puede saber qué enlaces
+    existen, así que el bloque se arma acá, donde sí se sabe.
+
+    `antes_del_ultimo` mete el bloque delante del último párrafo (la firma del
+    correo); en falso lo agrega al final, que es lo que corresponde en
+    LinkedIn, donde no hay firma.
+    """
+    lineas = []
+    if video_url:
+        lineas.append(plantilla["linea_video"].format(**contexto))
+    if landing_url:
+        lineas.append(plantilla["linea_sitio"].format(**contexto))
+    if demo_url:
+        lineas.append(plantilla["linea_demo"].format(**contexto))
+    if not lineas:
+        return texto
+    bloque = "\n".join(lineas)
+    if not antes_del_ultimo:
+        return texto + "\n\n" + bloque
+    partes = texto.rsplit("\n\n", 1)
+    return partes[0] + "\n\n" + bloque + "\n\n" + partes[-1]
+
 
 def _a_html(cuerpo: str) -> str:
     """Texto plano → párrafos HTML, escapando lo que venga del prospecto."""
@@ -309,11 +368,17 @@ def _a_html(cuerpo: str) -> str:
 
 
 def _armar_html(contexto: dict, plantilla: dict, cuerpo: str, idioma: str,
-                landing_url: str, video_url: str, banner_url: str) -> str:
+                landing_url: str, video_url: str, banner_url: str,
+                demo_url: str = "", captura_url: str = "") -> str:
+    # Todo lo que se puede clickear apunta a la demo si existe: es la acción
+    # que se le pide a quien recibe el correo. Si no hay sitio configurado, el
+    # botón cae al enlace de la web y, sin eso, a "#" — nunca a un href vacío,
+    # que en Outlook abre una ventana en blanco.
+    accion = demo_url or landing_url
     alt = plantilla["alt_banner"].format(**contexto)
     banner = ""
     if banner_url:
-        banner = _BANNER.format(destino=escape(video_url or landing_url, quote=True),
+        banner = _BANNER.format(destino=escape(video_url or accion, quote=True),
                                 banner_url=escape(banner_url, quote=True),
                                 alt=escape(alt, quote=True))
     bloque_video = ""
@@ -322,14 +387,24 @@ def _armar_html(contexto: dict, plantilla: dict, cuerpo: str, idioma: str,
             video_url=escape(video_url, quote=True),
             boton_video=escape(plantilla["boton_video"]),
             idioma_nombre=NOMBRE_IDIOMA[idioma])
+    bloque_captura = ""
+    if captura_url:
+        bloque_captura = _BLOQUE_CAPTURA.format(
+            destino=escape(accion or "#", quote=True),
+            captura_url=escape(captura_url, quote=True),
+            alt=escape(plantilla["alt_captura"].format(**contexto), quote=True))
     return _HTML.format(
         lang="pt-BR" if idioma == "pt" else idioma,
         asunto=escape(plantilla["asunto"].format(**contexto), quote=True),
         banner=banner,
         parrafos=_a_html(cuerpo),
-        landing_url=escape(landing_url or "#", quote=True),
+        demo_url=escape(accion or "#", quote=True),
+        landing_url=escape(landing_url or accion or "#", quote=True),
         boton=escape(plantilla["boton"]),
+        boton_sitio=escape(plantilla["boton_sitio"]),
         bloque_video=bloque_video,
+        bloque_captura=bloque_captura,
+        pie_demo=escape(plantilla["pie_demo"]),
         pie=escape(plantilla["pie_html"].format(**contexto)),
     )
 
@@ -382,10 +457,17 @@ def redactar(decisor: Decisor, prospecto: Prospecto, empresa: Empresa,
         _meta("email"))
     video_url = enlaces.video(idioma, prospecto.campana_id, prospecto.id, "email")
     banner_url = enlaces.banner(idioma)
+    captura_url = enlaces.captura(idioma)
+    demo_url = enlaces.traqueada(
+        enlaces.demo(idioma, prospecto.campana_id, prospecto.id, "email"),
+        _meta("email"))
     landing_li = enlaces.traqueada(
         enlaces.landing(idioma, prospecto.campana_id, prospecto.id, "linkedin"),
         _meta("linkedin"))
     video_li = enlaces.video(idioma, prospecto.campana_id, prospecto.id, "linkedin")
+    demo_li = enlaces.traqueada(
+        enlaces.demo(idioma, prospecto.campana_id, prospecto.id, "linkedin"),
+        _meta("linkedin"))
 
     # Los decisores de empresas reales viajan sin nombre (no se inventan
     # personas): el saludo lleva un hueco explícito para completar cuando se
@@ -407,6 +489,7 @@ def redactar(decisor: Decisor, prospecto: Prospecto, empresa: Empresa,
         "idioma_nombre": NOMBRE_IDIOMA[idioma],
         "video_url": video_url,
         "landing_url": landing_url,
+        "demo_url": demo_url,
     }
 
     # El texto base no lleva enlaces: es el que se convierte en los párrafos
@@ -416,24 +499,21 @@ def redactar(decisor: Decisor, prospecto: Prospecto, empresa: Empresa,
 
     # En texto plano sí van, en su propio bloque antes de la firma: metidas en
     # medio de un párrafo, los filtros de correo las leen peor y la persona las
-    # saltea.
-    cuerpo = base
-    lineas = []
-    if video_url:
-        lineas.append(plantilla["linea_video"].format(**contexto))
-    if landing_url:
-        lineas.append(plantilla["linea_sitio"].format(**contexto))
-    if lineas:
-        partes = base.rsplit("\n\n", 1)               # el último bloque es la firma
-        cuerpo = partes[0] + "\n\n" + "\n".join(lineas) + "\n\n" + partes[-1]
+    # saltea. Cada línea se arma SÓLO si su URL existe — de ahí que no pueda
+    # quedar un "Más detalle:" seguido de nada.
+    cuerpo = _con_enlaces(base, plantilla, contexto,
+                          video_url, landing_url, demo_url, antes_del_ultimo=True)
 
-    contexto_li = {**contexto, "video_url": video_li, "landing_url": landing_li}
-    clave_li = "linkedin" if video_li else "linkedin_sin_video"
-    linkedin = plantilla[clave_li].format(**contexto_li).strip()
-    if not (video_li or landing_li):
-        # Sin ningún enlace, la línea del medio quedaba colgada.
-        linkedin = "\n\n".join(p for p in linkedin.split("\n\n")
-                               if "http" not in p) .strip()
+    # En LinkedIn el bloque va al final: no hay firma que respetar, y el
+    # mensaje cierra invitando a pedir la demo — poner los enlaces antes de esa
+    # frase dejaba las URLs explicándose después de aparecer. Tampoco lleva el
+    # enlace al sitio suelto: el de la demo ya es el sitio, y dos URLs casi
+    # iguales en un mensaje corto se leen como spam.
+    contexto_li = {**contexto, "video_url": video_li,
+                   "landing_url": landing_li, "demo_url": demo_li}
+    linkedin = _con_enlaces(plantilla["linkedin"].format(**contexto_li).strip(),
+                            plantilla, contexto_li,
+                            video_li, "", demo_li, antes_del_ultimo=False)
 
     return Email(
         id=f"e{decisor.id[1:]}",
@@ -449,13 +529,16 @@ def redactar(decisor: Decisor, prospecto: Prospecto, empresa: Empresa,
         cuerpo=cuerpo,
         seguimiento=plantilla["seguimiento"].format(**contexto).strip(),
         cuerpo_html=_armar_html(contexto, plantilla, base, idioma,
-                                landing_url, video_url, banner_url),
+                                landing_url, video_url, banner_url,
+                                demo_url, captura_url),
         linkedin=linkedin,
         linkedin_nota=_recortar(plantilla["linkedin_nota"].format(**contexto),
                                 TOPE_NOTA_LINKEDIN),
         landing_url=landing_url,
         video_url=video_url,
         banner_url=banner_url,
+        demo_url=demo_url,
+        captura_url=captura_url,
         campana_id=prospecto.campana_id,
         palabras=len(cuerpo.split()),
     )

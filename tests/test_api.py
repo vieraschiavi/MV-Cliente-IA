@@ -864,3 +864,97 @@ def test_el_pedido_de_demo_valida_lo_que_hace_falta_para_contactar(monkeypatch):
         assert cliente.post("/api/demo/solicitar", json=incompleto).status_code == 422, campo
     malo = {**completo, "email": "esto-no-es-un-correo"}
     assert cliente.post("/api/demo/solicitar", json=malo).status_code == 422
+
+
+# --- dos botones: correo y LinkedIn se mandan por separado -------------------
+
+def test_solo_linkedin_no_necesita_servidor_de_correo(cliente, monkeypatch):
+    """El botón «Enviar por LinkedIn» tiene que funcionar en una máquina que
+    nunca configuró un SMTP: son dos canales distintos y antes el endpoint
+    exigía credenciales de correo para cualquier envío.
+
+    Y como sin SMTP no hay por dónde mandar el comprobante, la respuesta lo
+    dice (`motivo: sin_smtp`) en vez de callarse: la persona tiene que saber
+    que el envío salió pero el recibo no.
+    """
+    from cliente_ia import redes
+
+    llamadas = []
+
+    def falso(claves, destinatario, texto):
+        llamadas.append((destinatario, texto))
+        return {"ok": True, "detalle": ""}
+
+    monkeypatch.setattr(redes, "enviar_linkedin", falso)
+    # Que NO se abra ninguna conexión de correo, ni para el comprobante.
+    import smtplib
+
+    def prohibido(*_a, **_k):
+        raise AssertionError("se intentó conectar al SMTP en un envío de LinkedIn")
+
+    monkeypatch.setattr(smtplib, "SMTP", prohibido)
+    monkeypatch.setattr(smtplib, "SMTP_SSL", prohibido)
+
+    r = cliente.post("/api/automatizar", json={
+        "correos": [],
+        "linkedin": {"proveedor": "unipile", "dsn": "https://api.unipile.test",
+                     "api_key": "clave-secreta-de-unipile", "account_id": "cuenta-1"},
+        "linkedin_mensajes": [
+            {"destinatario": "https://www.linkedin.com/in/ana/", "texto": "Hola Ana",
+             "etiqueta": "Ana · Acme"},
+            {"destinatario": "https://www.linkedin.com/in/luis/", "texto": "Hola Luis",
+             "etiqueta": "Luis · Beta"},
+        ],
+        "manuales": {"instagram": 1, "tiktok": 1},
+    })
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert len(llamadas) == 2
+    assert d["linkedin"] == {"proveedor": "unipile", "total": 2, "enviados": 2,
+                             "resultados": d["linkedin"]["resultados"]}
+    assert d["correos"]["total"] == 0
+    assert d["comprobante"]["ok"] is False
+    assert d["comprobante"]["motivo"] == "sin_smtp"
+    assert "clave-secreta-de-unipile" not in r.text   # nunca la clave del proveedor
+    assert "api_key" not in r.text
+
+
+def test_mandar_correos_sin_smtp_es_un_error_claro(cliente):
+    """Lo que NO puede pasar es lo contrario: pedir correos sin servidor y que
+    el endpoint responda 200 como si los hubiera mandado."""
+    r = cliente.post("/api/automatizar", json={
+        "correos": [{"para": "a@b.com", "asunto": "Hola", "cuerpo": "Hola"}],
+    })
+    assert r.status_code == 422
+    assert "servidor" in r.json()["detail"].lower()
+
+
+def test_el_boton_de_correo_no_arrastra_mensajes_de_linkedin(cliente, monkeypatch):
+    """Cada botón manda lo suyo. Si el envío de correo tocara LinkedIn, el
+    usuario gastaría llamadas del proveedor —que se pagan— sin haberlo pedido."""
+    import smtplib
+
+    from cliente_ia import redes
+
+    class SmtpFalso:
+        def __init__(self, *a, **k): pass
+        def starttls(self, context=None): pass
+        def login(self, u, c): pass
+        def send_message(self, m): pass
+        def quit(self): pass
+
+    monkeypatch.setattr(smtplib, "SMTP", SmtpFalso)
+
+    def prohibido(*_a, **_k):
+        raise AssertionError("se llamó al proveedor de LinkedIn en un envío de correo")
+
+    monkeypatch.setattr(redes, "enviar_linkedin", prohibido)
+
+    r = cliente.post("/api/automatizar", json={
+        "smtp": {"host": "smtp.prueba.com", "puerto": 587,
+                 "usuario": "yo@prueba.com", "clave": "secreta"},
+        "correos": [{"para": "a@b.com", "asunto": "Hola", "cuerpo": "Hola"}],
+        "manuales": {"linkedin": 3},
+    })
+    assert r.status_code == 200, r.text
+    assert r.json()["linkedin"] is None

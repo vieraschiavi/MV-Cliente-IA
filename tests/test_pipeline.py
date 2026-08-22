@@ -89,14 +89,15 @@ def test_los_correos_no_mezclan_idiomas():
     corrida = pipeline.ejecutar("mvkobranzaia.com", modo="demo",
                                 limite_prospectos=60, nombre="MV Kobra AI")
     marcas = {
-        "en": ("Do you have 15 minutes", "predicts which debtors"),
-        "pt": ("Você tem 15 minutos", "prevê quais devedores"),
-        "es": ("¿Tenés 15 minutos", "predice qué deudores"),
+        "en": ("Want me to show you on", "predicts which debtors"),
+        "pt": ("Quer que eu mostre sobre o caso", "prevê quais devedores"),
+        "es": ("¿Querés que te lo muestre", "predice qué deudores"),
     }
     ajenas = {
-        "en": ("¿Tenés", "prioriza la cartera", "Você tem"),
-        "pt": ("¿Tenés", "prioriza la cartera por valor esperado de recupero", "Do you have"),
-        "es": ("Do you have", "Você tem"),
+        "en": ("¿Querés", "prioriza la cartera", "Quer que eu mostre"),
+        "pt": ("¿Querés", "prioriza la cartera por valor esperado de recupero",
+               "Want me to show"),
+        "es": ("Want me to show", "Quer que eu mostre"),
     }
     vistos = set()
     for e in corrida.emails:

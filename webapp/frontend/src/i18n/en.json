@@ -323,8 +323,8 @@
     "prefill_clientes": "New customers per month are estimated from your {{n}} prospects at a typical 3% conversion (≈ {{est}}/month) — replace with your real data if you have it."
   },
   "auto": {
-    "titulo": "Automate flow",
-    "ayuda": "Once the flow, the customers and the channels are approved: one click sends everything and the receipt lands in your inbox. LinkedIn, Instagram and TikTok don't sell a sending API, so they stay queued for manual posting — the receipt says so; nothing is simulated here.",
+    "titulo": "Send to your contacts",
+    "ayuda": "Two independent sends, each with its own button: emails go out through your mail server and messages through your LinkedIn account. Both carry each contact's personalised message, the video, the product image and the link to request a demo. Instagram and TikTok sell no sending API: they stay queued to post by hand — nothing here is simulated.",
     "linea_correos": "{{n}} emails through your SMTP, each in the recipient's language",
     "linea_x": "Publish the campaign post on X (with your API keys)",
     "x_faltan_claves": "Publish on X — paste your API keys in Settings",
@@ -341,7 +341,15 @@
     "comprobante_fallo": "The batch went out but the receipt didn't: check your SMTP",
     "linea_li": "{{n}} LinkedIn messages via {{prov}}",
     "li_falta_proveedor": "LinkedIn — set up your provider in Settings",
-    "listo_li": "{{ok}} of {{total}} sent via {{prov}}"
+    "listo_li": "{{ok}} of {{total}} sent via {{prov}}",
+    "boton_correo": "Send by email",
+    "boton_li": "Send on LinkedIn",
+    "confirmar_correo": "{{n}} emails go out now, each in the recipient's language. Go ahead?",
+    "confirmar_li": "{{n}} messages go out from your LinkedIn account. Go ahead?",
+    "enviando": "Sending…",
+    "li_sin_perfiles": "No contact has a personal LinkedIn profile (/in/…): there's nobody to message.",
+    "sin_smtp_comprobante": "It was sent, but the receipt didn't go out: no mail server configured.",
+    "lleva": "Every message carries: personalised text · video · product image · link to request a demo"
   },
   "metricas": {
     "subtitulo": "Conversion by segment, channel, day and hour from the backend; below, this device's send history.",

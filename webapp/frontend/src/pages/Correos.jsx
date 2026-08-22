@@ -189,20 +189,29 @@ function Mensaje({ correo, decisor, para, setPara, enviar, estado, smtpListo }) 
 }
 
 /**
- * La tarjeta «Automatizar flujo»: el usuario YA revisó el flujo, los clientes
- * y los canales; un click manda todo y el comprobante llega a su casilla.
- * Automatiza lo que tiene API real (correo por SMTP, post en X con las claves
- * del usuario); LinkedIn, Instagram y TikTok no venden API de envío, así que
- * quedan como cola manual y el comprobante lo dice — acá no se simula nada.
+ * La tarjeta de envío a los contactos. Tiene DOS botones independientes —uno
+ * manda los correos por el SMTP del usuario, otro los mensajes desde su
+ * cuenta de LinkedIn— porque son dos decisiones distintas: se puede querer
+ * escribir por correo hoy y por LinkedIn recién la semana que viene, y con un
+ * solo botón «mandar todo» eso no se podía. Cada uno lleva su propio estado y
+ * su propio comprobante.
+ *
+ * Los dos mandan el mismo mensaje personalizado por contacto, con el video,
+ * la imagen del producto y el enlace para PEDIR la demo (la landing ya no
+ * ofrece descargas).
+ *
+ * Instagram y TikTok no venden API de envío, así que quedan como cola manual
+ * y el comprobante lo dice — acá no se simula nada.
  */
 function Automatizar({ listos, adjunto, smtp, correoDe, corrida }) {
   const x = getX();
   const li = getLinkedIn();
   const [conX, setConX] = useState(Boolean(x));
-  const [conLi, setConLi] = useState(Boolean(li));
   const [xTexto, setXTexto] = useState("");
   const [comprobanteA, setComprobanteA] = useState(getEmail() || smtp?.usuario || "");
-  const [estado, setEstado] = useState("");        // "" | "corriendo" | "listo" | error
+  // Un estado por canal: mientras salen los correos, el botón de LinkedIn
+  // tiene que seguir usable, y el error de uno no puede tapar al otro.
+  const [estado, setEstado] = useState({ correo: "", linkedin: "" });
   const [comp, setComp] = useState(null);
 
   // Sólo van por LinkedIn los decisores con identificador de perfil REAL: los
@@ -218,34 +227,53 @@ function Automatizar({ listos, adjunto, smtp, correoDe, corrida }) {
       texto: correo.linkedin,
       etiqueta: `${decisor.nombre} · ${decisor.empresa}`,
     }));
-  const manuales = { instagram: 1, tiktok: 1 };
-  if (!conLi || !li) manuales.linkedin = listos.filter((f) => f.correo.linkedin).length;
+  // Los canales sin API de envío se cuentan siempre; LinkedIn entra a la cola
+  // manual sólo si NO se va a mandar por el proveedor.
+  const manualesDe = (canal) => {
+    const m = { instagram: 1, tiktok: 1 };
+    if (canal !== "linkedin" || !li) {
+      const sinApi = listos.filter((f) => f.correo.linkedin).length;
+      if (sinApi) m.linkedin = sinApi;
+    }
+    return m;
+  };
 
-  const correr = async () => {
-    if (!window.confirm(t("auto.confirmar", { n: listos.length }))) return;
-    setEstado("corriendo");
+  const correr = async (canal) => {
+    const n = canal === "correo" ? listos.length : paraLinkedIn.length;
+    if (!window.confirm(t(`auto.confirmar_${canal === "correo" ? "correo" : "li"}`, { n })))
+      return;
+    setEstado((e) => ({ ...e, [canal]: "corriendo" }));
     setComp(null);
     try {
-      const cuerpo = {
-        smtp: { host: smtp.host, puerto: smtp.puerto, usuario: smtp.usuario,
-                clave: smtp.clave, ssl: Boolean(smtp.ssl) },
-        remitente: smtp.remitente || "",
-        correos: listos.map(({ correo, para }) => correoDe(correo, para)),
-        adjuntos: adjunto ? [adjunto] : [],
-        comprobante_a: comprobanteA.trim(),
-        manuales,
-        ...(conX && x && xTexto.trim() ? { x, x_texto: xTexto.trim() } : {}),
-        ...(conLi && li && paraLinkedIn.length
-          ? { linkedin: li, linkedin_mensajes: paraLinkedIn } : {}),
-      };
+      // El pedido lleva SÓLO lo del canal que se apretó. El backend acepta un
+      // envío sin SMTP justamente para esto: mandar por LinkedIn desde una
+      // máquina que nunca configuró un servidor de correo.
+      const conSmtp = smtp
+        ? { smtp: { host: smtp.host, puerto: smtp.puerto, usuario: smtp.usuario,
+                    clave: smtp.clave, ssl: Boolean(smtp.ssl) },
+            remitente: smtp.remitente || "",
+            comprobante_a: comprobanteA.trim() }
+        : {};
+      const cuerpo = canal === "correo"
+        ? { ...conSmtp,
+            correos: listos.map(({ correo, para }) => correoDe(correo, para)),
+            adjuntos: adjunto ? [adjunto] : [],
+            manuales: manualesDe("correo"),
+            ...(conX && x && xTexto.trim() ? { x, x_texto: xTexto.trim() } : {}) }
+        : { ...conSmtp,
+            correos: [],
+            linkedin: li,
+            linkedin_mensajes: paraLinkedIn,
+            manuales: manualesDe("linkedin") };
       const r = await api("/api/automatizar", { metodo: "POST", cuerpo });
       setComp(r);
-      setEstado("listo");
+      setEstado((e) => ({ ...e, [canal]: "listo" }));
       // Al panel de métricas: qué se mandó, cuándo y cómo salió.
       agregarEnvio({
         fecha: new Date().toISOString(),
         dominio: corrida?.dominio || "",
         corrida_id: corrida?.id || "",
+        canal,
         correos: { total: r.correos.total, enviados: r.correos.enviados },
         x: r.x ? { ok: r.x.ok, id: r.x.id, url: r.x.url, texto: xTexto.trim() } : null,
         linkedin: r.linkedin
@@ -255,9 +283,10 @@ function Automatizar({ listos, adjunto, smtp, correoDe, corrida }) {
         manuales: r.manuales || {},
       });
     } catch (e) {
-      setEstado(e.message);
+      setEstado((s) => ({ ...s, [canal]: e.message }));
     }
   };
+  const corriendo = estado.correo === "corriendo" || estado.linkedin === "corriendo";
 
   return (
     <div className="card" style={{ marginBottom: 14 }}>
@@ -280,14 +309,10 @@ function Automatizar({ listos, adjunto, smtp, correoDe, corrida }) {
           </label>
         </li>
         <li>
-          <label>
-            <input type="checkbox" checked={conLi} disabled={!li}
-                   onChange={(e) => setConLi(e.target.checked)} />
-            <Icono nombre="maletin" tam={16} />
-            <span>{li
-              ? t("auto.linea_li", { n: paraLinkedIn.length, prov: li.proveedor })
-              : t("auto.li_falta_proveedor")}</span>
-          </label>
+          <Icono nombre="maletin" tam={16} />
+          <span>{li
+            ? t("auto.linea_li", { n: paraLinkedIn.length, prov: li.proveedor })
+            : t("auto.li_falta_proveedor")}</span>
         </li>
         <li>
           <Icono nombre="camara" tam={16} />
@@ -296,6 +321,9 @@ function Automatizar({ listos, adjunto, smtp, correoDe, corrida }) {
           </span>
         </li>
       </ul>
+      <p className="nota" style={{ marginTop: 0 }}>
+        <Icono nombre="chequeo_circulo" tam={15} /> <span>{t("auto.lleva")}</span>
+      </p>
 
       {conX && x ? (
         <div className="campo crece" style={{ marginBottom: 10 }}>
@@ -310,21 +338,48 @@ function Automatizar({ listos, adjunto, smtp, correoDe, corrida }) {
                onChange={(e) => setComprobanteA(e.target.value)} />
       </div>
 
-      <button className="btn" disabled={!smtp || !listos.length || estado === "corriendo"}
-              title={smtp ? "" : t("correos.smtp_falta")} onClick={correr}>
-        {estado === "corriendo" ? t("auto.corriendo") : `${t("auto.boton")} (${listos.length})`}
-      </button>
+      <div className="acciones-envio">
+        <button className="btn" data-envio="correo"
+                disabled={!smtp || !listos.length || corriendo}
+                title={smtp ? "" : t("correos.smtp_falta")}
+                onClick={() => correr("correo")}>
+          <Icono nombre="sobre" tam={16} />
+          <span>{estado.correo === "corriendo"
+            ? t("auto.enviando")
+            : `${t("auto.boton_correo")} (${listos.length})`}</span>
+        </button>
+        {/* El de LinkedIn NO pide SMTP: son dos canales distintos. Lo que sí
+            pide es un proveedor configurado y al menos un perfil personal
+            (/in/…) al que escribirle. */}
+        {/* `ghost` es el botón secundario del tema de la app: los dos en verde
+            se leían como el mismo botón repetido. */}
+        <button className="btn ghost" data-envio="linkedin"
+                disabled={!li || !paraLinkedIn.length || corriendo}
+                title={!li ? t("auto.li_falta_proveedor")
+                           : (!paraLinkedIn.length ? t("auto.li_sin_perfiles") : "")}
+                onClick={() => correr("linkedin")}>
+          <Icono nombre="maletin" tam={16} />
+          <span>{estado.linkedin === "corriendo"
+            ? t("auto.enviando")
+            : `${t("auto.boton_li")} (${paraLinkedIn.length})`}</span>
+        </button>
+      </div>
 
-      {estado && estado !== "corriendo" && estado !== "listo" ? (
-        <p className="error-note">{estado}</p>
-      ) : null}
+      {["correo", "linkedin"].map((canal) =>
+        estado[canal] && estado[canal] !== "corriendo" && estado[canal] !== "listo" ? (
+          <p className="error-note" key={canal}>{estado[canal]}</p>
+        ) : null)}
       {comp ? (
         <div className="comprobante">
-          <p style={{ color: "var(--green-deep)", fontWeight: 700 }}>
-            <Icono nombre="chequeo_circulo" tam={16} />
-            <span>{t("auto.listo_correos", {
-              ok: comp.correos.enviados, total: comp.correos.total })}</span>
-          </p>
+          {/* Un envío sólo por LinkedIn manda cero correos: mostrar
+              «0 de 0 correos enviados» hacía dudar de si había fallado algo. */}
+          {comp.correos.total ? (
+            <p style={{ color: "var(--green-deep)", fontWeight: 700 }}>
+              <Icono nombre="chequeo_circulo" tam={16} />
+              <span>{t("auto.listo_correos", {
+                ok: comp.correos.enviados, total: comp.correos.total })}</span>
+            </p>
+          ) : null}
           {comp.linkedin ? (
             <p style={{ color: comp.linkedin.enviados ? "var(--green-deep)" : "" }}>
               <Icono nombre={comp.linkedin.enviados ? "chequeo_circulo" : "equis_circulo"} tam={16} />
@@ -356,7 +411,9 @@ function Automatizar({ listos, adjunto, smtp, correoDe, corrida }) {
             <Icono nombre={comp.comprobante?.ok ? "chequeo_circulo" : "alerta"} tam={16} />
             <span>{comp.comprobante?.ok
               ? t("auto.comprobante_ok", { a: comp.comprobante.a })
-              : t("auto.comprobante_fallo")}</span>
+              : (comp.comprobante?.motivo === "sin_smtp"
+                  ? t("auto.sin_smtp_comprobante")
+                  : t("auto.comprobante_fallo"))}</span>
           </p>
         </div>
       ) : null}

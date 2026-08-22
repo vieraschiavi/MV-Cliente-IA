@@ -323,8 +323,8 @@
     "prefill_clientes": "Os clientes novos por mês são estimados dos seus {{n}} prospectos com uma conversão típica de 3% (≈ {{est}}/mês) — substitua pelos seus dados reais se tiver."
   },
   "auto": {
-    "titulo": "Automatizar fluxo",
-    "ayuda": "Quando o fluxo, os clientes e os canais já estão aprovados: um clique envia tudo e o comprovante chega à sua caixa. LinkedIn, Instagram e TikTok não vendem API de envio, então ficam prontos para publicar à mão — o comprovante deixa isso claro, aqui nada é simulado.",
+    "titulo": "Enviar aos contatos",
+    "ayuda": "Dois envios independentes, cada um com o seu botão: os e-mails saem pelo seu servidor de e-mail e as mensagens pela sua conta do LinkedIn. Os dois levam a mensagem personalizada de cada contato, o vídeo, a imagem do produto e o link para pedir a demo. Instagram e TikTok não vendem API de envio: ficam prontos para publicar à mão — aqui não se simula nada.",
     "linea_correos": "{{n}} e-mails pelo seu SMTP, cada um no idioma de quem recebe",
     "linea_x": "Publicar o post da campanha no X (com as suas chaves de API)",
     "x_faltan_claves": "Publicar no X — cole suas chaves de API em Configurações",
@@ -341,7 +341,15 @@
     "comprobante_fallo": "O envio saiu, mas o comprovante não chegou: verifique seu SMTP",
     "linea_li": "{{n}} mensagens de LinkedIn por {{prov}}",
     "li_falta_proveedor": "LinkedIn — configure o seu provedor em Configurações",
-    "listo_li": "{{ok}} de {{total}} enviados por {{prov}}"
+    "listo_li": "{{ok}} de {{total}} enviados por {{prov}}",
+    "boton_correo": "Enviar por e-mail",
+    "boton_li": "Enviar pelo LinkedIn",
+    "confirmar_correo": "Serão enviados {{n}} e-mails agora, cada um no idioma de quem recebe. Seguimos?",
+    "confirmar_li": "Serão enviadas {{n}} mensagens pela sua conta do LinkedIn. Seguimos?",
+    "enviando": "Enviando…",
+    "li_sin_perfiles": "Nenhum contato tem perfil pessoal do LinkedIn (/in/…): não há para quem escrever.",
+    "sin_smtp_comprobante": "Foi enviado, mas o comprovante não saiu: não há servidor de e-mail configurado.",
+    "lleva": "Cada mensagem leva: texto personalizado · vídeo · imagem do produto · link para pedir a demo"
   },
   "metricas": {
     "subtitulo": "Conversão por segmento, canal, dia e hora a partir do backend; abaixo, o histórico de envios deste dispositivo.",

@@ -32,8 +32,19 @@ RUTA_IDIOMA = {"es": "", "pt": "pt/", "en": "en/"}
 # Dónde quedan los banners que genera `marketing/generar_banners.py`.
 RUTA_BANNER = "landing/banners/banner_{idioma}.png"
 
+# La captura del producto trabajando, que genera
+# `marketing/generar_capturas.py`. Es la SEGUNDA imagen del correo: el banner
+# dice de qué se trata, la captura muestra lo que la persona se lleva.
+RUTA_CAPTURA = "landing/banners/captura_{idioma}.png"
+
 # Ancla de la sección de video de la landing generada.
 ANCLA_VIDEO = "#video"
+
+# Ancla del formulario de pedido de demo. Es el destino del botón de cada
+# correo y de cada mensaje de LinkedIn: el programa instalado ya no se
+# descarga desde la landing, así que la acción que se le pide al que recibe
+# el mensaje es PEDIR la demo, no bajar nada.
+ANCLA_DEMO = "#demo"
 
 
 def _normalizar_sitio(dominio_o_url: str) -> str:
@@ -74,6 +85,7 @@ class Enlaces:
     sitio: str = ""
     videos: dict[str, str] = field(default_factory=dict)
     banners: dict[str, str] = field(default_factory=dict)
+    capturas: dict[str, str] = field(default_factory=dict)
     # Con `videos` vacío y esto en False, los mensajes no hablan de ningún
     # video. Se enciende solo cuando hay al menos un video declarado o cuando
     # se pide explícitamente usar la sección de video de la landing.
@@ -114,6 +126,19 @@ class Enlaces:
         base = f"{self.sitio}/{RUTA_IDIOMA[idi]}"
         return base + self._utm(canal, idi, campana_id, prospecto_id) + ANCLA_VIDEO
 
+    def demo(self, idioma: str, campana_id: str = "", prospecto_id: str = "",
+             canal: str = "email") -> str:
+        """La landing en el idioma del receptor, apuntando al formulario de
+        pedido de demo.
+
+        El fragmento va DESPUÉS de los UTM (`…/pt/?utm_source=…#demo`), que es
+        el único orden válido en una URL: un `#` antes de la query convierte
+        todo lo que sigue en parte del fragmento y los UTM dejan de llegar al
+        servidor.
+        """
+        base = self.landing(idioma, campana_id, prospecto_id, canal)
+        return base + ANCLA_DEMO if base else ""
+
     def banner(self, idioma: str) -> str:
         idi = self._idioma(idioma)
         propio = self.banners.get(idi)
@@ -122,6 +147,17 @@ class Enlaces:
         if not self.sitio:
             return ""
         return f"{self.sitio}/{RUTA_BANNER.format(idioma=idi)}"
+
+    def captura(self, idioma: str) -> str:
+        """La captura del producto. Vacía si no hay sitio: una imagen rota en
+        un correo en frío es peor que no poner imagen."""
+        idi = self._idioma(idioma)
+        propia = self.capturas.get(idi)
+        if propia:
+            return propia
+        if not self.sitio:
+            return ""
+        return f"{self.sitio}/{RUTA_CAPTURA.format(idioma=idi)}"
 
     def hay_video(self, idioma: str) -> bool:
         return bool(self.video(idioma))
@@ -168,7 +204,7 @@ class Enlaces:
 
     def a_dict(self) -> dict:
         return {"sitio": self.sitio, "videos": dict(self.videos),
-                "banners": dict(self.banners),
+                "banners": dict(self.banners), "capturas": dict(self.capturas),
                 "video_en_landing": self.video_en_landing, "utm": self.utm}
 
 
@@ -185,6 +221,8 @@ def desde_dict(d: dict | None, dominio: str = "") -> Enlaces:
                 if _url_navegable(v)},
         banners={k: _url_navegable(v) for k, v in (d.get("banners") or {}).items()
                  if _url_navegable(v)},
+        capturas={k: _url_navegable(v) for k, v in (d.get("capturas") or {}).items()
+                  if _url_navegable(v)},
         video_en_landing=bool(d.get("video_en_landing")),
         utm=bool(d.get("utm", True)),
     )

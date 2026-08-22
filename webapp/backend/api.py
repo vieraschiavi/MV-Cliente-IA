@@ -909,7 +909,11 @@ class MetricasXIn(BaseModel):
 
 
 class AutomatizarIn(BaseModel):
-    smtp: SmtpIn
+    # Opcional a propósito: la pantalla tiene DOS botones —«mandar los correos»
+    # y «mandar los mensajes de LinkedIn»— y el de LinkedIn no tiene por qué
+    # exigir un servidor de correo configurado. Sin SMTP no hay correos ni
+    # comprobante, y la respuesta lo dice en vez de fingir que se mandó.
+    smtp: SmtpIn | None = None
     remitente: str = Field(default="", max_length=120)
     correos: list[CorreoEnvioIn] = Field(default_factory=list, max_length=500)
     adjuntos: list[AdjuntoIn] = Field(default_factory=list, max_length=3)
@@ -1085,14 +1089,27 @@ def _html_comprobante(comp: dict) -> str:
 
 @app.post("/api/automatizar", dependencies=[Depends(requiere_auth)])
 def automatizar_flujo(entrada: AutomatizarIn):
-    """El botón «Automatizar flujo»: con el flujo YA aprobado por el usuario,
-    un solo click envía todos los correos por su SMTP, publica en X si cargó
-    sus claves, y manda el comprobante a su propia casilla con el detalle de
-    qué salió, qué falló y qué quedó en cola manual."""
+    """Un envío en lote, con el flujo YA aprobado por el usuario.
+
+    La pantalla lo usa con DOS botones distintos —uno manda los correos, otro
+    los mensajes de LinkedIn— y los dos entran por acá: lo que cambia es qué
+    trae el pedido. Con `correos` vacío no se abre ninguna conexión SMTP, así
+    que el botón de LinkedIn funciona en una máquina que nunca configuró un
+    servidor de correo.
+
+    El comprobante sale por el mismo SMTP y sólo si hay SMTP. Cuando no lo hay
+    la respuesta trae `comprobante.motivo`, que la interfaz muestra: es
+    preferible decir «se mandó, pero no te llega el comprobante» a mandar el
+    comprobante a ningún lado y quedarse callado.
+    """
     from datetime import UTC as _UTC
     from datetime import datetime as _dt
 
-    servidor = _conectar_smtp(entrada.smtp)
+    if entrada.correos and not entrada.smtp:
+        raise HTTPException(422, "Para enviar correos hay que configurar el "
+                                 "servidor de salida (Configuración → Envío de correos).")
+
+    servidor = _conectar_smtp(entrada.smtp) if entrada.smtp else None
     resultados: list[dict] = []
     try:
         for c in entrada.correos:
@@ -1110,6 +1127,14 @@ def automatizar_flujo(entrada: AutomatizarIn):
             "linkedin": _mandar_linkedin(entrada),
             "manuales": {k: v for k, v in entrada.manuales.items() if v > 0},
         }
+
+        if not servidor:
+            comp["comprobante"] = {
+                "a": "", "ok": False,
+                "motivo": "sin_smtp",
+                "detalle": "No hay servidor de correo configurado: el envío se "
+                           "hizo, pero el comprobante no se pudo mandar."}
+            return comp
 
         # El comprobante viaja a la casilla del usuario por el mismo SMTP.
         destino = (entrada.comprobante_a or entrada.smtp.usuario).strip()
@@ -1132,10 +1157,11 @@ def automatizar_flujo(entrada: AutomatizarIn):
         r = _mandar_uno(servidor, entrada.smtp, entrada.remitente, recibo, [])
         comp["comprobante"] = {"a": destino, "ok": r["ok"], "detalle": r["detalle"]}
     finally:
-        try:
-            servidor.quit()
-        except Exception:                                # noqa: BLE001
-            pass
+        if servidor is not None:
+            try:
+                servidor.quit()
+            except Exception:                            # noqa: BLE001
+                pass
     return comp
 
 

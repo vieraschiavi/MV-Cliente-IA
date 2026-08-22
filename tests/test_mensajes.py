@@ -182,9 +182,9 @@ def test_linkedin_usa_su_propio_utm(corrida):
 
 def test_el_mensaje_de_linkedin_esta_en_el_idioma_del_receptor(corrida):
     marcas = {
-        "es": "¿Charlamos 15 minutos",
-        "pt": "Podemos conversar 15 minutos",
-        "en": "Worth 15 minutes",
+        "es": "la demo son 30 minutos",
+        "pt": "a demo leva 30 minutos",
+        "en": "the demo takes 30 minutes",
     }
     vistos = set()
     for e in corrida.emails:
