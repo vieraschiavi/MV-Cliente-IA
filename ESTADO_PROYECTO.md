@@ -187,6 +187,23 @@ Ahora:
   `apk.yml`, cada uno con su SHA-256): son el canal de entrega de quien compra
   la licencia. Lo que cambió es a quién se le ofrecen.
 
+12. **`MVCLIENTE_TRAQUEO_SECRETO` y `MVCLIENTE_URL_TRAQUEO`** — las DOS
+    encienden la medición de interacción (tasa de apertura, clicks y tráfico).
+    Sin ellas el correo sale **sin pixel** y los enlaces salen directos: es
+    una función que se prende a propósito, no un rastreador por default. El
+    panel avisa cuando están apagadas, para que un 0% no se lea como un
+    fracaso comercial cuando en realidad no se está midiendo.
+    Generar el secreto: `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`.
+    `MVCLIENTE_URL_TRAQUEO` es la URL pública del backend (la de Vercel).
+
+    **Ojo con dónde persiste.** En el programa instalado (PC/BAT) hay disco y
+    el historial se acumula de verdad — que es donde el cliente que paga corre
+    sus automatizaciones. En Vercel el disco es efímero: el pixel, el redirect
+    y el contador de visitas funcionan, pero los eventos no sobreviven entre
+    invocaciones. Para que el panel del dueño acumule en la web pública hace
+    falta un almacenamiento durable (Vercel KV/Postgres o similar); es la
+    única pieza de infra que queda pendiente.
+
 ## Cómo re-verificar todo (5 min)
 
 ```bash

@@ -7,6 +7,8 @@ agregación sea determinista.
 """
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from cliente_ia import metricas
@@ -298,3 +300,159 @@ def test_con_traqueo_el_correo_de_una_corrida_lleva_el_enlace_de_conversion(monk
     assert cuerpo["canal"] == "email"
     assert cuerpo["programa"] == "mvkobranzaia.com"
     assert cuerpo.get("segmento")           # el sector del prospecto viajó
+
+
+# --- pixel de apertura -------------------------------------------------------
+
+def test_el_pixel_cuenta_la_apertura_y_devuelve_un_gif(monkeypatch):
+    monkeypatch.setenv("MVCLIENTE_TRAQUEO_SECRETO", "secreto-del-pixel")
+    cliente = _cliente()
+    cliente.post("/api/metricas/envios", json={"eventos": [
+        {"programa": "x.com", "canal": "email", "segmento": "fintech",
+         "ts": "2026-03-02T10:00:00+00:00"} for _ in range(10)]})
+
+    token = metricas.firmar_apertura({"programa": "x.com", "canal": "email",
+                                      "segmento": "fintech"})
+    r = cliente.get(f"/api/abierto?t={token}")
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "image/gif"
+    assert r.content.startswith(b"GIF89a")
+    # Sin `no-store`, el proxy de imágenes de Gmail sirve la respuesta
+    # cacheada y las aperturas siguientes no llegan nunca al servidor.
+    assert "no-store" in r.headers["cache-control"]
+
+    d = cliente.get("/api/metricas/resumen?programa=x.com").json()
+    assert d["aperturas"] == 1
+    assert d["tasa_apertura"] == 0.1
+    fila = next(f for f in d["por_segmento"] if f["valor"] == "fintech")
+    assert fila["aperturas"] == 1 and fila["tasa_apertura"] == 0.1
+
+
+def test_reabrir_el_mismo_correo_no_infla_la_apertura(monkeypatch):
+    """El pixel se pide de nuevo cada vez que la persona vuelve al mensaje. Sin
+    dedup por nonce, diez relecturas del mismo correo darían 1000% de
+    apertura."""
+    monkeypatch.setenv("MVCLIENTE_TRAQUEO_SECRETO", "secreto-del-pixel")
+    cliente = _cliente()
+    cliente.post("/api/metricas/envios", json={"eventos": [
+        {"programa": "x.com", "canal": "email", "ts": "2026-03-02T10:00:00+00:00"}
+        for _ in range(10)]})
+    token = metricas.firmar_apertura({"programa": "x.com", "canal": "email"})
+    for _ in range(6):
+        assert cliente.get(f"/api/abierto?t={token}").status_code == 200
+    assert cliente.get("/api/metricas/resumen?programa=x.com").json()["aperturas"] == 1
+
+
+def test_dos_correos_distintos_cuentan_dos_aperturas(monkeypatch):
+    """Que el dedup no se coma aperturas legítimas."""
+    monkeypatch.setenv("MVCLIENTE_TRAQUEO_SECRETO", "secreto-del-pixel")
+    cliente = _cliente()
+    for _ in range(2):
+        cliente.get(f"/api/abierto?t={metricas.firmar_apertura({'canal': 'email'})}")
+    assert metricas.resumen()["aperturas"] == 2
+
+
+def test_el_pixel_devuelve_la_imagen_aunque_el_token_este_roto(monkeypatch):
+    """Un contador que falla no puede ensuciar el correo del cliente: si
+    respondiera un error, el destinatario vería el icono de imagen rota en
+    medio del mensaje. Devuelve el GIF igual, pero NO cuenta."""
+    monkeypatch.setenv("MVCLIENTE_TRAQUEO_SECRETO", "secreto-del-pixel")
+    cliente = _cliente()
+    for basura in ("", "cualquier.cosa", "sin-punto", "a.b.c"):
+        r = cliente.get(f"/api/abierto?t={basura}")
+        assert r.status_code == 200 and r.content.startswith(b"GIF89a")
+    assert metricas.resumen()["aperturas"] == 0
+
+
+def test_un_token_de_apertura_no_sirve_para_redirigir(monkeypatch):
+    """El token del pixel no lleva destino, así que aunque alguien lo pase por
+    `/api/ir` no se convierte en un redirect a ninguna parte."""
+    monkeypatch.setenv("MVCLIENTE_TRAQUEO_SECRETO", "secreto-del-pixel")
+    cliente = _cliente()
+    token = metricas.firmar_apertura({"canal": "email"})
+    r = cliente.get(f"/api/ir?t={token}", follow_redirects=False)
+    assert r.status_code == 400
+    # Y al revés: el token del redirect tampoco cuenta como apertura.
+    tok_ir = metricas.firmar_traqueo("https://ejemplo.com/", {"canal": "email"})
+    assert metricas.verificar_apertura(tok_ir) is None
+
+
+def test_sin_traqueo_configurado_el_correo_sale_sin_pixel(monkeypatch):
+    """No se le mete una imagen invisible al mensaje de nadie por defecto: el
+    traqueo se enciende poniendo las dos variables, no solo."""
+    from cliente_ia.enlaces import Enlaces
+
+    monkeypatch.delenv("MVCLIENTE_TRAQUEO_SECRETO", raising=False)
+    monkeypatch.delenv("MVCLIENTE_URL_TRAQUEO", raising=False)
+    e = Enlaces.desde_dominio("ejemplo.com")
+    assert e.pixel({"canal": "email"}) == ""
+
+    # Con el secreto pero sin URL pública tampoco: hacen falta las DOS.
+    monkeypatch.setenv("MVCLIENTE_TRAQUEO_SECRETO", "secreto-del-pixel")
+    assert e.pixel({"canal": "email"}) == ""
+
+    monkeypatch.setenv("MVCLIENTE_URL_TRAQUEO", "https://mi-servidor.test")
+    url = e.pixel({"canal": "email"})
+    assert url.startswith("https://mi-servidor.test/api/abierto?t=")
+
+
+def test_el_correo_lleva_el_pixel_al_final_cuando_hay_traqueo(monkeypatch):
+    """El pixel va ÚLTIMO: algunos clientes recortan el correo pasados ~102 KB,
+    y si estuviera arriba contaría aperturas de gente que no vio el mensaje."""
+    from cliente_ia.enlaces import Enlaces
+    from cliente_ia.modelos import Decisor, Empresa, Prospecto
+    from cliente_ia.redaccion import redactar
+
+    monkeypatch.setenv("MVCLIENTE_TRAQUEO_SECRETO", "secreto-del-pixel")
+    monkeypatch.setenv("MVCLIENTE_URL_TRAQUEO", "https://mi-servidor.test")
+    p = Prospecto(id="p1", nombre="Acme S.A.", dominio="acme.com.uy",
+                  sector="Bancos", pais="UY", empleados=100)
+    d = Decisor(id="d1", prospecto_id="p1", nombre="Ana Pérez", cargo="Gerente",
+                empresa=p.nombre, pais="UY", email="a@acme.com.uy", idioma="es")
+    email = redactar(d, p, Empresa(dominio="x.com", nombre="X"), None,
+                     enlaces=Enlaces.desde_dominio("x.com"))
+    html = email.cuerpo_html
+    assert "/api/abierto?t=" in html, "falta el pixel de apertura"
+    # `rindex`, no `index`: el correo tiene varias tablas anidadas y comparar
+    # contra la PRIMERA hacía pasar el test con el pixel adentro de la
+    # tarjeta. Lo que importa es que esté después de la ÚLTIMA.
+    assert html.index("/api/abierto?t=") > html.rindex("</table>"), (
+        "el pixel tiene que ir DESPUÉS de la tarjeta, no adentro")
+    # Y el mensaje de LinkedIn no puede llevarlo: es texto plano.
+    assert "/api/abierto" not in email.linkedin
+    assert "/api/abierto" not in email.cuerpo
+
+
+# --- tráfico de la web -------------------------------------------------------
+
+def test_la_visita_guarda_el_dominio_de_origen_y_no_la_url_entera():
+    """La URL de referencia puede llevar los términos de búsqueda de la
+    persona o datos de la sesión de otro sitio. Para el KPI —«qué parte del
+    tráfico lo trae la prospección»— alcanza el dominio, así que se guarda
+    sólo eso: menos dato guardado y el mismo número."""
+    cliente = _cliente()
+    for origen in ("https://www.google.com/search?q=cobranzas+ia",
+                   "https://www.google.com/", "https://t.co/abc", ""):
+        assert cliente.post("/api/visita",
+                            json={"idioma": "es", "origen": origen}).status_code == 204
+
+    d = cliente.get("/api/metricas/resumen").json()
+    assert d["visitas"] == 4
+    por = {f["clave"]: f["visitas"] for f in d["por_origen"]}
+    assert por == {"www.google.com": 2, "t.co": 1, "directo": 1}
+    assert "cobranzas" not in json.dumps(d), "se guardó la búsqueda de la persona"
+
+
+def test_el_trafico_dice_que_parte_lo_trajo_la_prospeccion(monkeypatch):
+    """El número que el usuario pidió: sin esto, «10 clicks desde el correo»
+    no dice si son el 90% del tráfico o el 3%."""
+    monkeypatch.setenv("MVCLIENTE_TRAQUEO_SECRETO", "secreto-del-trafico")
+    cliente = _cliente()
+    for _ in range(10):
+        cliente.post("/api/visita", json={"idioma": "es"})
+    for _ in range(2):
+        tok = metricas.firmar_traqueo("https://ejemplo.com/", {"canal": "email"})
+        cliente.get(f"/api/ir?t={tok}", follow_redirects=False)
+    d = cliente.get("/api/metricas/resumen").json()
+    assert d["visitas"] == 10 and d["conversiones"] == 2
+    assert d["parte_del_trafico"] == 0.2

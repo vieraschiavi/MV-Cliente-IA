@@ -6,19 +6,31 @@ qué está funcionando. No cuántos correos mandaste —eso lo sabe cualquiera�
 sino a QUÉ segmento, en qué DÍA y a qué HORA le fue mejor, y qué proporción
 de esos envíos terminó en una visita a la web.
 
-Dos tipos de evento, en un JSONL que se agrega (nunca se reescribe):
+Cuatro tipos de evento, en un JSONL que se agrega (nunca se reescribe):
 
 - **envio**    — un mensaje que salió: programa (dominio del producto), canal
   (email/linkedin/x), segmento (sector del prospecto), nivel (la ola: local /
   regional / mundo), país, idioma, y el sello de tiempo.
+- **apertura** — el correo se abrió. Llega por `/api/abierto`, el pixel de
+  1×1 del HTML, con la MISMA meta que el enlace, así apertura y click se
+  cruzan en las mismas dimensiones. Se cuentan aperturas únicas por nonce.
 - **conversion** — alguien hizo click en el enlace del mensaje y entró a la
   web. Llega por `/api/ir`, el redirect firmado: sólo cuenta un click cuyo
   token FIRMAMOS nosotros, así que no se puede inflar la conversión a mano.
+- **visita**   — tráfico de la web, venga de donde venga. Llega por
+  `/api/visita`, que dispara la propia landing. Es lo que le da escala al
+  resto: sin esto, "10 clicks desde el correo" no dice si son el 90% del
+  tráfico o el 3%. Sin cookie ni identificador: idioma y dominio de origen.
 
-`resumen()` cruza los dos y saca la tasa de conversión por programa, por
-segmento, por día de la semana y por hora, y marca el mejor de cada uno. CPM
-y CPA salen sólo si se le pasa un costo: sin plata gastada no hay "costo por
-mil" que inventar.
+`resumen()` cruza los cuatro y arma el embudo —enviado → abierto → click— con
+la tasa por programa, segmento, canal, ola y país, más el día y la hora en que
+entra la gente. CPM y CPA salen sólo si se le pasa un costo: sin plata gastada
+no hay "costo por mil" que inventar.
+
+Honestidad de la tasa de apertura: el pixel sólo cuenta si el cliente de correo
+baja las imágenes. Outlook las bloquea por defecto y Gmail las precarga por su
+proxy, así que el número sirve para COMPARAR segmentos, asuntos y horarios
+entre sí, no como cuenta absoluta de personas que leyeron. La interfaz lo dice.
 
 Sobre dónde vive esto
 ---------------------
@@ -149,6 +161,57 @@ def registrar_envios(eventos: list[dict]) -> int:
     return n
 
 
+def registrar_apertura(datos: dict) -> bool:
+    """Cuenta una apertura de correo, salvo que su nonce ya se haya visto.
+
+    Se cuentan aperturas ÚNICAS, no impresiones: el pixel se pide de nuevo
+    cada vez que la persona vuelve a abrir el mensaje, y contar eso daría
+    tasas de apertura por encima del 100%.
+
+    Lo que esta métrica NO es: una verdad exacta. El pixel sólo se carga si el
+    cliente de correo baja las imágenes. Outlook las bloquea por defecto (esas
+    aperturas no se ven) y Gmail las precarga por su proxy (algunas se cuentan
+    sin que nadie haya leído nada). Sirve para COMPARAR segmentos, asuntos y
+    horarios entre sí, que es para lo que se usa; no para afirmar "45 personas
+    leyeron el correo". La interfaz lo dice con todas las letras.
+    """
+    if not _nonce_nuevo("a:" + str(datos.get("nonce", ""))):
+        return False
+    _agregar({
+        "tipo": "apertura",
+        "ts": _ts(datos.get("ts")),
+        "programa": str(datos.get("programa", "")).strip().lower(),
+        "canal": str(datos.get("canal", "")).strip().lower(),
+        "segmento": str(datos.get("segmento", "")).strip().lower(),
+        "nivel": str(datos.get("nivel", "")).strip().lower(),
+        "pais": str(datos.get("pais", "")).strip().upper()[:2],
+        "idioma": str(datos.get("idioma", "")).strip().lower()[:2],
+    })
+    return True
+
+
+def registrar_visita(datos: dict) -> bool:
+    """Una visita a la web, la mande quien la mande.
+
+    Es tráfico TOTAL, no sólo el que viene de los correos: la diferencia entre
+    visitas y conversiones es justamente lo que entra por otro lado (buscador,
+    redes, boca a boca). Sin eso, «100 clicks desde correo» no dice si son el
+    90% del tráfico o el 3%.
+
+    No hay cookie ni identificador de persona: se cuenta la visita con su
+    idioma y de dónde vino, y nada más. No hace falta más para el KPI y evita
+    convertir esto en un rastreador.
+    """
+    _agregar({
+        "tipo": "visita",
+        "ts": _ts(datos.get("ts")),
+        "programa": str(datos.get("programa", "")).strip().lower(),
+        "idioma": str(datos.get("idioma", "")).strip().lower()[:2],
+        "origen": str(datos.get("origen", "")).strip().lower()[:60],
+    })
+    return True
+
+
 def registrar_conversion(datos: dict) -> bool:
     """Cuenta una conversión, salvo que su nonce ya se haya visto (replay del
     mismo enlace). Devuelve True si contó, False si era repetida."""
@@ -231,6 +294,39 @@ def url_de_traqueo(base: str, destino: str, meta: dict) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Pixel de apertura (mismo esquema de firma que el redirect)
+# ---------------------------------------------------------------------------
+def firmar_apertura(meta: dict) -> str:
+    """Token del pixel. Va SIN `u`, que es lo que lo separa del token del
+    redirect: `verificar_traqueo` exige destino, así que un token de apertura
+    nunca puede usarse para hacer rebotar a nadie a ninguna parte."""
+    cuerpo = {"a": 1, "j": meta.get("nonce") or secrets.token_urlsafe(9),
+              **{k: str(v) for k, v in meta.items() if v and k != "nonce"}}
+    crudo = json.dumps(cuerpo, separators=(",", ":"), sort_keys=True).encode()
+    datos = base64.urlsafe_b64encode(crudo).decode().rstrip("=")
+    return f"{datos}.{_firma(datos)}"
+
+
+def verificar_apertura(token: str) -> dict | None:
+    secreto = _secreto_traqueo()
+    if not secreto or not token or token.count(".") != 1:
+        return None
+    datos, firma = token.split(".", 1)
+    if not hmac.compare_digest(firma, _firma(datos)):
+        return None
+    try:
+        cuerpo = json.loads(base64.urlsafe_b64decode(datos + "=" * (-len(datos) % 4)))
+    except (ValueError, TypeError):
+        return None
+    return cuerpo if isinstance(cuerpo, dict) and cuerpo.get("a") else None
+
+
+def url_de_apertura(base: str, meta: dict) -> str:
+    """`<base>/api/abierto?t=<token>`, que es el `src` del pixel del correo."""
+    return f"{base.rstrip('/')}/api/abierto?" + urlencode({"t": firmar_apertura(meta)})
+
+
+# ---------------------------------------------------------------------------
 # Agregación
 # ---------------------------------------------------------------------------
 def _leer(programa: str = "") -> list[dict]:
@@ -288,9 +384,11 @@ def resumen(programa: str = "", costo: float | None = None) -> dict:
     dims_tasa = ("programa", "segmento", "canal", "nivel", "pais")
     env: dict[str, dict] = {d: defaultdict(int) for d in dims_tasa}
     conv: dict[str, dict] = {d: defaultdict(int) for d in dims_tasa}
+    abre: dict[str, dict] = {d: defaultdict(int) for d in dims_tasa}
     conv_dia: dict[int, int] = defaultdict(int)
     conv_hora: dict[int, int] = defaultdict(int)
-    tot_env = tot_conv = 0
+    visitas_origen: dict[str, int] = defaultdict(int)
+    tot_env = tot_conv = tot_abre = tot_visitas = 0
 
     for e in eventos:
         claves = {d: e.get(d, "") for d in dims_tasa}
@@ -299,6 +397,13 @@ def resumen(programa: str = "", costo: float | None = None) -> dict:
             tot_env += n
             for d in dims_tasa:
                 env[d][claves[d]] += n
+        elif e.get("tipo") == "visita":
+            tot_visitas += 1
+            visitas_origen[e.get("origen", "") or "directo"] += 1
+        elif e.get("tipo") == "apertura":
+            tot_abre += 1
+            for d in dims_tasa:
+                abre[d][claves[d]] += 1
         elif e.get("tipo") == "conversion":
             tot_conv += 1
             for d in dims_tasa:
@@ -315,8 +420,10 @@ def resumen(programa: str = "", costo: float | None = None) -> dict:
             if clave == "":
                 continue
             c = conv[dim].get(clave, 0)
+            a = abre[dim].get(clave, 0)
             filas.append({"clave": _rotular(dim, clave), "valor": clave,
-                          "envios": n_env, "conversiones": c, "tasa": _tasa(n_env, c)})
+                          "envios": n_env, "conversiones": c, "tasa": _tasa(n_env, c),
+                          "aperturas": a, "tasa_apertura": _tasa(n_env, a)})
         return filas
 
     def mejor_tasa(dim: str) -> dict | None:
@@ -342,6 +449,18 @@ def resumen(programa: str = "", costo: float | None = None) -> dict:
         "envios": tot_env,
         "conversiones": tot_conv,
         "tasa_conversion": _tasa(tot_env, tot_conv),
+        "aperturas": tot_abre,
+        "tasa_apertura": _tasa(tot_env, tot_abre),
+        # De los que abrieron, cuántos entraron. Es el KPI que separa "el
+        # asunto no engancha" (poca apertura) de "el mensaje no convence"
+        # (abren y no hacen click).
+        "tasa_click_sobre_apertura": _tasa(tot_abre, tot_conv),
+        "visitas": tot_visitas,
+        "por_origen": [{"clave": k, "valor": k, "visitas": v}
+                       for k, v in sorted(visitas_origen.items(), key=lambda kv: -kv[1])],
+        # Qué porción del tráfico de la web la trajo la prospección. Si da
+        # bajo, la web vive de otra cosa y el outbound está pesando poco.
+        "parte_del_trafico": _tasa(tot_visitas, tot_conv),
         "por_programa": tabla_tasa("programa"),
         "por_segmento": tabla_tasa("segmento"),
         "por_canal": tabla_tasa("canal"),

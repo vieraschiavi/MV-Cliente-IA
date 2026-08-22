@@ -301,8 +301,17 @@ _HTML = """\
   </table>
   <!--[if mso]></td></tr></table><![endif]-->
 </td></tr></table>
+{pixel}
 </body>
 </html>"""
+
+# Pixel de apertura. Va ÚLTIMO y fuera de la tarjeta: algunos clientes cortan
+# el correo cuando pasa de ~102 KB y muestran «mensaje recortado»; si el pixel
+# quedara arriba, esa parte se cargaría igual y contaría aperturas de gente
+# que no vio nada. `alt=""` y `aria-hidden` para que un lector de pantalla no
+# anuncie una imagen que no existe.
+_PIXEL = ('<img src="{url}" width="1" height="1" alt="" aria-hidden="true" '
+          'style="display:block;width:1px;height:1px;border:0;">')
 
 _BANNER = """\
     <tr><td style="padding:0;">
@@ -369,7 +378,8 @@ def _a_html(cuerpo: str) -> str:
 
 def _armar_html(contexto: dict, plantilla: dict, cuerpo: str, idioma: str,
                 landing_url: str, video_url: str, banner_url: str,
-                demo_url: str = "", captura_url: str = "") -> str:
+                demo_url: str = "", captura_url: str = "",
+                pixel_url: str = "") -> str:
     # Todo lo que se puede clickear apunta a la demo si existe: es la acción
     # que se le pide a quien recibe el correo. Si no hay sitio configurado, el
     # botón cae al enlace de la web y, sin eso, a "#" — nunca a un href vacío,
@@ -406,6 +416,7 @@ def _armar_html(contexto: dict, plantilla: dict, cuerpo: str, idioma: str,
         bloque_captura=bloque_captura,
         pie_demo=escape(plantilla["pie_demo"]),
         pie=escape(plantilla["pie_html"].format(**contexto)),
+        pixel=_PIXEL.format(url=escape(pixel_url, quote=True)) if pixel_url else "",
     )
 
 
@@ -461,6 +472,10 @@ def redactar(decisor: Decisor, prospecto: Prospecto, empresa: Empresa,
     demo_url = enlaces.traqueada(
         enlaces.demo(idioma, prospecto.campana_id, prospecto.id, "email"),
         _meta("email"))
+    # El pixel lleva la MISMA meta que los enlaces (segmento, ola, país,
+    # idioma), así la tasa de apertura se puede cruzar contra la de click en
+    # las mismas dimensiones. Sólo para el correo: LinkedIn no renderiza HTML.
+    pixel_url = enlaces.pixel(_meta("email"))
     landing_li = enlaces.traqueada(
         enlaces.landing(idioma, prospecto.campana_id, prospecto.id, "linkedin"),
         _meta("linkedin"))
@@ -530,7 +545,7 @@ def redactar(decisor: Decisor, prospecto: Prospecto, empresa: Empresa,
         seguimiento=plantilla["seguimiento"].format(**contexto).strip(),
         cuerpo_html=_armar_html(contexto, plantilla, base, idioma,
                                 landing_url, video_url, banner_url,
-                                demo_url, captura_url),
+                                demo_url, captura_url, pixel_url),
         linkedin=linkedin,
         linkedin_nota=_recortar(plantilla["linkedin_nota"].format(**contexto),
                                 TOPE_NOTA_LINKEDIN),

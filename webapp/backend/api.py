@@ -45,6 +45,7 @@ import re
 import secrets
 import threading
 import time
+import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
@@ -711,6 +712,22 @@ def panel_del_dueno(request: Request):
         except Exception as e:                          # noqa: BLE001
             salida["cobros"] = None
             salida["error_cobros"] = f"No se pudieron leer los pagos ({type(e).__name__})"
+
+    # Interacción: mensajes que salieron, aperturas, clicks y tráfico de la
+    # web. Es la mitad que faltaba del panel — las descargas y los cobros
+    # dicen QUÉ pasó al final, esto dice por qué. Misma fuente que la pantalla
+    # de Métricas del cliente, para que los dos midan lo mismo.
+    try:
+        salida["interaccion"] = metricas.resumen()
+    except Exception as e:                              # noqa: BLE001
+        salida["interaccion"] = None
+        salida["error_interaccion"] = (
+            f"No se pudo leer la interacción ({type(e).__name__})")
+    # Sin las dos variables del traqueo, las tasas de apertura y click salen
+    # en cero porque no hay pixel ni redirect, no porque a nadie le importe el
+    # producto. Se dice, en vez de mostrar un 0% que se lee como un fracaso.
+    salida["traqueo_activo"] = bool(
+        metricas.hay_traqueo() and (os.getenv("MVCLIENTE_URL_TRAQUEO") or "").strip())
     return salida
 
 
@@ -1035,6 +1052,74 @@ def ir(t: str = ""):
     # 302 y no 301: el 301 lo cachea el navegador y un segundo click no
     # volvería a pasar por acá, perdiendo la conversión repetida.
     return RedirectResponse(destino, status_code=302)
+
+
+# GIF transparente de 1×1, el más chico que existe (43 bytes). Va literal para
+# no depender de ninguna librería de imágenes en el borde público.
+_GIF_1x1 = base64.b64decode(
+    "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7")
+
+
+@app.get("/api/abierto")
+def abierto(t: str = ""):
+    """El pixel de apertura del correo. Cuenta que el mensaje se abrió y
+    devuelve un GIF de 1×1.
+
+    Sin autenticación, igual que `/api/ir`: lo pide el cliente de correo del
+    DESTINATARIO, que no tiene sesión. La defensa es la firma — un token de
+    apertura no lleva destino (`u`), así que ni siquiera por error puede
+    reutilizarse para redirigir a nadie a ninguna parte.
+
+    **Siempre** devuelve la imagen, incluso con el token roto: si respondiera
+    un error, el cliente de correo mostraría el icono de imagen rota en medio
+    del mensaje. Un contador que falla no puede ensuciar el correo del
+    cliente.
+    """
+    cuerpo = metricas.verificar_apertura(t)
+    if cuerpo:
+        metricas.registrar_apertura({
+            "programa": cuerpo.get("programa", ""), "canal": cuerpo.get("canal", ""),
+            "segmento": cuerpo.get("segmento", ""), "nivel": cuerpo.get("nivel", ""),
+            "pais": cuerpo.get("pais", ""), "idioma": cuerpo.get("idioma", ""),
+            "nonce": cuerpo.get("j", ""),
+        })
+    # `no-store` para que el proxy de imágenes de Gmail no sirva la misma
+    # respuesta cacheada y se pierdan las aperturas siguientes.
+    return Response(content=_GIF_1x1, media_type="image/gif",
+                    headers={"Cache-Control": "no-store, no-cache, must-revalidate",
+                             "Pragma": "no-cache"})
+
+
+class VisitaIn(BaseModel):
+    idioma: str = Field(default="", max_length=8)
+    origen: str = Field(default="", max_length=200)
+    programa: str = Field(default="", max_length=120)
+
+
+@app.post("/api/visita")
+def visita(datos: VisitaIn):
+    """El contador de tráfico de la landing. Lo llama la propia página.
+
+    Sin autenticación —lo dispara un visitante cualquiera— y sin cookie ni
+    identificador de persona: se guarda el idioma de la página y de dónde
+    vino el visitante, nada más. Alcanza para el KPI («¿cuánto del tráfico lo
+    trae la prospección?») y no convierte esto en un rastreador.
+
+    Devuelve 204 sin cuerpo: la página no necesita respuesta y así el pedido
+    no le agrega peso a la carga.
+    """
+    origen = datos.origen.strip()
+    if origen.startswith(("http://", "https://")):
+        # Sólo el dominio de donde vino, nunca la URL entera: la ruta de
+        # referencia puede llevar términos de búsqueda o datos de la sesión
+        # de otro sitio, y para el KPI no aportan nada.
+        try:
+            origen = (urllib.parse.urlsplit(origen).hostname or "").lower()
+        except ValueError:
+            origen = ""
+    metricas.registrar_visita({"idioma": datos.idioma, "origen": origen,
+                               "programa": datos.programa})
+    return Response(status_code=204)
 
 
 def _html_comprobante(comp: dict) -> str:

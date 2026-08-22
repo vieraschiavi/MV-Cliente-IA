@@ -392,7 +392,14 @@
     "mejor_canal": "Melhor canal",
     "sin_muestra": "sem amostra suficiente",
     "junta_mas": "Junte mais envios e conversões para ver qual segmento, dia e hora rendem melhor.",
-    "cuando_entran": "quando as pessoas entram"
+    "cuando_entran": "quando as pessoas entram",
+    "tasa_apertura": "Taxa de abertura",
+    "aperturas_n": "{{n}} e-mails abertos",
+    "click_sobre_apertura": "Clique sobre abertura",
+    "de_los_que_abrieron": "dos que abriram o e-mail",
+    "visitas_web": "Visitas ao site",
+    "parte_del_trafico": "{{p}} veio da prospecção",
+    "aviso_apertura": "A abertura é medida com um pixel: só conta se o cliente de e-mail baixar as imagens. O Outlook as bloqueia por padrão (essas aberturas não aparecem) e o Gmail as pré-carrega (algumas contam sem leitura). Serve para comparar segmentos, assuntos e horários entre si — não como número absoluto."
   },
   "busquedas": {
     "titulo": "Buscar mais clientes deste segmento",
@@ -419,6 +426,18 @@
     "ultimas_ventas": "Últimas vendas",
     "monto": "Valor",
     "por_archivo": "Downloads por arquivo",
-    "hay_mas": "Há mais pagamentos do que cabem numa página: os totais são dos últimos 100."
+    "hay_mas": "Há mais pagamentos do que cabem numa página: os totais são dos últimos 100.",
+    "interaccion": "Interação com as mensagens",
+    "enviados": "Mensagens enviadas",
+    "aperturas": "Aberturas",
+    "clicks": "Cliques no site",
+    "visitas": "Visitas ao site",
+    "por_canal": "{{d}}",
+    "sobre_apertura": "{{p}} dos que abriram",
+    "del_outbound": "{{p}} veio da prospecção",
+    "canal": "Canal",
+    "tasa": "Taxa de clique",
+    "origen_trafico": "De onde vem o tráfego",
+    "traqueo_apagado": "O rastreamento está desligado: sem MVCLIENTE_TRAQUEO_SECRETO e MVCLIENTE_URL_TRAQUEO não há pixel nem redirect, então aberturas e cliques ficam em zero porque não são medidos — não porque não aconteçam."
   }
 }

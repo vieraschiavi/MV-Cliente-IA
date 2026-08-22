@@ -392,7 +392,14 @@
     "mejor_canal": "Best channel",
     "sin_muestra": "not enough sample",
     "junta_mas": "Gather more sends and conversions to see which segment, day and hour perform best.",
-    "cuando_entran": "when people engage"
+    "cuando_entran": "when people engage",
+    "tasa_apertura": "Open rate",
+    "aperturas_n": "{{n}} emails opened",
+    "click_sobre_apertura": "Click over open",
+    "de_los_que_abrieron": "of those who opened the email",
+    "visitas_web": "Website visits",
+    "parte_del_trafico": "{{p}} came from outbound",
+    "aviso_apertura": "Opens are measured with a pixel: they only count if the mail client loads images. Outlook blocks them by default (those opens are invisible) and Gmail preloads them (some count without anyone reading). Use it to compare segments, subject lines and times against each other — not as an absolute number."
   },
   "busquedas": {
     "titulo": "Find more customers in this segment",
@@ -419,6 +426,18 @@
     "ultimas_ventas": "Latest sales",
     "monto": "Amount",
     "por_archivo": "Downloads per file",
-    "hay_mas": "There are more payments than fit on one page: totals cover the latest 100."
+    "hay_mas": "There are more payments than fit on one page: totals cover the latest 100.",
+    "interaccion": "Message engagement",
+    "enviados": "Messages sent",
+    "aperturas": "Opens",
+    "clicks": "Clicks to the site",
+    "visitas": "Website visits",
+    "por_canal": "{{d}}",
+    "sobre_apertura": "{{p}} of those who opened",
+    "del_outbound": "{{p}} came from outbound",
+    "canal": "Channel",
+    "tasa": "Click rate",
+    "origen_trafico": "Where the traffic comes from",
+    "traqueo_apagado": "Tracking is off: without MVCLIENTE_TRAQUEO_SECRETO and MVCLIENTE_URL_TRAQUEO there is no pixel and no redirect, so opens and clicks read zero because nothing is measured — not because nothing happens."
   }
 }

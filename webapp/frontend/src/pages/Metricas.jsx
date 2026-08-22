@@ -64,6 +64,25 @@ function PanelConversion({ resumen }) {
         <Tarjeta titulo={t("metricas.conversiones")}
                  valor={fmtNum(resumen.conversiones, getIdioma())}
                  pie={t("metricas.clicks_web")} />
+        {/* El embudo completo: se mandó → se abrió → entró a la web. La
+            apertura separa «el asunto no engancha» de «abren y no convence»,
+            que son dos problemas con dos arreglos distintos. */}
+        {resumen.aperturas ? (
+          <Tarjeta titulo={t("metricas.tasa_apertura")} valor={pct(resumen.tasa_apertura)}
+                   pie={t("metricas.aperturas_n", {
+                     n: fmtNum(resumen.aperturas, getIdioma()) })} />
+        ) : null}
+        {resumen.aperturas ? (
+          <Tarjeta titulo={t("metricas.click_sobre_apertura")}
+                   valor={pct(resumen.tasa_click_sobre_apertura)}
+                   pie={t("metricas.de_los_que_abrieron")} />
+        ) : null}
+        {resumen.visitas ? (
+          <Tarjeta titulo={t("metricas.visitas_web")}
+                   valor={fmtNum(resumen.visitas, getIdioma())}
+                   pie={t("metricas.parte_del_trafico", {
+                     p: pct(resumen.parte_del_trafico) })} />
+        ) : null}
         {resumen.cpm != null ? (
           <Tarjeta titulo="CPM" valor={fmtNum(resumen.cpm, getIdioma())}
                    pie={t("metricas.por_mil")} />
@@ -73,6 +92,11 @@ function PanelConversion({ resumen }) {
                    pie={t("metricas.por_conversion")} />
         ) : null}
       </div>
+      {resumen.aperturas ? (
+        <p className="nota" style={{ marginTop: 8, marginBottom: 0 }}>
+          {t("metricas.aviso_apertura")}
+        </p>
+      ) : null}
       {resumen.muestra_suficiente ? (
         <div style={{ display: "grid", gap: 10, marginTop: 6,
                       gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>

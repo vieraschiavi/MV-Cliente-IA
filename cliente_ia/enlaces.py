@@ -159,6 +159,21 @@ class Enlaces:
             return ""
         return f"{self.sitio}/{RUTA_CAPTURA.format(idioma=idi)}"
 
+    def pixel(self, meta: dict) -> str:
+        """El `src` del pixel de apertura del correo, o cadena vacía.
+
+        Vacío mientras no estén las DOS cosas que ya pide el redirect de
+        conversión: la URL pública (`MVCLIENTE_URL_TRAQUEO`) y el secreto de
+        firma. Sin eso el correo sale SIN pixel — no se le mete una imagen
+        invisible al mensaje de nadie por defecto: el traqueo se enciende a
+        propósito, poniendo las variables.
+        """
+        base = (os.getenv("MVCLIENTE_URL_TRAQUEO") or "").strip()
+        if not base or not metricas.hay_traqueo():
+            return ""
+        completa = {"programa": self._host(), **{k: v for k, v in meta.items() if v}}
+        return metricas.url_de_apertura(base, completa)
+
     def hay_video(self, idioma: str) -> bool:
         return bool(self.video(idioma))
 

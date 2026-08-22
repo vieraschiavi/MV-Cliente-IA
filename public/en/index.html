@@ -364,6 +364,22 @@ document.querySelectorAll("[data-pay]").forEach(function (btn) {
     .catch(function () { fallo(caja.getAttribute("data-error")); });
 })();
 
+/* Contador de tráfico. Sin cookies, sin terceros y sin identificar a nadie:
+   se avisa el idioma de la página y el dominio de donde vino la visita, y con
+   eso el panel puede decir qué parte del tráfico la trajo la prospección.
+   `keepalive` para que el pedido salga aunque la persona cierre enseguida, y
+   el `catch` vacío porque un contador caído no puede romper la landing. */
+(function () {
+  try {
+    fetch("/api/visita", {
+      method: "POST",
+      keepalive: true,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ idioma: "en", origen: document.referrer || "" }),
+    }).catch(function () {});
+  } catch (e) { /* nada: es sólo un contador */ }
+})();
+
 /* El pedido de demo. El backend puede responder `enviado:false` sin ser un
    error: significa que no pudo avisar por correo, y entonces devuelve el
    contacto directo. Mostrarlo como falla haría abandonar a alguien que ya
