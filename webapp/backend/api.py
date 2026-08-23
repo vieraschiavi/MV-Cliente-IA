@@ -379,6 +379,63 @@ class CheckoutIn(BaseModel):
     plan: str = "licencia"
 
 
+# Cuánto tiempo se calla el aviso de "alguien apretó Comprar" DESPUÉS de haber
+# avisado una vez. Sin esto, alguien que dude y clickee cuatro veces —o un
+# bot que golpee el endpoint— te llena la casilla de un mismo evento repetido.
+# El primer click de cada racha es el que importa: es el que te dice "andá a
+# prender el Pro"; los siguientes ya lo sabés.
+AVISO_COMPRA_SILENCIO_S = int(os.getenv("MVCLIENTE_AVISO_COMPRA_SILENCIO_S", "1800"))
+# `None`, no 0.0: `time.monotonic()` también arranca cerca de cero al iniciar
+# el proceso, así que un sentinel en 0.0 se leía como "avisé hace un instante"
+# durante los primeros ~30 minutos de vida del servidor — el primer click de
+# cada arranque se tragaba en silencio. Lo encontró el test, no la lectura.
+_ultimo_aviso_compra: float | None = None
+
+
+def _avisar_intento_de_compra(plan: dict, clave_plan: str, origen: str) -> None:
+    """Un correo al dueño en el momento en que alguien APRIETA «Comprar», no
+    cuando el pago se confirma. Es la señal para prender Vercel Pro en el
+    proyecto justo antes de que llegue tráfico real — no antes (no se paga
+    especulativamente en los 10 proyectos) ni después (no se pierde la venta
+    por estar en Hobby cuando entra el comprador).
+
+    Nunca bloquea el checkout: si el aviso falla, el cliente igual llega a
+    MercadoPago. Perder un correo de aviso es aceptable; perder una venta por
+    un SMTP caído no lo es.
+    """
+    global _ultimo_aviso_compra
+    import time as _time
+    ahora = _time.monotonic()
+    if _ultimo_aviso_compra is not None and ahora - _ultimo_aviso_compra < AVISO_COMPRA_SILENCIO_S:
+        return
+    if not (SMTP_SERVIDOR["host"] and SMTP_SERVIDOR["usuario"]):
+        return
+    _ultimo_aviso_compra = ahora
+    try:
+        from email.message import EmailMessage
+        msg = EmailMessage()
+        msg["Subject"] = f"MV Cliente IA: alguien apretó Comprar ({clave_plan})"
+        msg["From"] = SMTP_SERVIDOR["usuario"]
+        msg["To"] = OWNER_EMAIL
+        msg.set_content(
+            f"Alguien inició un checkout de «{plan['titulo']}» "
+            f"(US$ {plan['usd']} / $U {plan['uyu']}) desde {origen or 'origen desconocido'}.\n\n"
+            f"Todavía no pagó: esto es el click en «Comprar», antes de MercadoPago. "
+            f"Es el momento de habilitar Vercel Pro en este proyecto si lo tenías "
+            f"apagado para no pagarlo sin ventas.\n\n"
+            f"No se manda otro aviso como este en los próximos "
+            f"{AVISO_COMPRA_SILENCIO_S // 60} minutos, para no inundar la casilla "
+            f"si la misma persona clickea varias veces.")
+        servidor = _conectar_smtp(SmtpIn(**SMTP_SERVIDOR))
+        try:
+            servidor.send_message(msg)
+        finally:
+            servidor.quit()
+    except Exception as e:                               # noqa: BLE001
+        print(f"[checkout] no se pudo avisar el intento de compra: "
+              f"{type(e).__name__}", flush=True)
+
+
 @app.post("/api/checkout")
 def checkout(datos: CheckoutIn, request: Request):
     plan = PLANES.get(datos.plan)
@@ -389,6 +446,10 @@ def checkout(datos: CheckoutIn, request: Request):
         raise HTTPException(503,
             "El pago todavía no está configurado en este servidor. "
             "Escribinos a vieraschiavi@gmail.com y lo resolvemos a mano.")
+
+    _avisar_intento_de_compra(
+        plan, datos.plan,
+        request.headers.get("origin") or request.headers.get("host", ""))
 
     origen = request.headers.get("origin") or f"https://{request.headers.get('host', '')}"
     cuerpo = {

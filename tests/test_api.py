@@ -1036,3 +1036,158 @@ def test_los_mensajes_de_linkedin_tambien_cuentan_como_envio(cliente, monkeypatc
     assert res["envios"] == 2
     assert res["rastreables"] == 0, "LinkedIn no puede aportar al denominador de respuestas"
     assert {f["valor"] for f in res["por_canal"]} == {"linkedin"}
+
+
+# --- aviso por correo del intento de compra ----------------------------------
+
+def _checkout_falso(monkeypatch, **campos):
+    """Simula la respuesta de MercadoPago al CREAR la preferencia (no el pago).
+    Este es el momento del click en «Comprar», antes de que exista ningún pago."""
+    import io
+    import json as _json
+
+    base = {"init_point": "https://www.mercadopago.com.uy/checkout/v1/redirect?x=1"}
+    base.update(campos)
+
+    def _urlopen(peticion, timeout=0):
+        if "checkout/preferences" in peticion.full_url:
+            return io.BytesIO(_json.dumps(base).encode())
+        raise AssertionError(f"pedido inesperado a {peticion.full_url}")
+
+    monkeypatch.setattr("urllib.request.urlopen", _urlopen)
+
+
+def _con_smtp_capturado(monkeypatch):
+    """Un SMTP falso que guarda los correos mandados, para inspeccionarlos."""
+    import smtplib
+
+    mandados = []
+
+    class SmtpFalso:
+        def __init__(self, *a, **k): pass
+        def starttls(self, context=None): pass
+        def login(self, u, c): pass
+        def send_message(self, m): mandados.append(m)
+        def quit(self): pass
+
+    monkeypatch.setattr(smtplib, "SMTP", SmtpFalso)
+    return mandados
+
+
+def test_apretar_comprar_avisa_por_correo_antes_de_que_exista_ningun_pago(monkeypatch):
+    """El punto de todo esto: el aviso sale en el CLICK, no en la confirmación
+    del pago — que puede tardar minutos o no llegar nunca si el comprador se
+    arrepiente a mitad de camino. Para decidir «prendo el Pro ahora» hace
+    falta el momento del click, no el de la plata acreditada."""
+    from webapp.backend import api
+
+    monkeypatch.setenv("MERCADOPAGO_ACCESS_TOKEN", "TEST-token")
+    monkeypatch.setattr(api, "SMTP_SERVIDOR", {
+        "host": "smtp.prueba.com", "puerto": 587,
+        "usuario": "yo@prueba.com", "clave": "secreta-del-smtp", "ssl": False})
+    monkeypatch.setattr(api, "_ultimo_aviso_compra", None)
+    _checkout_falso(monkeypatch)
+    mandados = _con_smtp_capturado(monkeypatch)
+
+    cliente = TestClient(api.app)
+    r = cliente.post("/api/checkout", json={"plan": "licencia"},
+                     headers={"origin": "https://mv-cliente-ia.vercel.app"})
+    assert r.status_code == 200, r.text
+    assert r.json()["url"]                     # el checkout sigue funcionando
+
+    assert len(mandados) == 1, "no se mandó el aviso (o se mandó más de uno)"
+    aviso = mandados[0]
+    assert aviso["To"] == api.OWNER_EMAIL
+    assert "Comprar" in aviso["Subject"]
+    # Tiene que quedar CLARO que esto es el click, no la venta confirmada:
+    # confundirlos haría prender el Pro por una visita que se arrepintió.
+    assert "todavía no pagó" in aviso.get_content().lower()
+    assert "secreta-del-smtp" not in r.text               # nunca la clave del SMTP
+
+
+def test_clickear_varias_veces_manda_un_solo_aviso(monkeypatch):
+    """Sin esto, alguien que duda y clickea cuatro veces —o un bot que golpea
+    el endpoint— llena la casilla con el mismo evento repetido. El primer
+    click de la racha es el que importa."""
+    from webapp.backend import api
+
+    monkeypatch.setenv("MERCADOPAGO_ACCESS_TOKEN", "TEST-token")
+    monkeypatch.setattr(api, "SMTP_SERVIDOR", {
+        "host": "smtp.prueba.com", "puerto": 587,
+        "usuario": "yo@prueba.com", "clave": "x", "ssl": False})
+    monkeypatch.setattr(api, "_ultimo_aviso_compra", None)
+    _checkout_falso(monkeypatch)
+    mandados = _con_smtp_capturado(monkeypatch)
+
+    cliente = TestClient(api.app)
+    for _ in range(5):
+        assert cliente.post("/api/checkout", json={"plan": "licencia"}).status_code == 200
+    assert len(mandados) == 1
+
+
+def test_sin_smtp_configurado_el_checkout_sigue_funcionando(monkeypatch):
+    """No tener el aviso configurado no puede tumbar la venta: el checkout
+    tiene que seguir devolviendo la URL de pago igual."""
+    from webapp.backend import api
+
+    monkeypatch.setenv("MERCADOPAGO_ACCESS_TOKEN", "TEST-token")
+    monkeypatch.setattr(api, "SMTP_SERVIDOR", {
+        "host": "", "puerto": 587, "usuario": "", "clave": "", "ssl": False})
+    monkeypatch.setattr(api, "_ultimo_aviso_compra", None)
+    _checkout_falso(monkeypatch)
+
+    cliente = TestClient(api.app)
+    r = cliente.post("/api/checkout", json={"plan": "licencia"})
+    assert r.status_code == 200 and r.json()["url"]
+
+
+def test_si_el_smtp_del_aviso_falla_el_checkout_no_se_cae(monkeypatch):
+    """Perder el correo de aviso es aceptable; perder una venta porque el
+    SMTP del dueño tuvo un mal minuto no lo es."""
+    import smtplib
+
+    from webapp.backend import api
+
+    monkeypatch.setenv("MERCADOPAGO_ACCESS_TOKEN", "TEST-token")
+    monkeypatch.setattr(api, "SMTP_SERVIDOR", {
+        "host": "smtp.prueba.com", "puerto": 587,
+        "usuario": "yo@prueba.com", "clave": "x", "ssl": False})
+    monkeypatch.setattr(api, "_ultimo_aviso_compra", None)
+    _checkout_falso(monkeypatch)
+
+    def revienta(*a, **k):
+        raise OSError("el SMTP no contesta")
+    monkeypatch.setattr(smtplib, "SMTP", revienta)
+
+    cliente = TestClient(api.app)
+    r = cliente.post("/api/checkout", json={"plan": "licencia"})
+    assert r.status_code == 200 and r.json()["url"]
+
+
+def test_el_aviso_vuelve_a_mandarse_pasado_el_silencio(monkeypatch):
+    """No es un aviso único de por vida: pasada la ventana, un nuevo click
+    (una nueva racha) tiene que volver a avisar."""
+    from webapp.backend import api
+
+    monkeypatch.setenv("MERCADOPAGO_ACCESS_TOKEN", "TEST-token")
+    monkeypatch.setattr(api, "SMTP_SERVIDOR", {
+        "host": "smtp.prueba.com", "puerto": 587,
+        "usuario": "yo@prueba.com", "clave": "x", "ssl": False})
+    _checkout_falso(monkeypatch)
+    mandados = _con_smtp_capturado(monkeypatch)
+
+    cliente = TestClient(api.app)
+    monkeypatch.setattr(api, "_ultimo_aviso_compra", None)
+    cliente.post("/api/checkout", json={"plan": "licencia"})
+    assert len(mandados) == 1
+
+    # Todavía dentro de la ventana de silencio: no manda otro.
+    cliente.post("/api/checkout", json={"plan": "licencia"})
+    assert len(mandados) == 1
+
+    # Se cumplió la ventana (simulado moviendo el reloj hacia atrás): vuelve
+    # a avisar en el próximo click.
+    monkeypatch.setattr(api, "_ultimo_aviso_compra",
+                        api._ultimo_aviso_compra - api.AVISO_COMPRA_SILENCIO_S - 1)
+    cliente.post("/api/checkout", json={"plan": "licencia"})
+    assert len(mandados) == 2

@@ -230,6 +230,18 @@ Ahora:
     abre nunca.** Está cubierto por un test que falla si alguien pide más que
     cabeceras.
 
+14. **Aviso por correo cuando alguien aprieta «Comprar»** — no cuando paga:
+    en el CLICK, antes de que exista ningún pago. Reusa el SMTP de
+    `MVCLIENTE_SMTP_*` (el mismo del formulario de demo). Sirve para prender
+    Vercel Pro en el proyecto justo antes de que llegue tráfico real, en vez
+    de pagarlo especulativamente en los 10 proyectos. Silencio de 30 minutos
+    (`MVCLIENTE_AVISO_COMPRA_SILENCIO_S`) para que clickear varias veces no
+    llene la casilla; si el SMTP falla o no está configurado, el checkout
+    sigue funcionando igual — perder el aviso es aceptable, perder la venta
+    no. El correo aclara explícitamente que es el click y no la venta
+    confirmada, para no prender/apagar infraestructura por una visita que se
+    arrepintió.
+
 ## Cómo re-verificar todo (5 min)
 
 ```bash
