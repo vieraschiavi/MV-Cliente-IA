@@ -196,13 +196,25 @@ Ahora:
     Generar el secreto: `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`.
     `MVCLIENTE_URL_TRAQUEO` es la URL pública del backend (la de Vercel).
 
-    **Ojo con dónde persiste.** En el programa instalado (PC/BAT) hay disco y
-    el historial se acumula de verdad — que es donde el cliente que paga corre
-    sus automatizaciones. En Vercel el disco es efímero: el pixel, el redirect
-    y el contador de visitas funcionan, pero los eventos no sobreviven entre
-    invocaciones. Para que el panel del dueño acumule en la web pública hace
-    falta un almacenamiento durable (Vercel KV/Postgres o similar); es la
-    única pieza de infra que queda pendiente.
+    **Dónde persiste, según dónde corra.** El programa instalado (PC/BAT)
+    tiene disco y acumula solo. La web pública (serverless) NO: el disco se
+    borra entre invocaciones. Para eso está `cliente_ia/almacen_kv.py`, que
+    guarda en **Vercel KV** (Upstash Redis) por REST — sin dependencias
+    nuevas, con `urllib`. Se enciende solo cuando existen las variables:
+
+    - En Vercel: **Storage → Create Database → KV**, y conectarlo al
+      proyecto. Vercel inyecta `KV_REST_API_URL` y `KV_REST_API_TOKEN` sin
+      que haya que copiar nada. (Un store de Upstash creado a mano también
+      sirve: se leen `UPSTASH_REDIS_REST_URL` / `_TOKEN`.)
+    - Sin esas variables el código sigue usando el archivo, y el panel del
+      dueño lo avisa con todas las letras: un número bajo puede ser «no se
+      está midiendo», no «el producto no funciona».
+
+    El store arregla además algo que el archivo no podía: el dedup de nonces
+    vivía en memoria del proceso, y en serverless eso no deduplicaba nada —
+    reproducir el enlace de un correo inflaba la conversión en la web
+    pública aunque el test con disco pasara perfecto. Con KV es un `SET NX`
+    atómico compartido entre instancias.
 
 13. **Lectura de la casilla (IMAP), para contar respuestas** — se carga en el
     programa (Configuración → «Leer la casilla»), no en el servidor: las

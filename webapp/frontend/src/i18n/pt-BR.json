@@ -451,6 +451,7 @@
     "origen_trafico": "De onde vem o tráfego",
     "traqueo_apagado": "O rastreamento está desligado: sem MVCLIENTE_TRAQUEO_SECRETO e MVCLIENTE_URL_TRAQUEO não há pixel nem redirect, então aberturas e cliques ficam em zero porque não são medidos — não porque não aconteçam.",
     "respuestas": "Respostas",
-    "sobre_rastreables": "{{p}} sobre {{n}} rastreáveis"
+    "sobre_rastreables": "{{p}} sobre {{n}} rastreáveis",
+    "sin_almacen": "Estes números são salvos no disco do servidor. Na web (serverless) o disco é efêmero e eles se perdem entre visitas: crie um store KV na Vercel (Storage → Create → KV) e conecte ao projeto — as variáveis são injetadas sozinhas e isto passa a acumular de verdade. No programa instalado não é preciso: lá já persiste."
   }
 }

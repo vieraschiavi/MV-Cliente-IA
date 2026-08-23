@@ -66,6 +66,7 @@ from pydantic import BaseModel, Field
 from cliente_ia import (
     __version__,
     almacen,
+    almacen_kv,
     exportar,
     geo,
     licencia,
@@ -728,6 +729,11 @@ def panel_del_dueno(request: Request):
     # producto. Se dice, en vez de mostrar un 0% que se lee como un fracaso.
     salida["traqueo_activo"] = bool(
         metricas.hay_traqueo() and (os.getenv("MVCLIENTE_URL_TRAQUEO") or "").strip())
+    # Dónde se están guardando los números. En la web pública sin store
+    # durable, el disco es efímero y el historial se borra solo entre
+    # invocaciones: el panel puede mostrar cifras bajas y parecer que el
+    # producto no funciona, cuando en realidad se están perdiendo eventos.
+    salida["almacen"] = "kv" if almacen_kv.activo() else "archivo"
     return salida
 
 

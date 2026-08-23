@@ -101,6 +101,12 @@ export default function Panel() {
           {datos.traqueo_activo === false ? (
             <Aviso>{t("panel.traqueo_apagado")}</Aviso>
           ) : null}
+          {/* Sin store durable, en la web pública los números se borran solos
+              entre invocaciones y el panel parece decir que el producto no
+              funciona. Es lo primero que hay que saber al mirar cifras bajas. */}
+          {datos.almacen === "archivo" ? (
+            <Aviso>{t("panel.sin_almacen")}</Aviso>
+          ) : null}
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", margin: "8px 0" }}>
             <Tarjeta icono="sobre" titulo={t("panel.enviados")}
                      valor={i ? fmtNum(i.envios) : "—"}

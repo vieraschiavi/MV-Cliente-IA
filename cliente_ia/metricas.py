@@ -45,12 +45,19 @@ entre sí, no como cuenta absoluta de personas que leyeron. La interfaz lo dice.
 
 Sobre dónde vive esto
 ---------------------
-En el programa instalado (PC/BAT) hay disco y esto persiste de verdad — que
-es donde el usuario corre sus automatizaciones. En serverless (Vercel) el
-disco es efímero: el redirect y la agregación funcionan igual, pero para que
-las conversiones de correos reales (que viajan días) se acumulen hace falta
-un almacenamiento durable del lado público. Está documentado en el README:
-es la única pieza de infra que queda del lado del usuario.
+Dos almacenes, y el código elige solo:
+
+- **Archivo** (`metricas.jsonl`) en el programa instalado (PC/BAT), que es
+  donde hay disco de verdad y donde el usuario corre sus automatizaciones.
+- **Vercel KV / Upstash Redis** en la web pública, si están sus variables de
+  entorno (ver `almacen_kv`). Sin esto el serverless perdía todo entre
+  invocaciones: cada petición puede caer en una instancia nueva, así que una
+  apertura contada a las 10:00 no existía a las 10:05. Los correos en frío
+  tardan DÍAS en abrirse, o sea que era justo el caso que no funcionaba.
+
+El store también arregla algo que el archivo no podía: el dedup de nonces
+vivía en memoria del proceso, y en serverless eso no dedup nada. Con KV es un
+`SET NX` atómico, compartido entre todas las instancias.
 """
 from __future__ import annotations
 
@@ -66,7 +73,7 @@ from collections import defaultdict
 from datetime import datetime
 from urllib.parse import urlencode
 
-from . import rutas
+from . import almacen_kv, rutas
 
 ARCHIVO = "metricas.jsonl"
 CANALES = ("email", "linkedin", "x")
@@ -114,6 +121,13 @@ def hay_traqueo() -> bool:
 # Registro
 # ---------------------------------------------------------------------------
 def _agregar(evento: dict) -> None:
+    # Con un store durable configurado (Vercel KV/Upstash), ahí. Es lo que
+    # hace que la web pública acumule: en serverless el disco es efímero y el
+    # archivo se perdía entre invocaciones. Si el store no contesta, se cae al
+    # archivo — que en esa instancia dura poco, pero es mejor que tragarse el
+    # evento sin más.
+    if almacen_kv.activo() and almacen_kv.agregar(evento):
+        return
     linea = json.dumps(evento, ensure_ascii=False, sort_keys=True)
     with _lock:
         ruta = _ruta()
@@ -138,6 +152,17 @@ def _nonce_nuevo(nonce: str) -> bool:
     global _nonces_vistos
     if not nonce:
         return True                          # sin nonce no hay dedup (compat)
+    if almacen_kv.activo():
+        # En serverless el set en memoria NO sirve: cada petición puede caer
+        # en una instancia recién creada que no vio ningún nonce, así que
+        # reproducir el enlace de un correo inflaba la conversión en la web
+        # pública aunque el test con disco pasara. `SET NX` lo resuelve del
+        # lado de Redis, que es el único lugar compartido que hay.
+        r = almacen_kv.nonce_nuevo(nonce)
+        if r is not None:
+            return r
+        # El store no contestó: se sigue con el dedup en memoria, que al menos
+        # cubre las repeticiones dentro de esta misma instancia.
     with _lock:
         if _nonces_vistos is None:
             _nonces_vistos = collections.OrderedDict()
@@ -384,10 +409,13 @@ def url_de_apertura(base: str, meta: dict) -> str:
 # Agregación
 # ---------------------------------------------------------------------------
 def _leer(programa: str = "") -> list[dict]:
+    prog = programa.strip().lower()
+    if almacen_kv.activo():
+        return [e for e in almacen_kv.leer()
+                if not prog or e.get("programa") == prog]
     ruta = _ruta()
     if not os.path.exists(ruta):
         return []
-    prog = programa.strip().lower()
     eventos = []
     with open(ruta, encoding="utf-8") as f:
         for linea in f:
@@ -570,6 +598,8 @@ def _rotular(dim: str, clave) -> str:
 def borrar_todo() -> None:
     """Sólo para los tests y para el botón de 'reiniciar métricas'."""
     global _nonces_vistos
+    if almacen_kv.activo():
+        almacen_kv.borrar_todo()
     ruta = _ruta()
     with _lock:
         if os.path.exists(ruta):
