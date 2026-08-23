@@ -958,3 +958,81 @@ def test_el_boton_de_correo_no_arrastra_mensajes_de_linkedin(cliente, monkeypatc
     })
     assert r.status_code == 200, r.text
     assert r.json()["linkedin"] is None
+
+
+# --- el embudo completo: enviar deja el rastro que después mide la respuesta -
+
+def test_el_envio_queda_anotado_con_su_segmento_y_su_message_id(cliente, monkeypatch):
+    """El denominador del tablero. El pixel y el redirect los dispara el
+    destinatario y llegan solos, pero si el envío no se anota, todas las tasas
+    se calculan contra cero y el panel muestra un embudo vacío aunque el
+    correo haya salido. Pasó exactamente eso hasta que se miró con datos.
+    """
+    import smtplib
+
+    from cliente_ia import metricas
+
+    mandados = []
+
+    class SmtpFalso:
+        def __init__(self, *a, **k): pass
+        def starttls(self, context=None): pass
+        def login(self, u, c): pass
+        def send_message(self, m):
+            if m["To"] == "rebota@x.com":
+                raise smtplib.SMTPRecipientsRefused({m["To"]: (550, b"no")})
+            mandados.append(m)
+        def quit(self): pass
+
+    monkeypatch.setattr(smtplib, "SMTP", SmtpFalso)
+    r = cliente.post("/api/automatizar", json={
+        "smtp": {"host": "smtp.prueba.com", "puerto": 587,
+                 "usuario": "yo@prueba.com", "clave": "secreta"},
+        "correos": [
+            {"para": "a@acme.com", "asunto": "Hola", "cuerpo": "Cuerpo",
+             "segmento": "Fintech", "nivel": "local", "pais": "UY", "idioma": "es"},
+            {"para": "rebota@x.com", "asunto": "Hola", "cuerpo": "Cuerpo",
+             "segmento": "Retail", "nivel": "local", "pais": "UY", "idioma": "es"},
+        ],
+    })
+    assert r.status_code == 200, r.text
+
+    # El correo que salió lleva NUESTRO Message-ID: sin eso no hay forma de
+    # reconocer después su respuesta en la bandeja.
+    assert mandados[0]["Message-ID"].startswith("<mvcia") or "mvcia" in mandados[0]["Message-ID"]
+    mid = r.json()["correos"]["resultados"][0]["mid"]
+    assert mid and mid == mandados[0]["Message-ID"]
+
+    res = metricas.resumen()
+    # Sólo el que SALIÓ. El rebote no es un envío: contarlo bajaría todas las
+    # tasas por algo que nunca llegó a una casilla.
+    assert res["envios"] == 1 and res["rastreables"] == 1
+    por = {f["valor"]: f for f in res["por_segmento"]}
+    assert "fintech" in por and "retail" not in por
+
+    # Y ese Message-ID es el que `/api/respuestas` va a poder cruzar.
+    assert list(metricas.mensajes_rastreables()) == [mid]
+
+
+def test_los_mensajes_de_linkedin_tambien_cuentan_como_envio(cliente, monkeypatch):
+    """No tienen Message-ID —LinkedIn no expone nada equivalente—, así que
+    cuentan para el volumen y no para la tasa de respuesta. Es la diferencia
+    entre `envios` y `rastreables`."""
+    from cliente_ia import metricas, redes
+
+    monkeypatch.setattr(redes, "enviar_linkedin",
+                        lambda *a, **k: {"ok": True, "detalle": ""})
+    r = cliente.post("/api/automatizar", json={
+        "correos": [],
+        "linkedin": {"proveedor": "unipile", "dsn": "https://api.unipile.test",
+                     "api_key": "clave-larga-de-unipile", "account_id": "cuenta-1"},
+        "linkedin_mensajes": [
+            {"destinatario": "https://www.linkedin.com/in/ana/", "texto": "Hola"},
+            {"destinatario": "https://www.linkedin.com/in/luis/", "texto": "Hola"},
+        ],
+    })
+    assert r.status_code == 200, r.text
+    res = metricas.resumen()
+    assert res["envios"] == 2
+    assert res["rastreables"] == 0, "LinkedIn no puede aportar al denominador de respuestas"
+    assert {f["valor"] for f in res["por_canal"]} == {"linkedin"}

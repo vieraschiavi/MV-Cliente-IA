@@ -437,6 +437,7 @@ export default function Correos() {
   const filas = idioma ? todos.filter((e) => e.idioma === idioma) : todos;
   const porIdioma = todos.reduce((a, e) => ({ ...a, [e.idioma]: (a[e.idioma] || 0) + 1 }), {});
   const decisores = Object.fromEntries((corrida.decisores || []).map((d) => [d.id, d]));
+  const prospectos = Object.fromEntries((corrida.prospectos || []).map((p) => [p.id, p]));
   const paraDe = (e) => (paras[e.id] !== undefined ? paras[e.id] : e.para);
 
   const elegirAdjunto = (e) => {
@@ -542,10 +543,19 @@ export default function Correos() {
       {avisoLote ? <p className="nota">{avisoLote}</p> : null}
 
       <Automatizar listos={listos} adjunto={adjunto} smtp={smtp} corrida={corrida}
-                   correoDe={(correo, para) => ({
-                     para, asunto: correo.asunto, cuerpo: correo.cuerpo,
-                     cuerpo_html: correo.cuerpo_html || "",
-                   })} />
+                   correoDe={(correo, para) => {
+                     // La meta del prospecto viaja con el correo para que el
+                     // envío quede anotado con su segmento, ola y país. Sin
+                     // esto el tablero cuenta cuántos salieron pero no puede
+                     // decir a QUIÉN le fue mejor, que es todo el punto.
+                     const pr = prospectos[correo.prospecto_id] || {};
+                     return {
+                       para, asunto: correo.asunto, cuerpo: correo.cuerpo,
+                       cuerpo_html: correo.cuerpo_html || "",
+                       segmento: pr.sector || "", nivel: pr.nivel || "",
+                       pais: pr.pais || "", idioma: correo.idioma || "",
+                     };
+                   }} />
 
       {filas.length ? filas.map((e) => (
         <Mensaje key={e.id} correo={e} decisor={decisores[e.decisor_id]}

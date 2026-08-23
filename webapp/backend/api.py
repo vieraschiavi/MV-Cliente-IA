@@ -807,6 +807,14 @@ class CorreoEnvioIn(BaseModel):
     asunto: str = Field(min_length=1, max_length=300)
     cuerpo: str = Field(min_length=1, max_length=20000)
     cuerpo_html: str = Field(default="", max_length=120000)
+    # De qué prospecto es este correo. Viaja para que el envío quede anotado
+    # en las métricas con su segmento, ola y país, y para poder atribuir
+    # después la APERTURA y la RESPUESTA a la misma celda del tablero. Todo
+    # opcional: sin esto el correo sale igual, sólo que no se puede medir.
+    segmento: str = Field(default="", max_length=120)
+    nivel: str = Field(default="", max_length=40)
+    pais: str = Field(default="", max_length=4)
+    idioma: str = Field(default="", max_length=4)
 
 
 class AdjuntoIn(BaseModel):
@@ -846,12 +854,19 @@ def _conectar_smtp(smtp: SmtpIn):
 def _mandar_uno(servidor, smtp: SmtpIn, remitente: str, c: CorreoEnvioIn,
                 adjuntos: list[AdjuntoIn]) -> dict:
     from email.message import EmailMessage
-    from email.utils import formataddr
+    from email.utils import formataddr, make_msgid
 
     m = EmailMessage()
     m["From"] = formataddr((remitente or smtp.usuario, smtp.usuario))
     m["To"] = c.para
     m["Subject"] = c.asunto
+    # Message-ID propio, con un prefijo que reconocemos. Sin esto no hay forma
+    # de saber si un correo de la bandeja es respuesta a algo que mandamos: la
+    # respuesta trae el Message-ID original en `In-Reply-To`, así que el
+    # nuestro tiene que ser nuestro y quedar anotado. Si no lo ponemos, lo
+    # genera el servidor SMTP y nunca lo vemos.
+    mid = make_msgid(idstring="mvcia")
+    m["Message-ID"] = mid
     m.set_content(c.cuerpo)
     if c.cuerpo_html:
         m.add_alternative(c.cuerpo_html, subtype="html")
@@ -865,10 +880,10 @@ def _mandar_uno(servidor, smtp: SmtpIn, remitente: str, c: CorreoEnvioIn,
                          subtype=subtipo or "octet-stream", filename=a.nombre)
     try:
         servidor.send_message(m)
-        return {"para": c.para, "ok": True, "detalle": ""}
+        return {"para": c.para, "ok": True, "detalle": "", "mid": mid}
     except Exception as e:                               # noqa: BLE001
         return {"para": c.para, "ok": False,
-                "detalle": f"{type(e).__name__}: {str(e)[:200]}"}
+                "detalle": f"{type(e).__name__}: {str(e)[:200]}", "mid": ""}
 
 
 @app.post("/api/enviar", dependencies=[Depends(requiere_auth)])
@@ -955,6 +970,35 @@ def _claves_x(x: XClavesIn) -> redes.ClavesX:
                          x.access_token, x.access_secret)
 
 
+def _anotar_envios(entrada: AutomatizarIn, resultados: list[dict]) -> None:
+    """Deja en las métricas un evento por mensaje que SALIÓ.
+
+    Sólo los que salieron: un rebote no es un envío, y contarlo bajaría todas
+    las tasas por algo que nunca llegó a una casilla.
+
+    El `mid` (Message-ID) viaja con el evento de correo; es lo que permite
+    después reconocer la respuesta en la bandeja. Los de LinkedIn no tienen
+    equivalente, así que se anotan sin id: cuentan para el volumen, no para la
+    tasa de respuesta.
+    """
+    eventos: list[dict] = []
+    for c, r in zip(entrada.correos, resultados, strict=False):
+        if not r.get("ok"):
+            continue
+        eventos.append({"canal": "email", "segmento": c.segmento, "nivel": c.nivel,
+                        "pais": c.pais, "idioma": c.idioma, "mid": r.get("mid", "")})
+    if entrada.linkedin_mensajes and entrada.linkedin:
+        eventos.extend({"canal": "linkedin"} for _ in entrada.linkedin_mensajes)
+    if eventos:
+        try:
+            metricas.registrar_envios(eventos)
+        except Exception as e:                           # noqa: BLE001
+            # El correo YA salió: que falle el contador no puede convertirse
+            # en un error para el usuario ni deshacer nada.
+            print(f"[metricas] no se pudo anotar el envío: {type(e).__name__}",
+                  flush=True)
+
+
 def _mandar_linkedin(entrada: AutomatizarIn) -> dict | None:
     """Los mensajes de LinkedIn, uno por uno, por el proveedor del usuario.
     Devuelve None si no configuró proveedor: no es un fallo, es que ese canal
@@ -997,6 +1041,9 @@ class EventoEnvioIn(BaseModel):
     idioma: str = Field(default="", max_length=2)
     ts: str = Field(default="", max_length=40)
     n: int = Field(default=1, ge=1, le=100000)
+    # El Message-ID del correo. Sin esto el envío se cuenta igual, pero no se
+    # puede reconocer su respuesta en la bandeja: es la clave del cruce.
+    mid: str = Field(default="", max_length=300)
 
 
 class EnviosIn(BaseModel):
@@ -1201,6 +1248,14 @@ def automatizar_flujo(entrada: AutomatizarIn):
             resultados.append(_mandar_uno(servidor, entrada.smtp,
                                           entrada.remitente, c, entrada.adjuntos))
 
+        # Los envíos quedan anotados acá, no en el navegador. Es el
+        # DENOMINADOR de todo el tablero: el pixel y el redirect los dispara
+        # el destinatario y llegan solos, pero si nadie registra lo que salió,
+        # las tasas se calculan contra cero y el panel muestra un embudo vacío
+        # aunque el correo haya salido. Estuvo así hasta que se miró el panel
+        # con datos reales.
+        _anotar_envios(entrada, resultados)
+
         comp: dict = {
             "fecha": _dt.now(_UTC).strftime("%Y-%m-%d %H:%M UTC"),
             "correos": {"total": len(resultados),
@@ -1248,6 +1303,135 @@ def automatizar_flujo(entrada: AutomatizarIn):
             except Exception:                            # noqa: BLE001
                 pass
     return comp
+
+
+class ImapIn(BaseModel):
+    """Credenciales de LECTURA de la casilla, para contar respuestas.
+
+    Misma política que el SMTP y que la clave de IA: viajan en esta petición,
+    se usan y se descartan. No se guardan ni se escriben en ningún log.
+
+    Es una casilla de correo entera: por eso el endpoint sólo lee las
+    CABECERAS de los mensajes (`In-Reply-To`, `References`, `Date`), nunca el
+    cuerpo. Para saber si alguien contestó no hace falta leer qué dijo, y no
+    leerlo es la diferencia entre un contador y un lector de correo ajeno.
+    """
+    host: str = Field(min_length=3, max_length=200)
+    puerto: int = Field(default=993, ge=1, le=65535)
+    usuario: str = Field(min_length=3, max_length=200)
+    clave: str = Field(min_length=1, max_length=200)
+    ssl: bool = True                               # 993 con SSL es lo normal
+    carpeta: str = Field(default="INBOX", max_length=100)
+
+
+class RespuestasIn(BaseModel):
+    imap: ImapIn
+    # Cuántos días de bandeja mirar. Un mes cubre el ciclo de un correo en
+    # frío con su seguimiento; más que eso es releer lo mismo cada vez.
+    dias: int = Field(default=30, ge=1, le=180)
+    programa: str = Field(default="", max_length=120)
+
+
+# Cuántos mensajes de la bandeja se miran como mucho. Una casilla comercial
+# puede tener decenas de miles y el objetivo es contar respuestas, no indexar
+# el correo del usuario: se recorren los más nuevos primero.
+TOPE_MENSAJES_IMAP = 2000
+
+
+def _ids_de_cabecera(valor: str) -> list[str]:
+    """Los Message-ID que hay en un `In-Reply-To` o un `References`.
+
+    `References` acumula todo el hilo separado por espacios, y algunos
+    clientes meten saltos de línea en el medio: hay que sacarlos entre `<` y
+    `>` en vez de partir por espacios.
+    """
+    return re.findall(r"<[^<>\s]+>", valor or "")
+
+
+@app.post("/api/respuestas", dependencies=[Depends(requiere_auth)])
+def contar_respuestas(entrada: RespuestasIn):
+    """Cuenta cuántos de los correos que salieron tuvieron respuesta.
+
+    Cómo, sin guardar a quién se le escribió: cada correo sale con un
+    Message-ID nuestro, que queda anotado en las métricas junto al segmento y
+    el país del prospecto. Una respuesta trae ese id en `In-Reply-To` (o en
+    `References`), así que alcanza con leer las CABECERAS de la bandeja y
+    cruzar. El cuerpo del correo no se abre nunca.
+
+    Se puede correr las veces que se quiera: una respuesta ya contada no
+    vuelve a contar (dedup por Message-ID original), y si la persona contesta
+    tres veces sigue siendo UN prospecto que respondió.
+    """
+    import email
+    import imaplib
+    import ssl as modulo_ssl
+    from datetime import timedelta
+
+    conocidos = metricas.mensajes_rastreables(entrada.programa)
+    if not conocidos:
+        # Ningún envío con Message-ID: puede ser que todavía no se mandó nada,
+        # o que los envíos sean anteriores a esta función. Decirlo es mejor
+        # que devolver "0 respuestas", que se lee como "nadie te contestó".
+        return {"revisados": 0, "respuestas": 0, "nuevas": 0, "rastreables": 0,
+                "motivo": "sin_mensajes",
+                "detalle": "Todavía no hay correos enviados con identificador de "
+                           "seguimiento. Mandá una tanda y volvé a probar."}
+
+    try:
+        if entrada.imap.ssl:
+            buzon = imaplib.IMAP4_SSL(entrada.imap.host, entrada.imap.puerto,
+                                      ssl_context=modulo_ssl.create_default_context())
+        else:
+            buzon = imaplib.IMAP4(entrada.imap.host, entrada.imap.puerto)
+        buzon.login(entrada.imap.usuario, entrada.imap.clave)
+    except Exception as e:                               # noqa: BLE001
+        # Tipo y mensaje del servidor, nunca la clave.
+        raise HTTPException(
+            502, f"No se pudo conectar al IMAP: {type(e).__name__}: "
+                 f"{str(e)[:200]}") from e
+
+    nuevas = 0
+    revisados = 0
+    try:
+        # Sólo lectura: este endpoint no puede marcar como leído, mover ni
+        # borrar nada de la casilla del usuario.
+        estado, _ = buzon.select(f'"{entrada.imap.carpeta}"', readonly=True)
+        if estado != "OK":
+            raise HTTPException(502, f"No se pudo abrir «{entrada.imap.carpeta}».")
+        desde = (datetime.now(UTC) - timedelta(days=entrada.dias)).strftime("%d-%b-%Y")
+        estado, datos = buzon.search(None, "SINCE", desde)
+        if estado != "OK":
+            raise HTTPException(502, "El servidor IMAP rechazó la búsqueda.")
+        ids = (datos[0] or b"").split()
+        # Los más nuevos primero: si la casilla es enorme y hay que cortar,
+        # que se corte por lo viejo.
+        ids = ids[::-1][:TOPE_MENSAJES_IMAP]
+        for n in ids:
+            estado, partes = buzon.fetch(
+                n, "(BODY.PEEK[HEADER.FIELDS (IN-REPLY-TO REFERENCES DATE)])")
+            if estado != "OK" or not partes or not isinstance(partes[0], tuple):
+                continue
+            revisados += 1
+            cab = email.message_from_bytes(partes[0][1])
+            refs = (_ids_de_cabecera(cab.get("In-Reply-To", ""))
+                    + _ids_de_cabecera(cab.get("References", "")))
+            for mid in refs:
+                meta = conocidos.get(mid)
+                if meta and metricas.registrar_respuesta(mid, meta):
+                    nuevas += 1
+                    break                    # una respuesta por hilo, no por cita
+    finally:
+        for cerrar in (buzon.close, buzon.logout):
+            try:
+                cerrar()
+            except Exception:                            # noqa: BLE001
+                pass
+
+    r = metricas.resumen(entrada.programa)
+    return {"revisados": revisados, "nuevas": nuevas,
+            "respuestas": r["respuestas"], "rastreables": r["rastreables"],
+            "tasa_respuesta": r["tasa_respuesta"],
+            "recortado": len(ids) >= TOPE_MENSAJES_IMAP}
 
 
 class LicenciaIn(BaseModel):

@@ -258,7 +258,12 @@
     "lic_ayuda": "A chave chega por e-mail com a compra. Cola-se uma única vez e fica salva neste computador.",
     "lic_owner_nota": "Esta cópia é a edição do dono: sem chave e sem vencimento.",
     "licencia": "Chave de licença (se você comprou)",
-    "licencia_ayuda": "Se você comprou o programa, cole aqui a chave que recebeu: o APK e a web ficam sem limite de buscas, igual ao app de PC. Fica só neste aparelho e viaja com cada busca; o servidor verifica a assinatura."
+    "licencia_ayuda": "Se você comprou o programa, cole aqui a chave que recebeu: o APK e a web ficam sem limite de buscas, igual ao app de PC. Fica só neste aparelho e viaja com cada busca; o servidor verifica a assinatura.",
+    "imap": "Ler a caixa (contar respostas)",
+    "imap_ayuda": "Opcional e separado do envio: com isto o programa conta quantos dos seus e-mails tiveram resposta. Lê SÓ os cabeçalhos do fio, nunca o corpo de um e-mail, e conecta em modo leitura (não pode marcar, mover nem apagar nada). As credenciais ficam neste navegador e viajam só com cada consulta. No Gmail é preciso uma senha de app.",
+    "imap_guardado": "Leitura da caixa salva",
+    "imap_carpeta": "Pasta (normalmente INBOX)",
+    "imap_ssl": "SSL direto (porta 993, o normal)"
   },
   "aviso": {
     "sintetico": "Dados de demonstração: as empresas e as pessoas desta lista são sintéticas, geradas para testar o fluxo. Mude a origem dos dados para «Ler meu site real» ou «Pesquisa com IA» para trabalhar com informação real.",
@@ -399,7 +404,13 @@
     "de_los_que_abrieron": "dos que abriram o e-mail",
     "visitas_web": "Visitas ao site",
     "parte_del_trafico": "{{p}} veio da prospecção",
-    "aviso_apertura": "A abertura é medida com um pixel: só conta se o cliente de e-mail baixar as imagens. O Outlook as bloqueia por padrão (essas aberturas não aparecem) e o Gmail as pré-carrega (algumas contam sem leitura). Serve para comparar segmentos, assuntos e horários entre si — não como número absoluto."
+    "aviso_apertura": "A abertura é medida com um pixel: só conta se o cliente de e-mail baixar as imagens. O Outlook as bloqueia por padrão (essas aberturas não aparecem) e o Gmail as pré-carrega (algumas contam sem leitura). Serve para comparar segmentos, assuntos e horários entre si — não como número absoluto.",
+    "tasa_respuesta": "Taxa de resposta",
+    "respuestas_n": "{{n}} de {{total}} rastreáveis",
+    "contar_respuestas": "Contar respostas",
+    "imap_falta": "Para contar respostas, configure a leitura da sua caixa em Configuração.",
+    "respuestas_listas": "{{nuevas}} respostas novas ({{revisados}} e-mails da caixa revisados).",
+    "respuestas_recortado": "Foi visto até o limite de mensagens: se você tem muito volume, reduza os dias."
   },
   "busquedas": {
     "titulo": "Buscar mais clientes deste segmento",
@@ -438,6 +449,8 @@
     "canal": "Canal",
     "tasa": "Taxa de clique",
     "origen_trafico": "De onde vem o tráfego",
-    "traqueo_apagado": "O rastreamento está desligado: sem MVCLIENTE_TRAQUEO_SECRETO e MVCLIENTE_URL_TRAQUEO não há pixel nem redirect, então aberturas e cliques ficam em zero porque não são medidos — não porque não aconteçam."
+    "traqueo_apagado": "O rastreamento está desligado: sem MVCLIENTE_TRAQUEO_SECRETO e MVCLIENTE_URL_TRAQUEO não há pixel nem redirect, então aberturas e cliques ficam em zero porque não são medidos — não porque não aconteçam.",
+    "respuestas": "Respostas",
+    "sobre_rastreables": "{{p}} sobre {{n}} rastreáveis"
   }
 }

@@ -6,7 +6,7 @@ qué está funcionando. No cuántos correos mandaste —eso lo sabe cualquiera�
 sino a QUÉ segmento, en qué DÍA y a qué HORA le fue mejor, y qué proporción
 de esos envíos terminó en una visita a la web.
 
-Cuatro tipos de evento, en un JSONL que se agrega (nunca se reescribe):
+Cinco tipos de evento, en un JSONL que se agrega (nunca se reescribe):
 
 - **envio**    — un mensaje que salió: programa (dominio del producto), canal
   (email/linkedin/x), segmento (sector del prospecto), nivel (la ola: local /
@@ -17,12 +17,23 @@ Cuatro tipos de evento, en un JSONL que se agrega (nunca se reescribe):
 - **conversion** — alguien hizo click en el enlace del mensaje y entró a la
   web. Llega por `/api/ir`, el redirect firmado: sólo cuenta un click cuyo
   token FIRMAMOS nosotros, así que no se puede inflar la conversión a mano.
+- **respuesta** — alguien contestó un correo nuestro. Lo cuenta
+  `/api/respuestas`, leyendo por IMAP las CABECERAS de la bandeja del usuario
+  (nunca el cuerpo) y cruzando el `In-Reply-To` contra los Message-ID que
+  emitimos. La respuesta hereda la meta del envío original, así que se puede
+  decir «fintech te responde y retail no», que es el número que sirve.
+  Una por hilo: contestar tres veces sigue siendo UN prospecto que respondió.
 - **visita**   — tráfico de la web, venga de donde venga. Llega por
   `/api/visita`, que dispara la propia landing. Es lo que le da escala al
   resto: sin esto, "10 clicks desde el correo" no dice si son el 90% del
   tráfico o el 3%. Sin cookie ni identificador: idioma y dominio de origen.
 
-`resumen()` cruza los cuatro y arma el embudo —enviado → abierto → click— con
+La tasa de respuesta se calcula sobre los envíos que llevan Message-ID, no
+sobre todos: un envío viejo o de LinkedIn no se puede cruzar con la bandeja, y
+meterlo en el denominador daría una tasa artificialmente baja.
+
+`resumen()` cruza los cinco y arma el embudo —enviado → abierto → click →
+respuesta— con
 la tasa por programa, segmento, canal, ola y país, más el día y la hora en que
 entra la gente. CPM y CPA salen sólo si se le pasa un costo: sin plata gastada
 no hay "costo por mil" que inventar.
@@ -156,9 +167,52 @@ def registrar_envios(eventos: list[dict]) -> int:
             "pais": str(e.get("pais", "")).strip().upper()[:2],
             "idioma": str(e.get("idioma", "")).strip().lower()[:2],
             "n": max(1, int(e.get("n", 1) or 1)),
+            # El Message-ID del correo, cuando lo hay. Es lo que después
+            # permite reconocer una RESPUESTA en la bandeja de entrada: la
+            # respuesta trae este id en `In-Reply-To`. Un envío sin `mid` se
+            # cuenta igual, pero no es rastreable para respuestas — por eso
+            # la tasa de respuesta se calcula sobre los que sí lo tienen.
+            **({"mid": str(e["mid"])[:300]} if e.get("mid") else {}),
         })
         n += 1
     return n
+
+
+def mensajes_rastreables(programa: str = "") -> dict[str, dict]:
+    """Los envíos con Message-ID, indexados por id, con su meta.
+
+    Es lo que `/api/respuestas` cruza contra la bandeja de entrada. Se
+    devuelve la meta completa para poder atribuir la respuesta al mismo
+    segmento/ola/país que el envío, sin guardar en ningún lado a quién se le
+    escribió: el índice se arma leyendo el propio historial de métricas.
+    """
+    salida: dict[str, dict] = {}
+    for e in _leer(programa):
+        if e.get("tipo") == "envio" and e.get("mid"):
+            salida[e["mid"]] = {k: e.get(k, "") for k in
+                                ("programa", "canal", "segmento", "nivel",
+                                 "pais", "idioma")}
+    return salida
+
+
+def registrar_respuesta(mid: str, meta: dict) -> bool:
+    """Una respuesta a un correo nuestro. Una por hilo: si la persona contesta
+    tres veces, sigue siendo UN prospecto que respondió, y contar tres daría
+    una tasa de respuesta inflada."""
+    if not _nonce_nuevo("r:" + str(mid or "")):
+        return False
+    _agregar({
+        "tipo": "respuesta",
+        "ts": _ts(meta.get("ts")),
+        "mid": str(mid)[:300],
+        "programa": str(meta.get("programa", "")).strip().lower(),
+        "canal": str(meta.get("canal", "")).strip().lower(),
+        "segmento": str(meta.get("segmento", "")).strip().lower(),
+        "nivel": str(meta.get("nivel", "")).strip().lower(),
+        "pais": str(meta.get("pais", "")).strip().upper()[:2],
+        "idioma": str(meta.get("idioma", "")).strip().lower()[:2],
+    })
+    return True
 
 
 def registrar_apertura(datos: dict) -> bool:
@@ -388,7 +442,13 @@ def resumen(programa: str = "", costo: float | None = None) -> dict:
     conv_dia: dict[int, int] = defaultdict(int)
     conv_hora: dict[int, int] = defaultdict(int)
     visitas_origen: dict[str, int] = defaultdict(int)
-    tot_env = tot_conv = tot_abre = tot_visitas = 0
+    resp: dict[str, dict] = {d: defaultdict(int) for d in dims_tasa}
+    # Denominador propio de la tasa de respuesta: sólo los envíos con
+    # Message-ID se pueden cruzar con la bandeja. Dividir las respuestas por
+    # TODOS los envíos daría una tasa artificialmente baja apenas haya un
+    # envío viejo sin id.
+    rastreables: dict[str, dict] = {d: defaultdict(int) for d in dims_tasa}
+    tot_env = tot_conv = tot_abre = tot_visitas = tot_resp = tot_rastreables = 0
 
     for e in eventos:
         claves = {d: e.get(d, "") for d in dims_tasa}
@@ -397,6 +457,14 @@ def resumen(programa: str = "", costo: float | None = None) -> dict:
             tot_env += n
             for d in dims_tasa:
                 env[d][claves[d]] += n
+            if e.get("mid"):
+                tot_rastreables += 1
+                for d in dims_tasa:
+                    rastreables[d][claves[d]] += 1
+        elif e.get("tipo") == "respuesta":
+            tot_resp += 1
+            for d in dims_tasa:
+                resp[d][claves[d]] += 1
         elif e.get("tipo") == "visita":
             tot_visitas += 1
             visitas_origen[e.get("origen", "") or "directo"] += 1
@@ -421,9 +489,12 @@ def resumen(programa: str = "", costo: float | None = None) -> dict:
                 continue
             c = conv[dim].get(clave, 0)
             a = abre[dim].get(clave, 0)
+            rp = resp[dim].get(clave, 0)
+            rast = rastreables[dim].get(clave, 0)
             filas.append({"clave": _rotular(dim, clave), "valor": clave,
                           "envios": n_env, "conversiones": c, "tasa": _tasa(n_env, c),
-                          "aperturas": a, "tasa_apertura": _tasa(n_env, a)})
+                          "aperturas": a, "tasa_apertura": _tasa(n_env, a),
+                          "respuestas": rp, "tasa_respuesta": _tasa(rast, rp)})
         return filas
 
     def mejor_tasa(dim: str) -> dict | None:
@@ -455,6 +526,10 @@ def resumen(programa: str = "", costo: float | None = None) -> dict:
         # asunto no engancha" (poca apertura) de "el mensaje no convence"
         # (abren y no hacen click).
         "tasa_click_sobre_apertura": _tasa(tot_abre, tot_conv),
+        "respuestas": tot_resp,
+        # Sobre los rastreables, no sobre todos los envíos (ver arriba).
+        "tasa_respuesta": _tasa(tot_rastreables, tot_resp),
+        "rastreables": tot_rastreables,
         "visitas": tot_visitas,
         "por_origen": [{"clave": k, "valor": k, "visitas": v}
                        for k, v in sorted(visitas_origen.items(), key=lambda kv: -kv[1])],

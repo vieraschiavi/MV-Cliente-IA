@@ -456,3 +456,184 @@ def test_el_trafico_dice_que_parte_lo_trajo_la_prospeccion(monkeypatch):
     d = cliente.get("/api/metricas/resumen").json()
     assert d["visitas"] == 10 and d["conversiones"] == 2
     assert d["parte_del_trafico"] == 0.2
+
+
+# --- respuestas (IMAP) -------------------------------------------------------
+
+class _BuzonFalso:
+    """Un IMAP mínimo, con lo que usa `/api/respuestas`. Registra qué se le
+    pidió: así el test puede afirmar que NUNCA se leyó el cuerpo de un correo
+    ajeno, sólo las cabeceras."""
+
+    creado_con = None
+    pedidos: list = []
+
+    def __init__(self, host, puerto, ssl_context=None):
+        _BuzonFalso.creado_con = (host, puerto)
+        self.solo_lectura = None
+        self.mensajes: dict[bytes, bytes] = {}
+
+    def login(self, usuario, clave):
+        if clave != "la-correcta":
+            raise OSError("credenciales rechazadas")
+
+    def select(self, carpeta, readonly=False):
+        self.solo_lectura = readonly
+        return "OK", [b"1"]
+
+    def search(self, charset, *criterios):
+        _BuzonFalso.pedidos.append(("search", criterios))
+        return "OK", [b" ".join(self.mensajes)]
+
+    def fetch(self, num, partes):
+        _BuzonFalso.pedidos.append(("fetch", partes))
+        return "OK", [(b"1 (cabeceras)", self.mensajes[num])]
+
+    def close(self):
+        pass
+
+    def logout(self):
+        pass
+
+
+def _con_buzon(monkeypatch, cabeceras: list[bytes]):
+    import imaplib
+
+    _BuzonFalso.pedidos = []
+
+    def fabricar(host, puerto, ssl_context=None):
+        b = _BuzonFalso(host, puerto, ssl_context)
+        b.mensajes = {str(i).encode(): c for i, c in enumerate(cabeceras, 1)}
+        return b
+
+    monkeypatch.setattr(imaplib, "IMAP4_SSL", fabricar)
+    return fabricar
+
+
+def _pedir(cliente, dias=30, clave="la-correcta"):
+    return cliente.post("/api/respuestas", json={
+        "imap": {"host": "imap.prueba.com", "puerto": 993,
+                 "usuario": "yo@prueba.com", "clave": clave},
+        "dias": dias})
+
+
+def test_una_respuesta_en_la_bandeja_se_atribuye_al_segmento_del_envio(monkeypatch):
+    """El punto de todo esto: no es «tuviste 3 respuestas», es «fintech te
+    responde y retail no». La respuesta hereda la meta del envío original."""
+    cliente = _cliente()
+    cliente.post("/api/metricas/envios", json={"eventos": [
+        {"programa": "acme.com", "canal": "email", "segmento": "fintech",
+         "pais": "UY", "mid": "<mv-1@acme.com>"},
+        {"programa": "acme.com", "canal": "email", "segmento": "retail",
+         "pais": "UY", "mid": "<mv-2@acme.com>"},
+        {"programa": "acme.com", "canal": "email", "segmento": "retail",
+         "pais": "UY", "mid": "<mv-3@acme.com>"},
+    ]})
+    _con_buzon(monkeypatch, [b"In-Reply-To: <mv-1@acme.com>\r\n\r\n"])
+
+    r = _pedir(cliente)
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d["nuevas"] == 1 and d["respuestas"] == 1
+    assert d["rastreables"] == 3
+    assert round(d["tasa_respuesta"], 4) == round(1 / 3, 4)
+
+    resumen = cliente.get("/api/metricas/resumen?programa=acme.com").json()
+    por = {f["valor"]: f for f in resumen["por_segmento"]}
+    assert por["fintech"]["respuestas"] == 1 and por["fintech"]["tasa_respuesta"] == 1.0
+    assert por["retail"]["respuestas"] == 0
+
+
+def test_la_respuesta_tambien_se_reconoce_por_references(monkeypatch):
+    """No todos los clientes mandan `In-Reply-To`: algunos sólo acumulan el
+    hilo en `References`, y ahí el id nuestro viene entre otros."""
+    cliente = _cliente()
+    cliente.post("/api/metricas/envios", json={"eventos": [
+        {"canal": "email", "mid": "<mv-9@acme.com>"}]})
+    _con_buzon(monkeypatch, [
+        b"References: <otro@x.com>\r\n <mv-9@acme.com> <mas@y.com>\r\n\r\n"])
+    assert _pedir(cliente).json()["nuevas"] == 1
+
+
+def test_correr_el_conteo_dos_veces_no_duplica_respuestas(monkeypatch):
+    """Se puede apretar «actualizar» todas las veces que uno quiera. Y si la
+    persona contesta tres veces al mismo hilo, sigue siendo UN prospecto que
+    respondió — contar tres inflaría la tasa."""
+    cliente = _cliente()
+    cliente.post("/api/metricas/envios", json={"eventos": [
+        {"canal": "email", "mid": "<mv-1@acme.com>"}]})
+    _con_buzon(monkeypatch, [
+        b"In-Reply-To: <mv-1@acme.com>\r\n\r\n",
+        b"In-Reply-To: <mv-1@acme.com>\r\n\r\n",
+        b"References: <mv-1@acme.com>\r\n\r\n",
+    ])
+    primera = _pedir(cliente).json()
+    assert primera["nuevas"] == 1 and primera["respuestas"] == 1
+    segunda = _pedir(cliente).json()
+    assert segunda["nuevas"] == 0 and segunda["respuestas"] == 1
+
+
+def test_un_correo_ajeno_no_cuenta_como_respuesta(monkeypatch):
+    """La bandeja está llena de correo que no tiene nada que ver. Sólo cuenta
+    lo que responde a un Message-ID que emitimos nosotros."""
+    cliente = _cliente()
+    cliente.post("/api/metricas/envios", json={"eventos": [
+        {"canal": "email", "mid": "<mv-1@acme.com>"}]})
+    _con_buzon(monkeypatch, [
+        b"In-Reply-To: <newsletter@otracosa.com>\r\n\r\n",
+        b"\r\n\r\n",                                   # sin cabeceras de hilo
+        b"References: <spam@x.com>\r\n\r\n",
+    ])
+    d = _pedir(cliente).json()
+    assert d["nuevas"] == 0 and d["respuestas"] == 0
+    assert d["revisados"] == 3          # los miró a todos y descartó los tres
+
+
+def test_el_conteo_no_abre_el_cuerpo_de_ningun_correo(monkeypatch):
+    """Es la casilla entera del usuario. Se leen las cabeceras del hilo y
+    nada más: `BODY.PEEK` (que además no marca como leído) y `readonly`, para
+    no poder mover ni borrar nada aunque quisiéramos."""
+    cliente = _cliente()
+    cliente.post("/api/metricas/envios", json={"eventos": [
+        {"canal": "email", "mid": "<mv-1@acme.com>"}]})
+    _con_buzon(monkeypatch, [b"In-Reply-To: <mv-1@acme.com>\r\n\r\n"])
+    assert _pedir(cliente).status_code == 200
+
+    fetches = [p for tipo, p in _BuzonFalso.pedidos if tipo == "fetch"]
+    assert fetches, "no se pidió ningún mensaje"
+    for p in fetches:
+        assert "BODY.PEEK[HEADER.FIELDS" in p, f"se pidió más que cabeceras: {p}"
+        assert "TEXT" not in p and "BODY[]" not in p
+
+
+def test_sin_envios_rastreables_lo_dice_en_vez_de_devolver_cero(monkeypatch):
+    """«0 respuestas» se lee como «nadie te contestó». Si todavía no salió
+    ningún correo con identificador, eso es lo que hay que decir."""
+    cliente = _cliente()
+    _con_buzon(monkeypatch, [b"In-Reply-To: <mv-1@acme.com>\r\n\r\n"])
+    d = _pedir(cliente).json()
+    assert d["motivo"] == "sin_mensajes"
+    assert "enviados" in d["detalle"]
+
+
+def test_el_imap_que_rechaza_la_clave_da_un_error_sin_la_clave(monkeypatch):
+    cliente = _cliente()
+    cliente.post("/api/metricas/envios", json={"eventos": [
+        {"canal": "email", "mid": "<mv-1@acme.com>"}]})
+    _con_buzon(monkeypatch, [])
+    r = _pedir(cliente, clave="la-equivocada")
+    assert r.status_code == 502
+    assert "IMAP" in r.json()["detail"]
+    assert "la-equivocada" not in r.text
+
+
+def test_solo_se_mira_la_ventana_de_dias_pedida(monkeypatch):
+    """Releer la casilla entera en cada actualización es caro y no cambia el
+    número: sólo se pide lo posterior a la fecha de corte."""
+    cliente = _cliente()
+    cliente.post("/api/metricas/envios", json={"eventos": [
+        {"canal": "email", "mid": "<mv-1@acme.com>"}]})
+    _con_buzon(monkeypatch, [b"In-Reply-To: <mv-1@acme.com>\r\n\r\n"])
+    _pedir(cliente, dias=7)
+    busquedas = [c for tipo, c in _BuzonFalso.pedidos if tipo == "search"]
+    assert busquedas and busquedas[0][0] == "SINCE"

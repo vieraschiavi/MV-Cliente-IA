@@ -182,6 +182,24 @@ export function setSmtp(cfg) {
   else localStorage.removeItem(KEY_SMTP);
 }
 
+// Lectura de la casilla (IMAP), sólo para contar respuestas. Misma política
+// que el SMTP: vive en ESTE navegador y viaja únicamente con la petición que
+// la usa. El servidor lee las cabeceras del hilo y nada más — nunca el cuerpo
+// de un correo.
+const KEY_IMAP = "mvcliente_imap";
+
+export function getImap() {
+  try {
+    return JSON.parse(localStorage.getItem(KEY_IMAP)) || null;
+  } catch {
+    return null;
+  }
+}
+export function setImap(cfg) {
+  if (cfg && cfg.host && cfg.usuario) localStorage.setItem(KEY_IMAP, JSON.stringify(cfg));
+  else localStorage.removeItem(KEY_IMAP);
+}
+
 // Claves de la API de X (developer.x.com) para publicar el post de campaña
 // desde «Automatizar flujo». Misma política que el SMTP: viven en ESTE
 // navegador y viajan sólo con la petición que las usa.

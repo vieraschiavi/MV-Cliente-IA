@@ -258,7 +258,12 @@
     "lic_ayuda": "The key arrives by email with your purchase. Paste it once and it stays saved on this computer.",
     "lic_owner_nota": "This copy is the owner edition: no key, no expiry.",
     "licencia": "License key (if you bought it)",
-    "licencia_ayuda": "If you bought the program, paste the key you received here: the Android app and the web get unlimited searches, same as the desktop app. It stays on this device only and travels with each search; the server verifies its signature."
+    "licencia_ayuda": "If you bought the program, paste the key you received here: the Android app and the web get unlimited searches, same as the desktop app. It stays on this device only and travels with each search; the server verifies its signature.",
+    "imap": "Read the mailbox (count replies)",
+    "imap_ayuda": "Optional and separate from sending: this lets the program count how many of your emails got a reply. It reads ONLY the thread headers, never the body of an email, and connects read-only (it cannot flag, move or delete anything). Credentials live in this browser and travel only with each query. Gmail needs an app password.",
+    "imap_guardado": "Mailbox reading saved",
+    "imap_carpeta": "Folder (usually INBOX)",
+    "imap_ssl": "Direct SSL (port 993, the usual)"
   },
   "aviso": {
     "sintetico": "Demo data: the companies and people in this list are synthetic, generated to exercise the flow. Switch the data source to “Read my real website” or “AI research” to work with real information.",
@@ -399,7 +404,13 @@
     "de_los_que_abrieron": "of those who opened the email",
     "visitas_web": "Website visits",
     "parte_del_trafico": "{{p}} came from outbound",
-    "aviso_apertura": "Opens are measured with a pixel: they only count if the mail client loads images. Outlook blocks them by default (those opens are invisible) and Gmail preloads them (some count without anyone reading). Use it to compare segments, subject lines and times against each other — not as an absolute number."
+    "aviso_apertura": "Opens are measured with a pixel: they only count if the mail client loads images. Outlook blocks them by default (those opens are invisible) and Gmail preloads them (some count without anyone reading). Use it to compare segments, subject lines and times against each other — not as an absolute number.",
+    "tasa_respuesta": "Reply rate",
+    "respuestas_n": "{{n}} of {{total}} trackable",
+    "contar_respuestas": "Count replies",
+    "imap_falta": "To count replies, set up mailbox reading in Settings.",
+    "respuestas_listas": "{{nuevas}} new replies ({{revisados}} inbox messages checked).",
+    "respuestas_recortado": "Stopped at the message cap: if you have high volume, narrow the day range."
   },
   "busquedas": {
     "titulo": "Find more customers in this segment",
@@ -438,6 +449,8 @@
     "canal": "Channel",
     "tasa": "Click rate",
     "origen_trafico": "Where the traffic comes from",
-    "traqueo_apagado": "Tracking is off: without MVCLIENTE_TRAQUEO_SECRETO and MVCLIENTE_URL_TRAQUEO there is no pixel and no redirect, so opens and clicks read zero because nothing is measured — not because nothing happens."
+    "traqueo_apagado": "Tracking is off: without MVCLIENTE_TRAQUEO_SECRETO and MVCLIENTE_URL_TRAQUEO there is no pixel and no redirect, so opens and clicks read zero because nothing is measured — not because nothing happens.",
+    "respuestas": "Replies",
+    "sobre_rastreables": "{{p}} of {{n}} trackable"
   }
 }

@@ -2,9 +2,10 @@ import React, { useEffect, useState } from "react";
 import {
   api, esNativo, getBase, getClaveIA, getEndpointIA, getModeloIA, getModelosActualizado,
   getModelosDisponibles, getOwner, getProveedorIA, activarLicencia, getLicencia,
-  getLicenciaClave, getLinkedIn, getSmtp, getX, listarModelosIA, PROVEEDORES_CON_LISTA_DE_MODELOS,
+  getImap, getLicenciaClave, getLinkedIn, getSmtp, getX, listarModelosIA,
+  PROVEEDORES_CON_LISTA_DE_MODELOS,
   setBase, setClaveIA, setEndpointIA, setLicenciaClave, setLinkedIn, setModeloIA, setModelosDisponibles,
-  setOwner, setProveedorIA, setSmtp, setToken, setX,
+  setImap, setOwner, setProveedorIA, setSmtp, setToken, setX,
 } from "../api.js";
 import { SelectorIdioma } from "../App.jsx";
 import { Aviso } from "../componentes/Comunes.jsx";
@@ -135,6 +136,78 @@ function FormSmtp() {
         <input type="checkbox" checked={smtp.ssl}
                onChange={(e) => campo("ssl", e.target.checked)} />
         {t("config.smtp_ssl")}
+      </label>
+      <div style={{ marginTop: 12 }}>
+        <button className="btn" type="submit">{t("config.guardar")}</button>
+      </div>
+      {aviso ? <p className="nota" style={{ color: "var(--green-deep)" }}>{aviso}</p> : null}
+    </form>
+  );
+}
+
+/**
+ * Lectura de la casilla para contar respuestas. Es un formulario aparte del
+ * SMTP a propósito: son dos permisos distintos (mandar vs. leer) y el usuario
+ * tiene que poder dar uno sin el otro. Muchos ni van a querer dar el de
+ * lectura, y el producto funciona igual sin él — sólo que no cuenta
+ * respuestas.
+ */
+function FormImap() {
+  const guardado = getImap() || {};
+  const smtp = getSmtp() || {};
+  const [imap, setImapLocal] = useState({
+    host: guardado.host || "", puerto: guardado.puerto || 993,
+    usuario: guardado.usuario || "", clave: guardado.clave || "",
+    ssl: guardado.ssl === undefined ? true : Boolean(guardado.ssl),
+    carpeta: guardado.carpeta || "INBOX",
+  });
+  const [aviso, setAviso] = useState("");
+
+  const campo = (clave, valor) => setImapLocal({ ...imap, [clave]: valor });
+  const guardar = (e) => {
+    e.preventDefault();
+    setImap(imap.host && imap.usuario ? imap : null);
+    setAviso(imap.host ? t("config.imap_guardado") : t("config.clave_borrada"));
+    setTimeout(() => setAviso(""), 2500);
+  };
+
+  return (
+    <form className="card" style={{ maxWidth: 620, marginBottom: 14 }} onSubmit={guardar}>
+      <h3>{t("config.imap")}</h3>
+      <p className="nota" style={{ marginTop: 0 }}>{t("config.imap_ayuda")}</p>
+      <div style={{ display: "grid", gap: 10, gridTemplateColumns: "2fr 1fr" }}>
+        <div className="campo">
+          <label htmlFor="imap-host">{t("config.smtp_host")}</label>
+          <input id="imap-host" type="text" value={imap.host} placeholder="imap.gmail.com"
+                 autoCapitalize="none" autoCorrect="off"
+                 onChange={(e) => campo("host", e.target.value.trim())} />
+        </div>
+        <div className="campo">
+          <label htmlFor="imap-puerto">{t("config.smtp_puerto")}</label>
+          <input id="imap-puerto" type="number" value={imap.puerto} min="1" max="65535"
+                 onChange={(e) => campo("puerto", Number(e.target.value) || 993)} />
+        </div>
+      </div>
+      <div className="campo crece" style={{ margin: "10px 0" }}>
+        <label htmlFor="imap-usuario">{t("config.smtp_usuario")}</label>
+        <input id="imap-usuario" type="email" value={imap.usuario}
+               placeholder={smtp.usuario || "vos@tuempresa.com"} autoCapitalize="none"
+               onChange={(e) => campo("usuario", e.target.value.trim())} />
+      </div>
+      <div className="campo crece" style={{ marginBottom: 10 }}>
+        <label htmlFor="imap-clave">{t("config.smtp_clave")}</label>
+        <input id="imap-clave" type="password" value={imap.clave} autoComplete="off"
+               onChange={(e) => campo("clave", e.target.value)} />
+      </div>
+      <div className="campo crece" style={{ marginBottom: 10 }}>
+        <label htmlFor="imap-carpeta">{t("config.imap_carpeta")}</label>
+        <input id="imap-carpeta" type="text" value={imap.carpeta}
+               onChange={(e) => campo("carpeta", e.target.value.trim() || "INBOX")} />
+      </div>
+      <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13.5 }}>
+        <input type="checkbox" checked={imap.ssl}
+               onChange={(e) => campo("ssl", e.target.checked)} />
+        {t("config.imap_ssl")}
       </label>
       <div style={{ marginTop: 12 }}>
         <button className="btn" type="submit">{t("config.guardar")}</button>
@@ -447,6 +520,7 @@ export default function Configuracion({ onSalir }) {
 
       <FormLicencia />
       <FormSmtp />
+      <FormImap />
       <FormLinkedIn />
       <FormX />
 

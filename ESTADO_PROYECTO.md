@@ -204,6 +204,20 @@ Ahora:
     falta un almacenamiento durable (Vercel KV/Postgres o similar); es la
     única pieza de infra que queda pendiente.
 
+13. **Lectura de la casilla (IMAP), para contar respuestas** — se carga en el
+    programa (Configuración → «Leer la casilla»), no en el servidor: las
+    credenciales viven en el navegador del usuario y viajan sólo con cada
+    consulta. Es un permiso APARTE del SMTP a propósito —mandar y leer son
+    dos cosas distintas— y el producto funciona igual sin él: sólo que no
+    cuenta respuestas. Con Gmail hace falta una contraseña de aplicación.
+
+    Qué hace exactamente: abre la casilla en **modo lectura** (no puede
+    marcar, mover ni borrar nada), pide sólo las cabeceras `In-Reply-To`,
+    `References` y `Date` con `BODY.PEEK` (que además no marca como leído) y
+    cruza contra los Message-ID que emitimos. **El cuerpo de un correo no se
+    abre nunca.** Está cubierto por un test que falla si alguien pide más que
+    cabeceras.
+
 ## Cómo re-verificar todo (5 min)
 
 ```bash

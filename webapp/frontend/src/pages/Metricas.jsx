@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { api, borrarEnvios, fmtNum, getEnvios, getX, resumenMetricas, urlSegura } from "../api.js";
+import {
+  api, borrarEnvios, fmtNum, getEnvios, getImap, getX, resumenMetricas, urlSegura,
+} from "../api.js";
 import { Aviso, Vacio } from "../componentes/Comunes.jsx";
 import { Icono } from "../componentes/Iconos.jsx";
 import { getIdioma, t } from "../i18n/index.js";
@@ -77,6 +79,13 @@ function PanelConversion({ resumen }) {
                    valor={pct(resumen.tasa_click_sobre_apertura)}
                    pie={t("metricas.de_los_que_abrieron")} />
         ) : null}
+        {resumen.rastreables ? (
+          <Tarjeta titulo={t("metricas.tasa_respuesta")} valor={pct(resumen.tasa_respuesta)}
+                   pie={t("metricas.respuestas_n", {
+                     n: fmtNum(resumen.respuestas, getIdioma()),
+                     total: fmtNum(resumen.rastreables, getIdioma()) })}
+                   color="var(--green)" />
+        ) : null}
         {resumen.visitas ? (
           <Tarjeta titulo={t("metricas.visitas_web")}
                    valor={fmtNum(resumen.visitas, getIdioma())}
@@ -119,7 +128,9 @@ export default function Metricas() {
   const [metricas, setMetricas] = useState({});
   const [estado, setEstado] = useState("");
   const [resumen, setResumen] = useState(null);
+  const [avisoResp, setAvisoResp] = useState("");
   const x = getX();
+  const imap = getImap();
 
   // El tablero de conversión sale del backend: se pide al entrar. Si el
   // servidor no está (o no tiene datos), la página sigue funcionando con lo
@@ -148,6 +159,25 @@ export default function Metricas() {
       respuestas: a.respuestas + m.respuestas,
     };
   }, { impresiones: 0, likes: 0, respuestas: 0 });
+
+  const contarRespuestas = async () => {
+    if (!imap) return;
+    setEstado("respuestas");
+    setAvisoResp("");
+    try {
+      const r = await api("/api/respuestas", { metodo: "POST", cuerpo: { imap, dias: 30 } });
+      setResumen(await resumenMetricas());
+      setAvisoResp(
+        r.motivo === "sin_mensajes"
+          ? r.detalle
+          : t("metricas.respuestas_listas", { nuevas: r.nuevas, revisados: r.revisados })
+            + (r.recortado ? " " + t("metricas.respuestas_recortado") : ""));
+      setEstado("");
+    } catch (e) {
+      setEstado("");
+      setAvisoResp(e.message);
+    }
+  };
 
   const refrescar = async () => {
     if (!x || !posts.length) return;
@@ -215,11 +245,21 @@ export default function Metricas() {
                 title={x ? "" : t("metricas.x_falta")} onClick={refrescar}>
           {estado === "cargando" ? t("metricas.cargando") : t("metricas.refrescar")}
         </button>
+        {/* Contar respuestas es un pedido APARTE y a mano: se conecta a la
+            casilla del usuario, y eso no puede pasar solo cada vez que abre
+            la pantalla. Lee cabeceras, nunca el cuerpo de un correo. */}
+        <button className="btn ghost" data-accion="respuestas"
+                disabled={!imap || estado === "respuestas"}
+                title={imap ? "" : t("metricas.imap_falta")}
+                onClick={contarRespuestas}>
+          {estado === "respuestas" ? t("metricas.cargando") : t("metricas.contar_respuestas")}
+        </button>
         <button className="btn ghost" onClick={limpiar}>{t("metricas.borrar")}</button>
         <span className="nota" style={{ marginTop: 0 }}>
           {t("metricas.envios", { n: envios.length })}
         </span>
       </div>
+      {avisoResp ? <Aviso>{avisoResp}</Aviso> : null}
       {!x && posts.length ? <Aviso>{t("metricas.x_falta")}</Aviso> : null}
       {estado && estado !== "cargando" ? <p className="error-note">{estado}</p> : null}
 

@@ -115,6 +115,10 @@ export default function Panel() {
                      valor={i ? fmtNum(i.conversiones) : "—"}
                      nota={i ? t("panel.sobre_apertura", {
                        p: pct(i.tasa_click_sobre_apertura) }) : null} />
+            <Tarjeta icono="chequeo_circulo" titulo={t("panel.respuestas")}
+                     valor={i ? fmtNum(i.respuestas) : "—"}
+                     nota={i ? t("panel.sobre_rastreables", {
+                       p: pct(i.tasa_respuesta), n: fmtNum(i.rastreables) }) : null} />
             <Tarjeta icono="globo" titulo={t("panel.visitas")}
                      valor={i ? fmtNum(i.visitas) : "—"}
                      nota={i ? t("panel.del_outbound", {
@@ -130,6 +134,7 @@ export default function Panel() {
                     <th style={{ textAlign: "right" }}>{t("panel.enviados")}</th>
                     <th style={{ textAlign: "right" }}>{t("panel.aperturas")}</th>
                     <th style={{ textAlign: "right" }}>{t("panel.clicks")}</th>
+                    <th style={{ textAlign: "right" }}>{t("panel.respuestas")}</th>
                     <th style={{ textAlign: "right" }}>{t("panel.tasa")}</th>
                   </tr>
                 </thead>
@@ -140,6 +145,7 @@ export default function Panel() {
                       <td className="tnum" style={{ textAlign: "right" }}>{fmtNum(f.envios)}</td>
                       <td className="tnum" style={{ textAlign: "right" }}>{fmtNum(f.aperturas)}</td>
                       <td className="tnum" style={{ textAlign: "right" }}>{fmtNum(f.conversiones)}</td>
+                      <td className="tnum" style={{ textAlign: "right" }}>{fmtNum(f.respuestas)}</td>
                       <td className="tnum" style={{ textAlign: "right" }}>{pct(f.tasa)}</td>
                     </tr>
                   ))}
