@@ -294,6 +294,14 @@ export function activarLicencia(clave) {
   return api("/api/licencia", { metodo: "POST", cuerpo: { clave } });
 }
 
+// Canjea el `payment_id` que MercadoPago agrega a la URL de vuelta
+// (`/?pago=ok&payment_id=…`) por la clave de licencia del comprador. Ver
+// `api.py:licencia_por_pago` — el servidor no guarda nada, verifica el pago
+// contra la propia API de MercadoPago en cada llamado.
+export function pagoLicencia(paymentId) {
+  return api("/api/pago/licencia", { metodo: "POST", cuerpo: { payment_id: paymentId } });
+}
+
 // La clave de licencia del que COMPRÓ, guardada en este dispositivo.
 //
 // El programa instalado la activa contra su propio disco (`POST /api/licencia`),

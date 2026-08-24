@@ -265,6 +265,18 @@
     "imap_carpeta": "Carpeta (normalmente INBOX)",
     "imap_ssl": "SSL directo (puerto 993, lo normal)"
   },
+  "pago": {
+    "cargando": "Confirmando el pago con MercadoPago…",
+    "ok_titulo": "¡Pago aprobado!",
+    "ok_txt": "Esta es tu clave de licencia. Ya quedó activada en este dispositivo.",
+    "ok_nota": "Guardala también aparte: es la que tenés que pegar en Configuración si usás la app de PC o el Android con otra cuenta.",
+    "vence": "Vence: {{fecha}}",
+    "pendiente_titulo": "Pago pendiente",
+    "pendiente_txt": "MercadoPago todavía no confirmó el pago. En cuanto lo apruebe, volvé a entrar a este enlace y la clave se genera sola.",
+    "error_titulo": "No se pudo emitir la licencia",
+    "error_txt": "Escribinos con el comprobante de pago y te la mandamos a mano.",
+    "cerrar": "Cerrar"
+  },
   "aviso": {
     "sintetico": "Datos de demostración: las empresas y las personas de esta lista son sintéticas, generadas para probar el flujo. Cambiá el origen de datos a «Leer mi sitio real» o «Investigación con IA» para trabajar con información real.",
     "avisos_corrida": "La búsqueda terminó, pero algunas fases con IA fallaron y se cubrieron con datos sintéticos:"

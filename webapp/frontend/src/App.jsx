@@ -14,6 +14,7 @@ import Login from "./pages/Login.jsx";
 import Metricas from "./pages/Metricas.jsx";
 import Panel from "./pages/Panel.jsx";
 import Prospectos from "./pages/Prospectos.jsx";
+import PagoConfirmado from "./componentes/PagoConfirmado.jsx";
 
 // `ico` es el nombre de un trazo de componentes/Iconos.jsx, no un emoji: el
 // emoji lo dibujaba la fuente del sistema y la barra salía de otro color en
@@ -128,28 +129,44 @@ export default function App() {
       .catch(() => setAuth(false));
   }, []);
 
-  if (auth === undefined) return null;
-  if (auth && !getToken() && loc.pathname !== "/login") return <Navigate to="/login" replace />;
-  if (loc.pathname === "/login") return <Login onEntrar={() => setAuth(true)} />;
+  // El cartel de vuelta de MercadoPago se monta siempre, ANTES de las ramas
+  // de abajo: MercadoPago manda al comprador a la raíz ("/?pago=ok"), y esa
+  // raíz puede caer en el login (instancia con contraseña) o en la app
+  // directamente. En los dos casos tiene que mostrarse igual.
+  let contenido;
+  if (auth === undefined) {
+    contenido = null;
+  } else if (auth && !getToken() && loc.pathname !== "/login") {
+    contenido = <Navigate to="/login" replace />;
+  } else if (loc.pathname === "/login") {
+    contenido = <Login onEntrar={() => setAuth(true)} />;
+  } else {
+    contenido = (
+      <div className="layout">
+        <Sidebar />
+        <main className="main">
+          <TopMovil />
+          <Routes>
+            <Route path="/" element={<Explorar />} />
+            <Route path="/prospectos" element={<Prospectos />} />
+            <Route path="/decisores" element={<Decisores />} />
+            <Route path="/correos" element={<Correos />} />
+            <Route path="/analisis" element={<Analisis />} />
+            <Route path="/metricas" element={<Metricas />} />
+            <Route path="/historial" element={<Historial />} />
+            <Route path="/panel" element={<Panel />} />
+            <Route path="/configuracion" element={<Configuracion onSalir={() => setToken(null)} />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+      </div>
+    );
+  }
 
   return (
-    <div className="layout">
-      <Sidebar />
-      <main className="main">
-        <TopMovil />
-        <Routes>
-          <Route path="/" element={<Explorar />} />
-          <Route path="/prospectos" element={<Prospectos />} />
-          <Route path="/decisores" element={<Decisores />} />
-          <Route path="/correos" element={<Correos />} />
-          <Route path="/analisis" element={<Analisis />} />
-          <Route path="/metricas" element={<Metricas />} />
-          <Route path="/historial" element={<Historial />} />
-          <Route path="/panel" element={<Panel />} />
-          <Route path="/configuracion" element={<Configuracion onSalir={() => setToken(null)} />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
-    </div>
+    <>
+      <PagoConfirmado />
+      {contenido}
+    </>
   );
 }

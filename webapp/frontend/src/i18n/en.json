@@ -265,6 +265,18 @@
     "imap_carpeta": "Folder (usually INBOX)",
     "imap_ssl": "Direct SSL (port 993, the usual)"
   },
+  "pago": {
+    "cargando": "Confirming the payment with MercadoPago…",
+    "ok_titulo": "Payment approved!",
+    "ok_txt": "This is your license key. It's already active on this device.",
+    "ok_nota": "Save it separately too: it's what you paste into Settings if you use the PC app or Android with another account.",
+    "vence": "Expires: {{fecha}}",
+    "pendiente_titulo": "Payment pending",
+    "pendiente_txt": "MercadoPago hasn't confirmed the payment yet. As soon as it's approved, come back to this link and the key generates itself.",
+    "error_titulo": "Couldn't issue the license",
+    "error_txt": "Write to us with the payment receipt and we'll send it by hand.",
+    "cerrar": "Close"
+  },
   "aviso": {
     "sintetico": "Demo data: the companies and people in this list are synthetic, generated to exercise the flow. Switch the data source to “Read my real website” or “AI research” to work with real information.",
     "avisos_corrida": "The search finished, but some AI phases failed and were covered with synthetic data:"

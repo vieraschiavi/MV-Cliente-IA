@@ -144,6 +144,14 @@ porque **cambia de dónde despliega Vercel** (ver abajo).
    `MVCLIENTE_LICENCIA_SECRETO=... python3 -m cliente_ia.licencia emitir --email X --meses 12`.
    Mientras no lo definas, cae a `MVCLIENTE_OWNER`, que ya está configurado —
    así que el sistema funciona hoy, pero conviene separarlos.
+   **Actualización:** `POST /api/pago/licencia` existía en el backend desde
+   antes, pero nada en el frontend lo llamaba — el comprador pagaba, volvía a
+   `/?pago=ok` y ahí terminaba todo. Se agregó `PagoConfirmado.jsx`: lee esa
+   query al volver de MercadoPago, canjea el `payment_id` por la clave, la
+   deja activada sola en ese dispositivo y la muestra en pantalla para que el
+   comprador la guarde también en la PC o el Android. Cubierto por Playwright
+   contra un backend con MercadoPago simulado (aprobado / pendiente / vuelta
+   rota sin `payment_id`).
 9. **Estructura de ramas (decisión, no código)** — el repo tiene una sola rama
    y es la que Vercel publica. Para que el merge automático tenga sentido hay
    que volver al flujo `main` + ramas de trabajo con PR, y eso implica
