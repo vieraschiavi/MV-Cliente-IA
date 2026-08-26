@@ -55,6 +55,15 @@ def _chromium() -> dict:
     return {"executable_path": str(encontrados[-1])} if encontrados else {}
 
 
+# Tope del ensanche de emergencia (ver `_foto`): la tabla de Prospectos tiene
+# nueve columnas y a 1280 px de ancho real ya no entran todas — sale
+# recortada a la mitad de la última. No hay forma de saber de antemano cuánto
+# hace falta (cambia con el largo de los datos de la corrida demo), así que
+# se mide y se ensancha; este tope es sólo para no generar un PNG gigante si
+# algo saliera mal.
+ANCHO_CAPTURA_TOPE = 2400
+
+
 def _foto(idioma: str, base: str, corrida_id: str, destino: Path) -> Path:
     from playwright.sync_api import sync_playwright
 
@@ -75,6 +84,26 @@ def _foto(idioma: str, base: str, corrida_id: str, destino: Path) -> Path:
             # Sin este respiro la tabla sale a medio pintar y la captura
             # muestra filas vacías: es el producto, pero parece roto.
             pagina.wait_for_timeout(600)
+
+            # La tabla real tiene más columnas de las que entran en el ancho
+            # fijo de captura: en la app eso está bien (`.tablewrap` scrollea
+            # con `overflow-x:auto`, a propósito), pero en una foto estática
+            # deja la última columna cortada a la mitad — parece el producto
+            # roto, no una tabla larga. Se saca el freno del scroll y se mide
+            # cuánto necesita la página entera para entrar sin cortar nada;
+            # si hace falta, se agranda el viewport ANTES de fotografiar.
+            ancho_necesario = pagina.evaluate("""
+                () => {
+                    const wrap = document.querySelector('.tablewrap');
+                    if (wrap) wrap.style.overflow = 'visible';
+                    return document.documentElement.scrollWidth;
+                }
+            """)
+            ancho_final = min(ANCHO_CAPTURA_TOPE,
+                               max(ANCHO_CAPTURA, ancho_necesario + 16))
+            if ancho_final > ANCHO_CAPTURA:
+                pagina.set_viewport_size({"width": ancho_final, "height": ALTO_CAPTURA})
+                pagina.wait_for_timeout(150)  # reflow tras el resize
             pagina.screenshot(path=str(destino))
         finally:
             navegador.close()
