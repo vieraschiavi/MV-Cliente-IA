@@ -302,6 +302,26 @@ def test_con_password_la_api_exige_token(monkeypatch):
                        headers={"Authorization": "Bearer 99999999999.falso"}).status_code == 401
 
 
+def test_el_secreto_de_sesion_sobrevive_un_arranque_nuevo(monkeypatch):
+    """Regresión: el secreto de sesión era `secrets.token_bytes(32)` a nivel
+    de módulo, o sea aleatorio por PROCESO. En Vercel cada invocación puede
+    caer en una instancia nueva (cold start), así que un token firmado por
+    una instancia daba 401 en la siguiente aunque no hubiera vencido — un
+    bug que ningún test podía ver porque TestClient reusa siempre el mismo
+    proceso. Se simula el arranque nuevo recargando el módulo: el secreto
+    tiene que salir igual porque ahora depende sólo de MVCLIENTE_PASSWORD."""
+    import importlib
+    monkeypatch.setenv("MVCLIENTE_PASSWORD", "secreta")
+    from webapp.backend import api
+    importlib.reload(api)
+    token = TestClient(api.app).post(
+        "/api/auth/login", json={"password": "secreta"}).json()["token"]
+
+    importlib.reload(api)  # "cold start": memoria de módulo nueva
+    cabecera = {"Authorization": f"Bearer {token}"}
+    assert TestClient(api.app).get("/api/corridas", headers=cabecera).status_code == 200
+
+
 def test_cupo_gratis_de_la_web(monkeypatch):
     """En el despliegue web las búsquedas reales tienen cupo; la demo no lo
     gasta, y el código de dueño exime. El aviso es un 402 con explicación."""
@@ -664,6 +684,36 @@ def test_pagar_entrega_la_licencia_sola(monkeypatch):
     for _ in range(3):
         assert cliente.post("/api/corridas", json=corrida).status_code == 200
     assert cliente.get("/api/cupo").json()["usadas"] == 0
+
+
+def test_pedir_la_clave_dos_veces_no_regala_una_renovacion(monkeypatch):
+    """Regresión: como el endpoint no guarda estado, se ancla `vence` a
+    CUÁNDO MERCADOPAGO APROBÓ EL PAGO (`date_approved`), no a "ahora". Sin
+    eso, un comprador que perdía la clave y volvía a pedirla con el MISMO
+    `payment_id` meses después se llevaba una licencia nueva de otros 12
+    meses a partir de ESE segundo pedido — repetir el canje una vez por año
+    renovaba gratis para siempre con un solo pago real."""
+    from cliente_ia import licencia
+    from webapp.backend import api
+
+    secreto = "secreto-de-prueba-del-test"
+    monkeypatch.setenv("MVCLIENTE_LICENCIA_SECRETO", secreto)
+    monkeypatch.setenv("MERCADOPAGO_ACCESS_TOKEN", "TEST-token")
+    _pago_falso(monkeypatch, date_approved="2026-01-15T10:00:00.000-03:00")
+
+    cliente = TestClient(api.app)
+    primera = cliente.post("/api/pago/licencia", json={"payment_id": "1234567890"})
+    assert primera.status_code == 200, primera.text
+    vence_1 = licencia.verificar(primera.json()["clave"], secreto)["vence"]
+
+    # "Meses después" == la respuesta de MercadoPago para ESE payment_id no
+    # cambia (es un pago viejo), pero si `emitir()` mirara `datetime.now()`
+    # esto se ejecutaría bastante más tarde que la primera llamada.
+    segunda = cliente.post("/api/pago/licencia", json={"payment_id": "1234567890"})
+    assert segunda.status_code == 200, segunda.text
+    vence_2 = licencia.verificar(segunda.json()["clave"], secreto)["vence"]
+
+    assert vence_1 == vence_2 == "2027-01-22"  # 2026-01-15 + 31*12 días
 
 
 def test_no_se_saca_licencia_sin_haber_pagado_de_verdad(monkeypatch):

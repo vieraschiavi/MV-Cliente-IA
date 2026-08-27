@@ -175,7 +175,6 @@ _ejecutor = ThreadPoolExecutor(max_workers=MAX_CORRIDAS_PARALELAS,
                               thread_name_prefix="autogtm")
 _lock = threading.Lock()
 _en_curso: set[str] = set()
-_secreto = secrets.token_bytes(32)          # se renueva en cada arranque
 
 
 # ---------------------------------------------------------------------------
@@ -208,9 +207,26 @@ def _es_owner_email(email: str) -> bool:
                                                      OWNER_EMAIL)
 
 
+_avisado_secreto_cupo_debil = False
+
+
 def _secreto_cupo() -> bytes:
-    base = ("mv-cupo-v1" + os.getenv("MVCLIENTE_OWNER", "")
-            + os.getenv("MVCLIENTE_PASSWORD", ""))
+    owner, password = os.getenv("MVCLIENTE_OWNER", ""), os.getenv("MVCLIENTE_PASSWORD", "")
+    if not owner and not password:
+        # Sin ninguna de las dos, el secreto queda en la constante fija de
+        # abajo, que es pública (este repo es público). Cualquiera podría
+        # forjar una cookie `usadas=0` válida para siempre — no compromete
+        # pagos ni licencias, sólo el conteo del cupo gratis, pero es barato
+        # de evitar con cualquiera de las dos variables. Se avisa UNA vez
+        # por proceso para que se note en los logs sin inundarlos.
+        global _avisado_secreto_cupo_debil
+        if not _avisado_secreto_cupo_debil:
+            _avisado_secreto_cupo_debil = True
+            print("[cupo] MVCLIENTE_OWNER y MVCLIENTE_PASSWORD están vacías: "
+                  "la cookie de cupo gratis usa un secreto público y "
+                  "cualquiera puede forjarla. Configurá una de las dos.",
+                  flush=True)
+    base = "mv-cupo-v1" + owner + password
     return hashlib.sha256(base.encode()).digest()
 
 
@@ -286,8 +302,18 @@ def auth_activa() -> bool:
     return bool(_password())
 
 
+def _secreto_sesion() -> bytes:
+    # Determinista a partir de la contraseña, NO aleatorio por proceso: en
+    # Vercel cada invocación puede caer en una instancia nueva (cold start),
+    # así que un `secrets.token_bytes()` a nivel de módulo firmaba con un
+    # secreto propio de ESA instancia — un token válido emitido por una
+    # instancia daba 401 en la siguiente aunque no hubiera vencido. Mismo
+    # patrón que `_secreto_cupo()`, que sí es determinista a propósito.
+    return hashlib.sha256(("mv-sesion-v1" + _password()).encode()).digest()
+
+
 def _firmar(vence: int) -> str:
-    mac = hmac.new(_secreto, str(vence).encode(), hashlib.sha256).hexdigest()
+    mac = hmac.new(_secreto_sesion(), str(vence).encode(), hashlib.sha256).hexdigest()
     return f"{vence}.{mac}"
 
 
@@ -299,7 +325,7 @@ def _token_valido(token: str) -> bool:
         return False
     if vence < time.time():
         return False
-    return hmac.compare_digest(mac, hmac.new(_secreto, crudo.encode(),
+    return hmac.compare_digest(mac, hmac.new(_secreto_sesion(), crudo.encode(),
                                              hashlib.sha256).hexdigest())
 
 
@@ -558,8 +584,23 @@ def licencia_por_pago(datos: PagoIn):
     if not _EMAIL_RE.match(correo):
         raise HTTPException(502, "El pago no trae el correo del comprador.")
 
+    # Se ancla el vencimiento a CUÁNDO MERCADOPAGO APROBÓ EL PAGO, no a
+    # "ahora": este endpoint no guarda estado (Vercel), así que si el
+    # comprador pierde la clave y vuelve a pedirla con el MISMO payment_id
+    # meses después, tiene que salir la MISMA clave (o una con la misma
+    # fecha de vencimiento) — no una licencia nueva de MESES_LICENCIA a
+    # partir de ESE segundo pedido. Sin este anclaje, reclamar el mismo pago
+    # una vez por año renovaba la licencia gratis para siempre.
+    desde = None
     try:
-        clave = licencia.emitir(correo, meses=MESES_LICENCIA)
+        aprobado = str(pago.get("date_approved") or "")
+        if aprobado:
+            desde = datetime.fromisoformat(aprobado)
+    except ValueError:
+        desde = None  # fecha con un formato inesperado: se cae a "ahora"
+
+    try:
+        clave = licencia.emitir(correo, meses=MESES_LICENCIA, desde=desde)
     except ValueError as e:
         # Falta MVCLIENTE_LICENCIA_SECRETO: el servidor no puede FIRMAR. Se
         # dice claro en vez de devolver una clave que después no valide.

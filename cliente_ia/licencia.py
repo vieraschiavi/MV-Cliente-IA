@@ -199,13 +199,25 @@ def _validar_en_linea(clave: str) -> dict:
                           "licencia. Revisá tu conexión y probá de nuevo."}
 
 
-def emitir(email: str, meses: int = 12, secreto: str = "") -> str:
+def emitir(email: str, meses: int = 12, secreto: str = "",
+           desde: datetime | None = None) -> str:
     """Fabrica una clave para un comprador. Es un comando del DUEÑO: necesita
-    el secreto, que no viaja en ningún instalador."""
+    el secreto, que no viaja en ningún instalador.
+
+    `desde` es la fecha desde la que cuentan los `meses` — por defecto ahora,
+    pero `licencia_por_pago` (api.py) pasa la fecha de aprobación que informa
+    MercadoPago. Sin esto, pedir la clave dos veces con el MISMO pago (perder
+    la clave y volver a entrar al enlace de vuelta, un reintento de red)
+    generaba una licencia nueva de `meses` a partir de ESE momento — quien
+    pagara una vez y repitiera el canje cada tanto renovaba gratis para
+    siempre. Con `desde` fijo, pedir la clave dos veces da la MISMA fecha de
+    vencimiento las dos veces: es idempotente, no una renovación.
+    """
     llave = secreto.encode() if secreto else _secreto()
     if not llave:
         raise ValueError("Falta MVCLIENTE_LICENCIA_SECRETO para firmar")
-    vence = (datetime.now(UTC) + timedelta(days=31 * meses)).date().isoformat()
+    base = desde or datetime.now(UTC)
+    vence = (base + timedelta(days=31 * meses)).date().isoformat()
     cuerpo = json.dumps({"email": email.strip().lower(), "vence": vence},
                         separators=(",", ":"), sort_keys=True)
     datos = base64.urlsafe_b64encode(cuerpo.encode()).decode().rstrip("=")

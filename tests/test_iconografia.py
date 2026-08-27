@@ -151,3 +151,30 @@ def test_las_etiquetas_nuevas_estan_en_los_tres_idiomas():
         # Y que las cadenas de las que se sacó el emoji no hayan quedado vacías.
         for clave in ("exportar_csv", "exportar_xlsx"):
             assert d["common"][clave].strip(), f"{idioma}.common.{clave} quedó vacía"
+
+
+def test_el_nombre_del_producto_cambia_solo_en_ingles():
+    """Regla 2 del proyecto: MV Cliente IA en es/pt, MV SearchCostumer AI en
+    inglés — en las CUATRO fuentes donde el nombre está escrito a mano. Sin
+    este test, cablear "MV Cliente IA" en el JSON inglés o en el strings.xml
+    de Android dejaba pasar la suite entera en verde (encontrado en la
+    auditoría de reglas de negocio: ninguno de los tests existentes comparaba
+    el valor de marca entre idiomas, sólo que la clave no estuviera vacía)."""
+    from marketing.generar_landing import TEXTOS
+
+    ES_PT, EN = "MV Cliente IA", "MV SearchCostumer AI"
+
+    for idioma, esperado in (("es", ES_PT), ("pt-BR", ES_PT), ("en", EN)):
+        d = json.loads((FUENTE / "i18n" / f"{idioma}.json").read_text(encoding="utf-8"))
+        assert d["common"]["marca_texto"] == esperado, idioma
+        assert d["common"]["titulo_pagina"].startswith(esperado), idioma
+
+    for idioma, esperado in (("es", ES_PT), ("pt", ES_PT), ("en", EN)):
+        assert TEXTOS[idioma]["marca"] == esperado, idioma
+        assert TEXTOS[idioma]["titulo"].startswith(esperado), idioma
+
+    ANDROID = RAIZ / "android" / "app" / "src" / "main" / "res"
+    default = (ANDROID / "values" / "strings.xml").read_text(encoding="utf-8")
+    en = (ANDROID / "values-en" / "strings.xml").read_text(encoding="utf-8")
+    assert f'name="app_name">{ES_PT}<' in default
+    assert f'name="app_name">{EN}<' in en
