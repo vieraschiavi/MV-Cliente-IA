@@ -1,0 +1,160 @@
+MV CLIENTE IA / MV SEARCHCOSTUMER AI
+ACUERDO DE LICENCIA DE USO FINAL (EULA)
+========================================================================
+Última actualización: 2026.
+
+Al instalar, copiar o usar el software "MV Cliente IA" —"MV SearchCostumer AI"
+en su versión en inglés— (el "Software"), aceptás este acuerdo. Si no estás de
+acuerdo, no instales ni uses el Software.
+
+
+1. LICENCIA, NO VENTA
+El Software se LICENCIA, no se vende. El titular de los derechos (el
+"Licenciante") te otorga una licencia limitada, no exclusiva e intransferible
+para instalar y usar el Software mientras tu licencia esté vigente, según la
+edición y el plazo que indique tu clave.
+
+
+2. LAS TRES EDICIONES
+Es el mismo programa las tres veces; lo que cambia es un sello horneado al
+construir:
+
+  - DEMO — la baja cualquiera. 14 días con todo abierto. Vencida, queda el
+    modo de demostración con datos sintéticos. Es para EVALUAR el producto
+    antes de comprar, no para producción.
+  - CLIENTE — quien pagó. Pide la clave de licencia una vez; con clave válida
+    funciona hasta la fecha de vencimiento que la propia clave declara.
+  - OWNER — exclusiva del Licenciante. Sin clave y sin vencimiento. No se
+    vende ni se cede.
+
+
+3. LO QUE SÍ PODÉS HACER
+  - Usar el Software para investigar tu mercado, mapear competencia, armar
+    campañas, encontrar empresas compradoras, ubicar decisores y redactar
+    correos para TU propia actividad comercial.
+  - Conectar tus propias claves de servicios de terceros (proveedores de IA,
+    SMTP, IMAP, X/Twitter, y el proveedor de LinkedIn que contrates).
+  - Exportar y usar los resultados (CSV, XLSX) en tu operación.
+
+
+4. LO QUE NO PODÉS HACER
+  - Redistribuir, revender, sublicenciar, alquilar o transferir el Software
+    (ni copias del instalador, del código o de los datos) a terceros sin
+    autorización escrita del Licenciante.
+  - Compartir tu clave de licencia, o usarla para activar más instalaciones
+    que las de tu plan.
+  - Copiar, adaptar o crear una versión modificada del Software para ofrecerla
+    como tu propio producto o el de un tercero, total o parcialmente.
+  - Prestar servicios de prospección a terceros con el Software (modelo
+    agencia) sin una licencia comercial específica.
+  - Descompilar, desensamblar, desofuscar ni aplicar ingeniería inversa al
+    Software, excepto en la mínima medida que lo permita la ley aplicable de
+    forma imperativa.
+  - Alterar o eludir los mecanismos de licencia: la firma HMAC-SHA256 de las
+    claves, el sello de edición o la verificación en línea.
+  - Quitar, ocultar o alterar avisos de derechos de autor, marcas o esta
+    licencia.
+
+
+5. DATOS DE CONTACTO, CORREO EN FRÍO Y RESPONSABILIDAD DEL USUARIO
+Esto es lo más importante de este acuerdo y conviene leerlo entero.
+
+El Software reúne datos de contacto PÚBLICOS publicados por las propias
+empresas en sus sitios web (correo comercial, teléfono, perfiles de redes) y
+te ayuda a redactar y enviar mensajes. Los correos salen de TU casilla, con
+TUS credenciales, bajo TU nombre.
+
+En consecuencia, sos vos —y no el Licenciante— quien actúa como responsable
+del tratamiento de esos datos y quien responde por el uso que hagas de ellos.
+Es tu obligación cumplir la normativa que te aplique, entre otras y según tu
+jurisdicción y la de tus destinatarios: la Ley 18.331 de Protección de Datos
+Personales de Uruguay, el Reglamento General de Protección de Datos (GDPR) de
+la Unión Europea, la LGPD de Brasil y las leyes de correo comercial no
+solicitado (por ejemplo CAN-SPAM en Estados Unidos). Eso incluye, como mínimo:
+identificarte con claridad, ofrecer una vía real de baja y respetarla, y
+atender los pedidos de acceso, rectificación y supresión que recibas.
+
+El Software NO genera personas inventadas con datos de contacto: cuando los
+datos son sintéticos lo dice expresamente, y esa marca no se debe borrar ni
+ocultar al presentarlos.
+
+El Licenciante no envía nada por vos, no accede a tus casillas y no controla a
+quién le escribís.
+
+
+6. AUTOMATIZACIÓN DE REDES SOCIALES
+LinkedIn no ofrece una API pública de mensajería, y automatizar la actividad
+de una cuenta va en contra de su Acuerdo de Usuario: puede terminar en tu
+cuenta restringida o cerrada. El Software te avisa esto ANTES de que cargues
+ninguna credencial, y la integración se hace contra el proveedor externo que
+vos contratés, con tu propia clave.
+
+Usar esa función es tu decisión y corre por tu cuenta y riesgo. El Licenciante
+no responde por restricciones, suspensiones o cierres de tus cuentas en
+LinkedIn, X u otras plataformas.
+
+
+7. CLAVES DE TERCEROS Y COSTOS
+Las claves de API que cargues (IA, SMTP, IMAP, X, LinkedIn) viven en TU
+dispositivo y viajan únicamente con la petición que las usa: el servidor las
+usa y las descarta, no las almacena. El consumo que esas claves generen —
+tokens de IA, envíos, cuotas del proveedor de LinkedIn— lo pagás vos
+directamente a cada proveedor. El Licenciante no factura ni intermedia ese
+consumo, y no responde por costos derivados de tu propio uso.
+
+
+8. RESULTADOS, ESTIMACIONES Y DECISIONES COMERCIALES
+Los puntajes de prospectos, los análisis de mercado, las proyecciones de
+rentabilidad y los escenarios que produce el Software son ESTIMACIONES de
+apoyo, calculadas sobre supuestos que el propio Software declara. No son
+asesoramiento financiero, legal ni comercial, no garantizan ventas ni
+resultados, y no reemplazan tu propio criterio ni el de un profesional.
+
+
+9. ACTIVACIÓN Y CONEXIÓN
+Activar la licencia requiere internet UNA vez: el programa manda la clave para
+que se verifique su firma y guarda el resultado. Después funciona sin
+conexión; el vencimiento se vuelve a mirar contra el reloj en cada arranque.
+
+
+10. PROPIEDAD INTELECTUAL
+El Software, su código fuente, diseño, textos, banners, videos y documentación
+son propiedad del Licenciante y están protegidos por las leyes de propiedad
+intelectual aplicables. Esta licencia no te transfiere ningún derecho de
+propiedad sobre el Software: sólo el derecho de uso descripto en la sección 3.
+Los datos y resultados que generes con el Software son tuyos.
+
+
+11. SIN GARANTÍA
+El Software se entrega "TAL CUAL", sin garantías de ningún tipo, expresas o
+implícitas, incluyendo (sin limitarse a) garantías de comerciabilidad o
+aptitud para un fin particular.
+
+Honestidad sobre lo que esta licencia NO es: no es protección contra alguien
+que quiera parchear el binario. Un programa que corre en la máquina del
+cliente siempre se puede modificar. Es el candado honesto que hace que quien
+paga tenga su clave y quien no, vea el aviso.
+
+
+12. LÍMITE DE RESPONSABILIDAD
+En la máxima medida permitida por la ley, el Licenciante no será responsable
+por daños indirectos, incidentales o consecuentes derivados del uso o la
+imposibilidad de uso del Software, incluidos lucro cesante, pérdida de datos,
+sanciones administrativas o restricciones de cuentas de terceros.
+
+
+13. TERMINACIÓN
+Esta licencia termina automáticamente si incumplís cualquiera de sus términos,
+en particular las secciones 4, 5 y 6. Al terminar, debés dejar de usar el
+Software y desinstalarlo.
+
+
+14. LEY APLICABLE
+Este acuerdo se rige por las leyes de la República Oriental del Uruguay.
+Cualquier disputa se someterá a los tribunales competentes de Montevideo,
+Uruguay.
+
+
+15. CONTACTO
+Consultas sobre esta licencia: por los canales de soporte indicados en tu
+comprobante de compra.

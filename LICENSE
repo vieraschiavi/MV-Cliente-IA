@@ -1,0 +1,98 @@
+MV CLIENTE IA / MV SEARCHCOSTUMER AI — LICENCIA DE SOFTWARE PROPIETARIO
+========================================================================
+
+© 2026 Martín Viera. Todos los derechos reservados.
+
+Este repositorio y todo su contenido —código fuente, scripts de compilación e
+instalación, textos, interfaces, diseños, banners, videos, datos y
+documentación— son obra propiedad de Martín Viera (el "Titular") y están
+protegidos por la legislación de derechos de autor de la República Oriental del
+Uruguay y por los tratados internacionales aplicables.
+
+El producto se llama "MV Cliente IA" en español y portugués, y
+"MV SearchCostumer AI" en inglés. Las dos denominaciones designan el mismo
+software y quedan igualmente alcanzadas por esta licencia.
+
+Esto NO es software libre ni de código abierto. **Que este repositorio sea
+público no otorga ninguna licencia sobre su contenido.** Poder leer o clonar el
+código no habilita a usarlo, compilarlo para terceros ni redistribuirlo.
+
+
+1. LO QUE NO ESTÁ PERMITIDO SIN AUTORIZACIÓN ESCRITA
+----------------------------------------------------
+Salvo permiso previo, expreso y por escrito del Titular, queda prohibido:
+
+  a) copiar, reproducir o almacenar el código, total o parcialmente;
+  b) modificar, adaptar, traducir o crear obras derivadas;
+  c) distribuir, publicar, sublicenciar, vender, alquilar o prestar el
+     software o cualquier parte de él;
+  d) usarlo para prestar servicios a terceros, incluido cualquier modelo de
+     software como servicio;
+  e) descompilar, desensamblar o aplicar ingeniería inversa, salvo en la
+     medida en que la ley lo permita de forma imperativa;
+  f) suprimir, alterar u ocultar los avisos de copyright, las marcas o los
+     mecanismos de licenciamiento y verificación —en particular la firma
+     HMAC-SHA256 de las claves de licencia y el sello de edición
+     (`edicion.json`).
+
+
+2. USO POR PARTE DE CLIENTES
+-----------------------------
+Quien adquiere una licencia de uso del producto no se rige por este archivo,
+sino por el ACUERDO DE LICENCIA DE USO FINAL que se entrega con el software
+(`EULA.txt`) y por las condiciones del plan contratado. Ese acuerdo otorga un
+derecho de USO del programa instalado; no otorga derechos sobre el código
+fuente ni ninguno de los permisos que este archivo reserva.
+
+
+3. COMPONENTES DE TERCEROS
+---------------------------
+El producto incorpora componentes de terceros que conservan sus propias
+licencias y sus propios titulares. Este aviso de copyright no se extiende a
+ellos. En particular, y sin que la lista sea exhaustiva:
+
+  - Las dependencias declaradas en `requirements.txt` y
+    `requirements-dev.txt` (FastAPI, uvicorn, openpyxl, pytest, ruff y las
+    suyas propias), cada una bajo su propia licencia.
+  - Las dependencias declaradas en `package.json`, `webapp/frontend/package.json`
+    y `electron/package.json` (React, Vite, react-router, Electron, Capacitor
+    y las suyas propias), cada una bajo su propia licencia.
+  - Las ruedas (`.whl`) que la edición BAT distribuye en `vendor/` para poder
+    instalar sin internet: son copias sin modificar de paquetes de terceros y
+    siguen rigiéndose por la licencia de cada paquete.
+  - Las voces de síntesis de habla usadas para generar los videos de
+    demostración, según los términos de su proveedor.
+
+Nada de lo dicho acá limita ni modifica los derechos que esas licencias
+conceden respecto de sus propios componentes.
+
+
+4. MARCAS
+----------
+"MV Cliente IA", "MV SearchCostumer AI", "MV" y los logotipos asociados son
+signos distintivos del Titular. Esta licencia no concede ningún derecho sobre
+ellos.
+
+
+5. SIN GARANTÍA
+----------------
+El software se provee "TAL CUAL", sin garantía de ninguna clase, expresa o
+implícita, incluidas las de comerciabilidad, aptitud para un fin determinado y
+no infracción. El Titular no responde por daños directos, indirectos,
+incidentales o consecuentes derivados del uso o de la imposibilidad de uso del
+software, en la máxima medida permitida por la ley aplicable.
+
+
+6. LEY APLICABLE
+-----------------
+Esta licencia se rige por las leyes de la República Oriental del Uruguay. Toda
+controversia se someterá a los tribunales competentes de Montevideo, Uruguay.
+
+
+7. CONTACTO Y PERMISOS
+-----------------------
+Para solicitar autorizaciones, licencias comerciales o cualquier uso no
+contemplado acá, hay que escribirle al Titular antes de usar el software.
+
+  Titular: Martín Viera
+  Producto: MV Cliente IA · MV SearchCostumer AI
