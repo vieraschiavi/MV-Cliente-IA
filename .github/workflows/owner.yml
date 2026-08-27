@@ -3,19 +3,28 @@ name: Instalador OWNER (no se publica)
 # Compila la edición `owner` de Windows: el mismo programa, pero abre sin
 # clave y sin vencimiento.
 #
-# NO va a la Release ni a la landing. Queda como artifact del propio run, que
-# hay que estar identificado en GitHub para bajar. La edición owner lleva el
-# permiso ADENTRO del archivo: publicarla en la Release sería regalar la
-# versión completa a cualquiera que entre a la página de descargas.
+# Se publica en la Release `owner-latest`, con decisión EXPLÍCITA del dueño
+# (2026-08-27) de asumir que este repositorio es público: quería poder bajar
+# la versión completa de un click, sin pasar por Actions ni pegar una clave.
+#
+# ⚠ QUÉ SIGNIFICA ESO. La edición owner lleva el permiso ADENTRO del archivo:
+# abre sin clave y sin vencimiento. En un repo público, cualquiera que
+# encuentre esa Release se lleva el producto entero sin pagar. Está marcada
+# como prerelease para que no la tome el canal `latest` ni ningún enlace de la
+# landing, pero eso NO la esconde.
+#
+# Para cerrarlo: borrar la Release `owner-latest`, volver a `contents: read`
+# acá abajo y sacar el paso de publicación. La alternativa sin exposición es
+# pasar el repositorio a privado, o usar la edición `cliente` con una clave a
+# nombre del dueño por muchos años (que además es revocable).
 #
 # Se arma SOLO, en cada push a la rama de trabajo que toque el programa: así
-# siempre hay un instalador owner reciente en "Artifacts" (abajo del todo en
-# la página del run) sin tener que acordarse de lanzarlo a mano.
+# siempre hay un instalador owner reciente sin tener que acordarse de nada.
 #
-# OJO mientras el repo sea PÚBLICO: el artifact lo puede bajar cualquiera con
-# cuenta de GitHub mientras dure la retención. Es un riesgo acotado (hay que
-# conocer el repo, entrar a Actions y encontrar el run) pero real. Al pasar el
-# repositorio a privado desaparece del todo.
+# Por qué la Release y no un archivo del repositorio: el portable pesa ~126 MB
+# y GitHub rechaza lo que pase de 100 MB (no entra, punto), el instalador
+# (~95 MB) queda a 5 MB del corte, y cada versión commiteada se queda en el
+# historial de git para siempre. Ver INSTALADOR/OWNER/README.md.
 on:
   workflow_dispatch: {}
   push:
@@ -42,7 +51,10 @@ on:
       - "webapp/**"
 
 permissions:
-  contents: read              # sólo lee: acá no se publica nada
+  # `write` porque ahora SÍ publica: la Release owner-latest y el commit de
+  # los .sha256 en INSTALADOR/OWNER/. Volver a `read` es lo primero que hay
+  # que hacer para cerrar la exposición (ver el encabezado).
+  contents: write
 
 concurrency:
   group: build-owner-${{ github.ref }}
@@ -222,3 +234,59 @@ jobs:
             dist/MVClienteIA_Portable_owner.zip.sha256
           retention-days: 30       # mismo motivo que el instalador, arriba
           compression-level: 0
+
+      # --- Publicación (decisión explícita del dueño; ver el encabezado) ---
+
+      - name: Versionar los SHA-256 en INSTALADOR/OWNER/
+        # Son 89 bytes cada uno y son lo que le permite a `Descargar-OWNER.cmd`
+        # comprobar que el archivo que bajó es el que compiló este CI. Los
+        # binarios NO se commitean: ver el README de esa carpeta.
+        shell: pwsh
+        env:
+          RAMA: ${{ github.ref_name }}
+          MVVER: ${{ steps.ver.outputs.MVVER }}
+        run: |
+          Copy-Item "dist/MVClienteIA_Setup_owner.exe.sha256" `
+                    "INSTALADOR/OWNER/" -Force
+          Copy-Item "dist/MVClienteIA_Portable_owner.zip.sha256" `
+                    "INSTALADOR/OWNER/" -Force
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add INSTALADOR/OWNER/*.sha256
+          if (git diff --cached --quiet) {
+            Write-Host "Los hashes owner no cambiaron"
+          } else {
+            git commit -m "CI: SHA-256 de la edicion owner $env:MVVER"
+            git pull --rebase --autostash origin $env:RAMA
+            git push origin "HEAD:$env:RAMA"
+          }
+
+      - name: Publicar la Release owner-latest
+        # Etiqueta FIJA (`owner-latest`), no una por versión: así el enlace de
+        # `INSTALADOR/OWNER/README.md` y de `Descargar-OWNER.cmd` no cambia
+        # nunca, y no se acumula una Release por cada build.
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: owner-latest
+          name: "[OWNER] MV Cliente IA — versión completa"
+          prerelease: true          # que no la tome el canal `latest`
+          body: >
+            Edición **owner**: el programa completo, sin clave de licencia y
+            sin vencimiento. Es idéntica en funciones a la versión que recibe
+            un cliente que paga; lo único que cambia es que no pide clave.
+
+
+            Se republica sola en cada build que toca el programa, así que
+            siempre es la última. Verificá el SHA-256 contra
+            `INSTALADOR/OWNER/*.sha256` — o usá `Descargar-OWNER.cmd`, que lo
+            hace solo.
+
+
+            ⚠ Este repositorio es público: cualquiera que llegue acá puede
+            bajarla. Para cerrarlo, borrar esta Release y volver a
+            `contents: read` en `.github/workflows/owner.yml`.
+          files: |
+            dist/MVClienteIA_Setup_owner.exe
+            dist/MVClienteIA_Setup_owner.exe.sha256
+            dist/MVClienteIA_Portable_owner.zip
+            dist/MVClienteIA_Portable_owner.zip.sha256

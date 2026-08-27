@@ -43,7 +43,7 @@ hornea al construir; el código es idéntico.
 |---|---|---|
 | **demo** | cualquiera, desde la landing | 14 días con todo abierto, sin clave. Vencida, queda el modo demo sintético (la vidriera) y las búsquedas reales piden licencia |
 | **cliente** | quien pagó | Pide **una vez** la clave de licencia que llegó con la compra. Con clave válida, sin límite hasta la fecha de vencimiento de la clave |
-| **owner** | *sólo vos* — ver `OWNER/` | Sin clave y sin vencimiento. Nunca se publica: este repositorio es público |
+| **owner** | *sólo vos* — ver [`OWNER/`](OWNER/) | Sin clave y sin vencimiento. Se publica en la Release `owner-latest` por decisión del dueño; el repositorio es público, así que la puede bajar cualquiera |
 
 > **¿En el celular?** El APK y las otras dos formas de usarlo en el teléfono
 > —desde el navegador, o «agregar a pantalla de inicio», sin instalar nada—
@@ -60,7 +60,7 @@ que es sólo tuyo.
 INSTALADOR/
   Descargar.cmd        ← baja, verifica el SHA-256 y abre (doble click)
   CLIENTE/             ← los hashes de lo que se publica en la Release
-  OWNER/               ← tuyo. NO se versiona (ver abajo)
+  OWNER/               ← la versión completa: descargador + hashes (ver abajo)
 ```
 
 ### Bajarlas
@@ -105,17 +105,23 @@ Store no hace falta ser administrador.
 
 ## OWNER/ — la edición dueño, y el conversor que la aplica
 
-La edición `owner` abre **sin clave y sin vencimiento**. Lleva el permiso
-adentro del archivo, así que en un repositorio público no puede vivir
-versionada: cualquiera que clone se llevaría el producto completo.
+La edición `owner` abre **sin clave y sin vencimiento**. Se baja de la Release
+`owner-latest` con doble click en `OWNER/Descargar-OWNER.cmd`, que además le
+comprueba el SHA-256. El binario no vive versionado en el repositorio —no por
+sigilo, que la Release es pública igual, sino porque el portable (~126 MB) no
+entra en el límite de 100 MB de GitHub y cada versión commiteada se quedaría
+en el historial de git para siempre.
 
-Por eso `INSTALADOR/OWNER/` **está en `.gitignore`** y se arma en tu máquina:
+De `INSTALADOR/OWNER/` se versiona lo que es texto y no destraba nada
+—`README.md`, `Descargar-OWNER.cmd` y los `.sha256`—. El **conversor** no: se
+arma en tu máquina y está en `.gitignore`, porque convierte cualquier copia
+instalada en la edición completa.
 
 ```bash
 python3 packaging/armar_owner.py --codigo TU-CODIGO-LARGO
 ```
 
-Eso deja dos archivos:
+Eso deja dos archivos, los dos ignorados por git:
 
 | Archivo | Qué hace |
 |---|---|
@@ -215,26 +221,34 @@ aviso.
 
 ---
 
-## La edición owner está desactivada (y así conviene)
+## La edición owner SE PUBLICA (decisión del dueño, 2026-08-27)
 
 La edición `owner` lleva el permiso **adentro del archivo**: abre sin clave y
-sin vencimiento. Lo único que podía protegerla era que el repositorio fuera
-privado — y **este repositorio ahora es público**, así que publicarla sería
-poner la versión completa a disposición de cualquiera.
+sin vencimiento. Se publica igual, en la Release `owner-latest`, por decisión
+explícita del dueño: quería poder bajar la versión completa de un click para
+probarla, sin pasar por Actions ni pegar ninguna clave. Está en
+[`OWNER/`](OWNER/) con su descargador de doble click.
 
-**Qué usa el dueño en su lugar:** la edición `cliente` con una clave a su
-nombre por muchos años. Es el mismo resultado práctico y además es
-**revocable**, cosa que un `.exe` que abre solo no es:
+**Lo que eso significa, dicho claro:** este repositorio es público, así que
+cualquiera que encuentre esa Release se lleva el producto entero sin pagar.
+Está marcada como *prerelease* para que no la tome el canal `latest` ni ningún
+enlace de la landing, pero eso **no la esconde**.
+
+**Cómo cerrarlo** el día que convenga: borrar la Release `owner-latest`,
+volver a poner `contents: read` en `.github/workflows/owner.yml` y sacar el
+paso de publicación. Las dos alternativas sin exposición son pasar el
+repositorio a privado (así está el de MV Tasación IA) o usar la edición
+`cliente` con una clave a nombre del dueño por muchos años — mismo resultado
+práctico y además **revocable**, cosa que un `.exe` que abre solo no es:
 
 ```bash
 MVCLIENTE_LICENCIA_SECRETO="tu-secreto" \
   python3 -m cliente_ia.licencia emitir --email vieraschiavi@gmail.com --meses 600
 ```
 
-Quedan dos redes de seguridad en el workflow por si el repo alguna vez vuelve
-a ser privado y se la quiere rehabilitar: la edición está fuera de la lista de
-build, y el paso de publicación comprueba la visibilidad del repositorio y
-corta si no es `private`.
+`build_windows.yml` sigue con su propia red de seguridad intacta: ahí la
+edición owner está fuera de la lista de build y el paso de publicación corta
+si el repositorio no es privado. Lo que publica es `owner.yml`, aparte.
 
 ---
 

@@ -306,6 +306,87 @@ próxima vuelta, no se inventó que se hicieron):
   `.bat` en Windows físico como parte de esta pasada (eso lo cubre el CI de
   Windows dedicado, ver más arriba).
 
+## Puesta en producción: configuración, licencias y edición owner (2026-08-27)
+
+Tres cosas que faltaban para que el circuito «el cliente paga → recibe su
+licencia → la usa» cierre solo, más la entrega de la versión completa al dueño.
+
+### 1. `.env.example` — toda la configuración en un solo lugar
+
+Archivo versionado con **todas** las variables que el proyecto lee, de dónde
+sale el valor de cada una y qué pasa exactamente si falta. No lleva ningún
+valor: sólo nombres. `tests/test_configuracion.py` lo mantiene sincronizado en
+los dos sentidos —falla si el código lee una variable que el archivo no
+documenta, y también si el archivo documenta una que ya nadie lee— y verifica
+que ninguna línea tenga un valor cargado, porque el repositorio es público y
+una clave commiteada queda en el historial para siempre.
+
+### 2. Webhook de MercadoPago: la venta que se perdía entera
+
+Hasta acá la licencia se emitía **sólo** si el comprador volvía a
+`/?pago=ok&payment_id=…`. Eso cubre la tarjeta aprobada al instante y nada
+más. Los dos casos que se caían son justamente los del mercado del producto:
+
+- **Pagos en efectivo que se aprueban horas después** — Abitab y Redpagos en
+  Uruguay, Rapipago y Pago Fácil en Argentina, y las transferencias en
+  cualquier lado. Para cuando MercadoPago aprueba, el comprador cerró el
+  navegador hace rato: nunca hubo vuelta al sitio, nunca se emitió la clave.
+  Pagó y no recibió nada.
+- El que cierra la pestaña antes de que termine la redirección.
+
+`POST /api/webhook/mercadopago` cierra eso: MercadoPago avisa al aprobar, se
+verifica la firma `x-signature` (HMAC-SHA256 sobre la plantilla
+`id:…;request-id:…;ts:…;`), se emite la licencia y **se le manda por correo al
+comprador** sin que nadie haga nada. `/api/pago/licencia` queda como está: es
+el camino inmediato y el que le permite recuperar la clave si la pierde.
+
+Sin `MERCADOPAGO_WEBHOOK_SECRET` el endpoint **rechaza todo con 401**, a
+propósito: emite licencias, así que sin firma no hay forma de distinguir un
+aviso real de uno inventado por cualquiera que conozca la URL. Cubierto por
+tres tests, incluido el de que una firma de otro pago no se puede reusar.
+
+**Falta hacerlo del lado de MercadoPago:** Tus integraciones → Webhooks,
+evento `payment`, URL `https://mv-cliente-ia.vercel.app/api/webhook/mercadopago`,
+y copiar la «clave secreta» a `MERCADOPAGO_WEBHOOK_SECRET` en Vercel.
+
+### 3. `LICENSE` y `EULA.txt`
+
+El proyecto vendía software propietario sin ninguno de los dos. Se agregaron,
+siguiendo el mismo criterio que el repositorio de MV Tasación IA (mismo autor,
+misma jurisdicción). El EULA lleva además tres cláusulas propias de ESTE
+producto, que no son decorativas:
+
+- **Datos de contacto y correo en frío** — quien usa el programa es el
+  responsable del tratamiento de esos datos y de cumplir la Ley 18.331, el
+  GDPR, la LGPD o CAN-SPAM según corresponda. Los correos salen de SU casilla,
+  con SUS credenciales.
+- **Automatización de LinkedIn** — va contra su Acuerdo de Usuario y puede
+  terminar en la cuenta restringida. Corre por cuenta y riesgo del usuario.
+- **Resultados como estimaciones** — puntajes, análisis y proyecciones son
+  apoyo, no asesoramiento ni garantía de ventas.
+
+Conviene que un abogado los revise antes de la primera venta grande; están
+escritos siguiendo los del producto hermano, no son un dictamen legal.
+
+### 4. La edición owner ahora SE PUBLICA (decisión del dueño)
+
+Estaba desactivada porque el repositorio es público y la edición owner lleva
+el permiso adentro del archivo. El dueño pidió tenerla disponible igual para
+poder probar la versión completa de un click, se le señaló la consecuencia y
+la asumió explícitamente.
+
+`.github/workflows/owner.yml` ahora publica la Release **`owner-latest`**
+(etiqueta fija, marcada *prerelease*) con el instalador y el portable, y
+versiona sus `.sha256` en `INSTALADOR/OWNER/`, que además trae un
+`Descargar-OWNER.cmd` de doble click que baja, verifica el hash y abre.
+
+**Cualquiera que encuentre esa Release se lleva el producto completo sin
+pagar.** Para cerrarlo: borrar la Release `owner-latest`, volver a
+`contents: read` en ese workflow y sacar el paso de publicación.
+`build_windows.yml` conserva intacta su propia red de seguridad (ahí la
+edición owner sigue fuera del build y el paso de publicación corta si el repo
+no es privado).
+
 ## Cómo re-verificar todo (5 min)
 
 ```bash
