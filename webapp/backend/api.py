@@ -519,31 +519,14 @@ class PagoIn(BaseModel):
     payment_id: str = Field(default="", max_length=64)
 
 
-@app.post("/api/pago/licencia")
-def licencia_por_pago(datos: PagoIn):
-    """Devuelve la clave de licencia del comprador a cambio de su `payment_id`.
+def _licencia_de_pago(pid: str) -> dict:
+    """Verifica un pago contra MercadoPago y devuelve la licencia que le toca.
 
-    Cierra el agujero que hacía que pagar no sirviera de nada: hasta acá, el
-    cliente pagaba, MercadoPago lo devolvía a `/?pago=ok` y ahí terminaba
-    todo — no había webhook, no se emitía ninguna clave y tenía que escribir
-    un correo a mano para que le mandaran una.
-
-    Por qué el `payment_id` y no un webhook con base de datos: este backend
-    corre sin estado (Vercel), así que no hay dónde guardar "fulano pagó".
-    Pero no hace falta — el pago YA está guardado, en MercadoPago. El
-    `payment_id` es el comprobante, se verifica contra su API con el token
-    del dueño y de ahí sale todo: si está aprobado, cuánto se pagó y el
-    correo del comprador. Como no se guarda nada, además funciona si el
-    cliente pierde la clave: vuelve a pedirla con el mismo id.
-
-    Tres controles, y los tres importan:
-      · el pago tiene que estar APROBADO (no pendiente ni rechazado),
-      · por el monto del plan (si no, se paga $1 de otra cosa y se pide la
-        licencia con ese id),
-      · y con nuestra `external_reference` (que sea un pago de ESTE producto
-        y no otro cobro de la misma cuenta de MercadoPago).
+    Es el corazón compartido por los DOS caminos que entregan una licencia: el
+    comprador que vuelve a `/?pago=ok` (`/api/pago/licencia`) y la notificación
+    que manda MercadoPago cuando el pago se aprueba (`/api/webhook/mercadopago`).
+    Uno solo no alcanza — ver el docstring del webhook.
     """
-    pid = datos.payment_id.strip()
     if not pid.isdigit():
         raise HTTPException(422, "Falta el número de pago de MercadoPago.")
 
@@ -612,6 +595,172 @@ def licencia_por_pago(datos: PagoIn):
           f"por {MESES_LICENCIA} meses", flush=True)
     datos_clave = licencia.verificar(clave)
     return {"clave": clave, "email": correo, "vence": datos_clave.get("vence", "")}
+
+
+@app.post("/api/pago/licencia")
+def licencia_por_pago(datos: PagoIn):
+    """Devuelve la clave de licencia del comprador a cambio de su `payment_id`.
+
+    Cierra el agujero que hacía que pagar no sirviera de nada: hasta acá, el
+    cliente pagaba, MercadoPago lo devolvía a `/?pago=ok` y ahí terminaba
+    todo — no había webhook, no se emitía ninguna clave y tenía que escribir
+    un correo a mano para que le mandaran una.
+
+    Por qué el `payment_id` y no un webhook con base de datos: este backend
+    corre sin estado (Vercel), así que no hay dónde guardar "fulano pagó".
+    Pero no hace falta — el pago YA está guardado, en MercadoPago. El
+    `payment_id` es el comprobante, se verifica contra su API con el token
+    del dueño y de ahí sale todo: si está aprobado, cuánto se pagó y el
+    correo del comprador. Como no se guarda nada, además funciona si el
+    cliente pierde la clave: vuelve a pedirla con el mismo id.
+
+    Tres controles, y los tres importan:
+      · el pago tiene que estar APROBADO (no pendiente ni rechazado),
+      · por el monto del plan (si no, se paga $1 de otra cosa y se pide la
+        licencia con ese id),
+      · y con nuestra `external_reference` (que sea un pago de ESTE producto
+        y no otro cobro de la misma cuenta de MercadoPago).
+    """
+    return _licencia_de_pago(datos.payment_id.strip())
+
+
+def _firma_webhook_valida(request: Request, pid: str, secreto: str) -> bool:
+    """Comprueba el `x-signature` de MercadoPago.
+
+    MercadoPago manda `x-signature: ts=<epoch>,v1=<hmac>` y `x-request-id`. El
+    HMAC-SHA256 se calcula, con la clave secreta de la integración, sobre la
+    plantilla exacta `id:<data.id>;request-id:<x-request-id>;ts:<ts>;` — con
+    el id en minúsculas y los punto y coma finales incluidos. Está así en la
+    documentación de MercadoPago; el orden y los separadores no son
+    negociables porque del otro lado se arma igual.
+    """
+    firma = request.headers.get("x-signature", "")
+    partes = dict(
+        p.split("=", 1) for p in firma.split(",") if "=" in p)
+    ts, v1 = partes.get("ts", "").strip(), partes.get("v1", "").strip()
+    if not ts or not v1:
+        return False
+    plantilla = (f"id:{pid.lower()};"
+                 f"request-id:{request.headers.get('x-request-id', '')};"
+                 f"ts:{ts};")
+    esperado = hmac.new(secreto.encode(), plantilla.encode(),
+                        hashlib.sha256).hexdigest()
+    return hmac.compare_digest(esperado, v1)
+
+
+def _mandar_licencia_al_comprador(correo: str, clave: str, vence: str) -> bool:
+    """Le manda la clave al que pagó. Devuelve si salió de verdad.
+
+    Usa el SMTP del SERVIDOR (el del dueño), no el del usuario: es un correo
+    del negocio, no de una campaña.
+    """
+    if not (SMTP_SERVIDOR["host"] and SMTP_SERVIDOR["usuario"]):
+        return False
+    from email.message import EmailMessage
+    msg = EmailMessage()
+    msg["Subject"] = "Tu licencia de MV Cliente IA"
+    msg["From"] = SMTP_SERVIDOR["usuario"]
+    msg["To"] = correo
+    msg.set_content(
+        "¡Gracias por tu compra!\n\n"
+        "Esta es tu clave de licencia:\n\n"
+        f"    {clave}\n\n"
+        f"Vence: {vence}\n\n"
+        "Cómo usarla: abrí el programa, entrá a Configuración → Licencia, "
+        "pegala y guardá. Se activa una sola vez y después funciona sin "
+        "conexión. La misma clave sirve para la app de PC, la edición sin "
+        ".exe y el Android.\n\n"
+        "Guardá este correo: si perdés la clave, es la forma más rápida de "
+        "recuperarla.\n")
+    servidor = _conectar_smtp(SmtpIn(**SMTP_SERVIDOR))
+    try:
+        servidor.send_message(msg)
+    finally:
+        servidor.quit()
+    return True
+
+
+@app.post("/api/webhook/mercadopago")
+async def webhook_mercadopago(request: Request):
+    """MercadoPago avisa acá cuando un pago cambia de estado.
+
+    POR QUÉ HACE FALTA, si ya está `/api/pago/licencia`. Ese endpoint depende
+    de que el comprador VUELVA al sitio con su `payment_id` en la URL. Eso
+    cubre el camino feliz —tarjeta aprobada al instante y `auto_return`— y
+    nada más. Los dos casos que se perdían son justamente los del mercado
+    para el que está hecho el producto:
+
+      · Pagos que se aprueban DESPUÉS: en Uruguay, Abitab y Redpagos; en
+        Argentina, Rapipago y Pago Fácil; y las transferencias en cualquier
+        lado. El comprador paga en efectivo en un local y MercadoPago aprueba
+        horas más tarde. Para entonces ya cerró el navegador: nunca hubo una
+        vuelta a `/?pago=ok`, así que nunca se emitió la clave. Pagó y no
+        recibió nada.
+      · El que cierra la pestaña antes de que termine la redirección.
+
+    Con esto, la licencia sale igual y le llega por correo sin que nadie tenga
+    que hacer nada. `/api/pago/licencia` se queda como está: es el camino
+    inmediato y además el que le permite recuperar la clave si la pierde.
+
+    SIEMPRE responde 200 salvo firma inválida. MercadoPago reintenta ante
+    cualquier otra respuesta, y un reintento eterno por un pago rechazado (que
+    nunca va a dar licencia) no le sirve a nadie: se registra y se corta.
+    """
+    secreto = os.getenv("MERCADOPAGO_WEBHOOK_SECRET", "")
+    if not secreto:
+        # Sin secreto no hay forma de saber si el aviso es de MercadoPago o de
+        # cualquiera que conozca la URL — y este endpoint emite licencias. Se
+        # rechaza entero en vez de confiar. El comprador igual recibe su clave
+        # al volver del pago (`/api/pago/licencia`).
+        print("[webhook] llega un aviso pero falta MERCADOPAGO_WEBHOOK_SECRET",
+              flush=True)
+        raise HTTPException(401, "El webhook no está configurado.")
+
+    try:
+        cuerpo = await request.json()
+    except Exception:                                    # noqa: BLE001
+        cuerpo = {}
+
+    # El id del pago viene en `data.id`; el tipo, en `type` o `topic` según la
+    # versión de la notificación.
+    pid = str((cuerpo.get("data") or {}).get("id")
+              or request.query_params.get("data.id") or "").strip()
+    tipo = str(cuerpo.get("type") or cuerpo.get("topic")
+               or request.query_params.get("type") or "").strip()
+
+    if not _firma_webhook_valida(request, pid, secreto):
+        raise HTTPException(401, "Firma inválida.")
+
+    if tipo != "payment" or not pid.isdigit():
+        # Otros eventos de la cuenta (contracargos, suscripciones) no son de
+        # este producto: se acusa recibo y listo.
+        return {"ok": True, "ignorado": tipo or "sin tipo"}
+
+    try:
+        datos = _licencia_de_pago(pid)
+    except HTTPException as e:
+        # 402 acá es lo NORMAL: el aviso llegó por un pago que todavía está
+        # pendiente. MercadoPago vuelve a avisar cuando lo apruebe.
+        print(f"[webhook] pago {pid} sin licencia todavía: {e.detail}",
+              flush=True)
+        return {"ok": True, "emitida": False, "motivo": str(e.detail)}
+
+    try:
+        mandada = _mandar_licencia_al_comprador(
+            datos["email"], datos["clave"], datos["vence"])
+    except Exception as e:                               # noqa: BLE001
+        mandada = False
+        print(f"[webhook] no se pudo mandar la licencia a {datos['email']}: "
+              f"{type(e).__name__}", flush=True)
+
+    if not mandada:
+        # La clave existe y es válida; lo que falló es el correo. Se deja en
+        # el log para poder mandarla a mano — es una venta cobrada.
+        print(f"[webhook] ATENCIÓN: licencia emitida por el pago {pid} a "
+              f"{datos['email']} pero NO se pudo enviar por correo. "
+              f"Mandala a mano.", flush=True)
+
+    return {"ok": True, "emitida": True, "correo_enviado": mandada}
 
 
 # ---------------------------------------------------------------------------

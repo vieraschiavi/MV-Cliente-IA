@@ -55,11 +55,16 @@ Thumbs.db
 *.log
 .env
 .env.*
+# ...pero el EJEMPLO sí se versiona: es la documentación de qué se configura.
+# No lleva ningún valor, sólo los nombres y de dónde sale cada uno.
+!.env.example
 
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 graft/
 
-# La carpeta del dueño: el conversor armado ES la edición completa del
-# producto (convierte cualquier copia instalada en owner). En un repositorio
-# público no puede estar versionada — se arma con `packaging/armar_owner.py`.
-INSTALADOR/OWNER/
+# La carpeta del dueño. El LEEME y el descargador SÍ se versionan (son texto,
+# no destraban nada). Lo que no puede estar versionado es el CONVERSOR armado:
+# lleva horneado el hash del código de dueño y convierte cualquier copia
+# instalada en la edición completa. Se arma con `packaging/armar_owner.py`.
+INSTALADOR/OWNER/Convertir-a-edicion-dueno.bat
+INSTALADOR/OWNER/LEEME.txt

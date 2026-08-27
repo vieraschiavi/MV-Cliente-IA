@@ -716,6 +716,115 @@ def test_pedir_la_clave_dos_veces_no_regala_una_renovacion(monkeypatch):
     assert vence_1 == vence_2 == "2027-01-22"  # 2026-01-15 + 31*12 días
 
 
+def _firmar_webhook(pid: str, secreto: str, request_id: str = "req-1",
+                    ts: str = "1700000000") -> dict:
+    """Arma el `x-signature` como lo manda MercadoPago."""
+    import hashlib as _h
+    import hmac as _hm
+    plantilla = f"id:{pid.lower()};request-id:{request_id};ts:{ts};"
+    v1 = _hm.new(secreto.encode(), plantilla.encode(), _h.sha256).hexdigest()
+    return {"x-signature": f"ts={ts},v1={v1}", "x-request-id": request_id}
+
+
+def test_el_webhook_entrega_la_licencia_al_que_pago_en_efectivo(monkeypatch):
+    """El caso que se perdía entero: pagar por Abitab/Redpagos/transferencia.
+
+    Esos pagos se aprueban HORAS después, cuando el comprador hace rato cerró
+    el navegador. Como nunca vuelve a `/?pago=ok`, `/api/pago/licencia` nunca
+    se llama y la clave nunca se emite: pagó y no recibió nada. El webhook
+    cierra eso — MercadoPago avisa al aprobar y la licencia sale por correo
+    sola.
+    """
+    from cliente_ia import licencia
+    from webapp.backend import api
+
+    secreto_lic = "secreto-de-prueba-del-test"
+    secreto_hook = "clave-secreta-del-webhook"
+    monkeypatch.setenv("MVCLIENTE_LICENCIA_SECRETO", secreto_lic)
+    monkeypatch.setenv("MERCADOPAGO_ACCESS_TOKEN", "TEST-token")
+    monkeypatch.setenv("MERCADOPAGO_WEBHOOK_SECRET", secreto_hook)
+    _pago_falso(monkeypatch, date_approved="2026-03-01T10:00:00.000-03:00")
+
+    enviados = []
+    monkeypatch.setattr(api, "SMTP_SERVIDOR",
+                        {"host": "smtp.test", "puerto": 587,
+                         "usuario": "dueno@test.com", "clave": "x", "ssl": False})
+
+    class _SmtpFalso:
+        def send_message(self, m):
+            enviados.append(m)
+
+        def quit(self):
+            pass
+
+    monkeypatch.setattr(api, "_conectar_smtp", lambda cfg: _SmtpFalso())
+
+    cliente = TestClient(api.app)
+    r = cliente.post("/api/webhook/mercadopago",
+                     json={"type": "payment", "data": {"id": "1234567890"}},
+                     headers=_firmar_webhook("1234567890", secreto_hook))
+    assert r.status_code == 200, r.text
+    assert r.json() == {"ok": True, "emitida": True, "correo_enviado": True}
+
+    # Le llegó al comprador, con una clave que valida de verdad.
+    assert len(enviados) == 1
+    msg = enviados[0]
+    assert msg["To"] == "comprador@empresa.com"
+    cuerpo = msg.get_content()
+    clave = [línea.strip() for línea in cuerpo.splitlines() if "." in línea
+             and len(línea.strip()) > 40][0]
+    assert licencia.verificar(clave, secreto_lic)["ok"] is True
+
+
+def test_el_webhook_no_le_cree_a_cualquiera(monkeypatch):
+    """Este endpoint EMITE LICENCIAS: si aceptara un POST sin firma válida,
+    cualquiera que conozca la URL se emite uno con el id de un pago ajeno."""
+    from webapp.backend import api
+
+    monkeypatch.setenv("MVCLIENTE_LICENCIA_SECRETO", "secreto-de-prueba-del-test")
+    monkeypatch.setenv("MERCADOPAGO_ACCESS_TOKEN", "TEST-token")
+    _pago_falso(monkeypatch)
+    cuerpo = {"type": "payment", "data": {"id": "1234567890"}}
+    cliente = TestClient(api.app)
+
+    # 1. Sin la variable del secreto, el webhook no funciona: rechaza todo.
+    monkeypatch.delenv("MERCADOPAGO_WEBHOOK_SECRET", raising=False)
+    assert cliente.post("/api/webhook/mercadopago", json=cuerpo).status_code == 401
+
+    # 2. Con secreto configurado, pero sin firma.
+    monkeypatch.setenv("MERCADOPAGO_WEBHOOK_SECRET", "clave-secreta-del-webhook")
+    assert cliente.post("/api/webhook/mercadopago", json=cuerpo).status_code == 401
+
+    # 3. Con una firma armada con OTRO secreto.
+    ajena = _firmar_webhook("1234567890", "el-secreto-del-atacante")
+    assert cliente.post("/api/webhook/mercadopago", json=cuerpo,
+                        headers=ajena).status_code == 401
+
+    # 4. Firma válida para OTRO pago (no se puede reusar en este).
+    prestada = _firmar_webhook("9999999999", "clave-secreta-del-webhook")
+    assert cliente.post("/api/webhook/mercadopago", json=cuerpo,
+                        headers=prestada).status_code == 401
+
+
+def test_el_webhook_no_reintenta_para_siempre_por_un_pago_pendiente(monkeypatch):
+    """Un pago pendiente no da licencia, pero se responde 200: con cualquier
+    otra cosa MercadoPago reintenta en bucle un aviso que nunca va a servir."""
+    from webapp.backend import api
+
+    secreto_hook = "clave-secreta-del-webhook"
+    monkeypatch.setenv("MVCLIENTE_LICENCIA_SECRETO", "secreto-de-prueba-del-test")
+    monkeypatch.setenv("MERCADOPAGO_ACCESS_TOKEN", "TEST-token")
+    monkeypatch.setenv("MERCADOPAGO_WEBHOOK_SECRET", secreto_hook)
+    _pago_falso(monkeypatch, status="pending")
+
+    r = TestClient(api.app).post(
+        "/api/webhook/mercadopago",
+        json={"type": "payment", "data": {"id": "1234567890"}},
+        headers=_firmar_webhook("1234567890", secreto_hook))
+    assert r.status_code == 200
+    assert r.json()["emitida"] is False
+
+
 def test_no_se_saca_licencia_sin_haber_pagado_de_verdad(monkeypatch):
     """Las cuatro formas de pedir una licencia sin haberla comprado. Si
     alguna pasara, el candado no existe y el producto se regala."""
