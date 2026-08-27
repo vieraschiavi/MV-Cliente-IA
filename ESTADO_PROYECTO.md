@@ -250,6 +250,62 @@ Ahora:
     confirmada, para no prender/apagar infraestructura por una visita que se
     arrepintió.
 
+## Auditoría entrega-verificada (2026-08-27)
+
+Pedido: confirmar que se corrigieron los errores históricos del proyecto y
+certificar la plataforma de pago de punta a punta. Se ejecutó el protocolo
+del skill nuevo `.claude/skills/entrega-verificada/`.
+
+**Primer intento (descartado, no se ocultó):** un workflow de 6 agentes en
+paralelo + verificación adversarial falló en seco — los 6 agentes de
+revisión no pudieron usar ninguna herramienta (`StructuredOutput retry cap
+exceeded`) y el único que devolvió texto lo dijo explícito: *"el permission
+handler está rechazando todas las llamadas, incluso `ls`"*. El resultado
+crudo era `"confirmados": []`, que NO se reportó como "todo limpio" — un
+diagnóstico aparte confirmó que un sub-agente normal SÍ tenía herramientas
+funcionando en ese momento, así que el fallo fue puntual de ese mecanismo,
+no de la sesión entera.
+
+**Segundo intento (el que valió):** las mismas 6 dimensiones, corridas a
+mano con el Agent tool (pagos, hardening, correctitud de backend,
+frontend/i18n/imágenes, video/audio por idioma, regresión de las 12 reglas
+de CLAUDE.md), cada hallazgo verificado por mí releyendo el código citado
+antes de tocar nada.
+
+| Dimensión | Resultado |
+|---|---|
+| Pagos y licencia | 1 hallazgo real corregido (renovación gratis re-canjeando el mismo pago). 1 hallazgo (código de dueño horneado en el APK owner) ya estaba mitigado y cubierto por `test_el_bundle_publicado_no_lleva_codigo_de_dueno_horneado` — descartado. |
+| Hardening de infraestructura | 1 hallazgo real corregido (secreto de cupo gratis cae a una constante pública si no hay ni `MVCLIENTE_OWNER` ni `MVCLIENTE_PASSWORD`). 1 hallazgo (spoofing de `X-Forwarded-For`) descartado como falso positivo: la documentación de Vercel confirma que sobreescriben ese header y no reenvían IPs externas salvo un proxy de confianza (Enterprise). |
+| Correctitud de backend | 1 hallazgo real corregido, el más importante de los cuatro: el secreto de sesión (login) era aleatorio por proceso — en Vercel, un cold start invalidaba tokens vigentes emitidos por la instancia anterior. |
+| Frontend, i18n e imágenes | i18n: 0 diferencias entre es/pt-BR/en (comparación automatizada). Imágenes: `public/banners/captura_es.png` y `captura_en.png` tenían la última columna de la tabla cortada por el borde — **no era un bug de código**, `landing/banners/` ya estaba bien desde un fix anterior, sólo faltaba correr `marketing.armar_sitio` para republicarlo. Corregido. |
+| Video y audio por idioma | Sin hallazgos. Guion traducido de verdad (no el mismo texto subtitulado), voces nativas por idioma (`es-UY-MateoNeural` / `pt-BR-AntonioNeural` / `en-US-GuyNeural`), audios con hash distinto entre los tres. Límite declarado: un agente de texto no transcribe el habla, así que no se verificó la pronunciación en sí. |
+| Regresión de reglas de negocio | 475 tests corridos, todos verdes. 11 de las 12 reglas de CLAUDE.md tenían test dedicado; la regla 2 (nombre del producto por idioma) sólo tenía tests que comprobaban que las claves de i18n no estuvieran vacías, nunca que el VALOR coincidiera entre las 4 fuentes (i18n × 3, `generar_landing.py`, Android). Se agregó el test que faltaba. |
+
+**Se corrigieron 4 hallazgos reales** (commits `a2c20cd` y `f2ed7b2`), con
+tests de regresión nuevos para los tres de código (478 tests verdes en
+total, +3 sobre los 475 previos) y republicación de assets para el de
+imágenes. **Se descartaron 2 hallazgos** con evidencia (test existente /
+documentación oficial de la plataforma), no por conveniencia.
+
+**Huecos de cobertura que esta auditoría NO cerró** (quedan para una
+próxima vuelta, no se inventó que se hicieron):
+
+- No se probó un pago real (ni en sandbox de MercadoPago) de punta a punta
+  contra el backend corriendo — se leyó y se testeó el código, no se vio un
+  pago volver de verdad.
+- No se corrió un escaneo de dependencias con CVEs conocidos
+  (`pip-audit`/`npm audit`) sobre `requirements*.txt` ni sobre `vendor/` de
+  la edición BAT.
+- No hay rate-limiting en `/api/pago/licencia` más allá de que MercadoPago
+  sólo devuelve pagos de la cuenta propia del dueño.
+- El bypass del cupo gratis por correo sintético (sin verificación real de
+  que el solicitante lo controla) queda como limitación conocida y
+  documentada en el propio código — no se implementó verificación por
+  correo (OTP/magic-link) porque es una función nueva, no un bug.
+- No se instaló el APK en un dispositivo/emulador real ni se corrió el
+  `.bat` en Windows físico como parte de esta pasada (eso lo cubre el CI de
+  Windows dedicado, ver más arriba).
+
 ## Cómo re-verificar todo (5 min)
 
 ```bash
