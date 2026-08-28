@@ -21,7 +21,16 @@ import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
 
-from . import almacen, busqueda_social, geo, proveedores, redaccion, scoring, segmento
+from . import (
+    almacen,
+    busqueda_social,
+    geo,
+    modelos,
+    proveedores,
+    redaccion,
+    scoring,
+    segmento,
+)
 from . import enlaces as menlaces
 from .modelos import FASES, Corrida, Email, Prospecto
 
@@ -154,12 +163,13 @@ def ejecutar(dominio: str,
                 # sería inventar. Un usuario pegó la URL de su panel de
                 # Vercel y le salió un perfil de cobranzas completo, con
                 # competidores de cobranzas y todo.
-                corrida.avisos.append(
+                corrida.avisos.append(modelos.Aviso(
                     "En esa dirección no hay una descripción de tu producto: "
                     "parece un panel de administración o una página que se "
                     "dibuja por JavaScript. Pegá la URL pública que ven tus "
                     "clientes. Mientras tanto el perfil es el del catálogo "
-                    "genérico y no describe tu producto.")
+                    "genérico y no describe tu producto.",
+                    modelos.AVISO_AJUSTE))
             else:
                 try:
                     corrida.empresa = proveedor.perfilar(corrida.empresa)
@@ -168,10 +178,11 @@ def ejecutar(dominio: str,
                     # catálogo, pero se dice — si no, los mismos cinco sectores
                     # aparecen para cualquier producto y parecen investigados.
                     if modo != "demo":
-                        corrida.avisos.append(
+                        corrida.avisos.append(modelos.Aviso(
                             "El nicho y los sectores objetivo son los del catálogo "
                             "genérico: para deducirlos de tu web hace falta el modo "
-                            "«Investigación con IA» con tu clave.")
+                            "«Investigación con IA» con tu clave.",
+                            modelos.AVISO_AJUSTE))
                 except Exception:                        # noqa: BLE001
                     # Con IA, el motivo del fallo ya quedó en los errores de la
                     # cadena, que el final de la corrida copia a los avisos. Se
@@ -200,15 +211,25 @@ def ejecutar(dominio: str,
             # muestran todos CON aviso — seis de afuera diciéndolo es más
             # útil que una fase en cero sin explicación.
             if mercado != "todos" and corrida.competidores:
-                dentro = [c for c in corrida.competidores if c.pais and
-                          geo.nivel_de(c.pais, corrida.pais_base) == mercado]
+                # «Estar en el mercado» es tener base ahí O venderle a ese
+                # mercado. Antes esto miraba SÓLO el país de base y deshacía el
+                # recorte que el proveedor de IA ya había hecho con criterio:
+                # con «sólo Uruguay», dos competidores regionales que sí le
+                # sacan clientes a un uruguayo se caían, y el programa avisaba
+                # «ninguno tiene base en el mercado elegido; se muestran los de
+                # todos lados» — o sea, terminaba mostrando a los que NO le
+                # compiten ahí y escondiendo a los que sí.
+                dentro = [c for c in corrida.competidores
+                          if c.vende_en_objetivo or
+                          (c.pais and geo.nivel_de(c.pais, corrida.pais_base) == mercado)]
                 if dentro:
                     corrida.competidores = dentro
                 else:
-                    corrida.avisos.append(
+                    corrida.avisos.append(modelos.Aviso(
                         "Ningún competidor conocido tiene base en el mercado "
                         f"elegido ({_nombre_mercado(mercado, corrida)}); se "
-                        "muestran los de todos lados.")
+                        "muestran los de todos lados.",
+                        modelos.AVISO_AJUSTE))
             paso.items = len(corrida.competidores)
             paso.detalle = ", ".join(c.dominio for c in corrida.competidores[:3])
 
@@ -224,9 +245,10 @@ def ejecutar(dominio: str,
                 if filtradas:
                     corrida.campanas = filtradas
                 else:
-                    corrida.avisos.append(
+                    corrida.avisos.append(modelos.Aviso(
                         f"El recorte de mercado «{mercado}» no dejó campañas; "
-                        "se usaron todas las olas.")
+                        "se usaron todas las olas.",
+                        modelos.AVISO_AJUSTE))
             # Con las campañas ya definidas se arman las consultas que
             # encuentran MÁS clientes de cada segmento en LinkedIn, Instagram,
             # X, TikTok y el buscador. Son enlaces de búsqueda, no resultados:
@@ -258,9 +280,10 @@ def ejecutar(dominio: str,
             con_datos, visitados = mod_contactos.enriquecer(
                 corrida.prospectos, huella=huella_medir)
             if visitados:
-                corrida.avisos.append(
+                corrida.avisos.append(modelos.Aviso(
                     f"Contactos públicos: {con_datos} de {visitados} empresas "
-                    "reales publican correo, teléfono o redes en su sitio.")
+                    "reales publican correo, teléfono o redes en su sitio.",
+                    modelos.AVISO_DATO))
                 medidos = [p for p in corrida.prospectos if p.afinidad >= 0]
                 if medidos:
                     # Con la afinidad ya medida se vuelve a puntuar y a
@@ -271,10 +294,11 @@ def ejecutar(dominio: str,
                     corrida.prospectos = scoring.ordenar_prospectos(corrida.prospectos)
                     del_rubro = sum(1 for p in medidos
                                     if p.afinidad >= segmento.AFIN_DUDOSA)
-                    corrida.avisos.append(
+                    corrida.avisos.append(modelos.Aviso(
                         f"Segmento verificado: {del_rubro} de {len(medidos)} "
                         "sitios visitados hablan del rubro del producto; la "
-                        "lista se reordenó con eso.")
+                        "lista se reordenó con eso.",
+                        modelos.AVISO_DATO))
             paso.items = len(corrida.prospectos)
             paso.detalle = _detalle_niveles(corrida.prospectos, base.codigo, corrida.idioma_ui)
 
@@ -311,9 +335,17 @@ def ejecutar(dominio: str,
     # mercado) en vez de pisarlos. `proveedor` puede ser None si la
     # construcción misma falló — por eso la guarda.
     if proveedor is not None:
-        corrida.avisos.extend(getattr(proveedor, "errores", []))
+        # `errores` son fallos de verdad (algo se cayó y lo cubrió otro).
+        # `notas` vienen ya clasificadas del proveedor: ahí adentro hay tanto
+        # un timeout como «ninguno de los competidores tiene base en X», que
+        # no es un fallo de nada.
+        corrida.avisos.extend(
+            modelos.Aviso(e, modelos.AVISO_FALLO)
+            for e in getattr(proveedor, "errores", []))
         for p in getattr(proveedor, "proveedores", []):
-            corrida.avisos.extend(getattr(p, "notas", []))
+            corrida.avisos.extend(
+                n if isinstance(n, modelos.Aviso) else modelos.Aviso(n)
+                for n in getattr(p, "notas", []))
     avisar()
     return corrida
 

@@ -279,7 +279,9 @@
   },
   "aviso": {
     "sintetico": "Demo data: the companies and people in this list are synthetic, generated to exercise the flow. Switch the data source to “Read my real website” or “AI research” to work with real information.",
-    "avisos_corrida": "The search finished, but some AI phases failed and were covered with synthetic data:"
+    "avisos_fallo": "Some AI phases failed and were covered with synthetic data:",
+    "avisos_ajuste": "Things to keep in mind about this search:",
+    "avisos_dato": "What this search verified:"
   },
   "nav_corto": {
     "explorar": "Explore",

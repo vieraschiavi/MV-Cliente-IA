@@ -79,6 +79,21 @@ class Competidor:
     # caído, sin red). Los dos conviven a propósito: cuando no coinciden, el
     # que manda para filtrar es este.
     afinidad: float = -1.0
+    # Si este competidor le vende DE VERDAD a clientes del mercado elegido,
+    # aunque tenga su base en otro país. Lo declara el modelo en la fase 2.
+    #
+    # Existe porque el dato se estaba perdiendo entre el proveedor y el
+    # pipeline: el proveedor de IA ya se quedaba con «los de casa MÁS los de
+    # afuera que venden acá», y después el pipeline volvía a filtrar por país
+    # de BASE y los tiraba igual. Con «sólo Uruguay», dos competidores
+    # regionales que sí le sacan clientes a un uruguayo desaparecían, y el
+    # programa decía «ningún competidor tiene base en el mercado elegido; se
+    # muestran los de todos lados» — mostrando justamente a los que no le
+    # compiten ahí.
+    #
+    # Default False a propósito: el proveedor demo no lo declara, así que su
+    # recorte por país sigue siendo exactamente el de antes.
+    vende_en_objetivo: bool = False
     fuente: str = "demo"
 
     def a_dict(self) -> dict:
@@ -210,6 +225,64 @@ class PasoFase:
         return asdict(self)
 
 
+# Las tres clases de aviso. La distinción NO es cosmética: la interfaz las
+# muestra bajo carteles distintos, y meterlas en la misma bolsa hacía que el
+# programa se acusara solo de haber fallado cuando no había fallado nada.
+AVISO_FALLO = "fallo"     # algo se cayó y lo cubrió otra cosa (datos sintéticos)
+AVISO_AJUSTE = "ajuste"   # el resultado se acomodó y conviene saberlo
+AVISO_DATO = "dato"       # lo que se verificó: un resultado, y de los buenos
+
+
+class Aviso(str):
+    """Un aviso de la corrida, con de qué CLASE es.
+
+    Es un `str` a todos los efectos —se compara, se busca con `in`, se
+    serializa y se loguea como el texto pelado— así que el código que lo
+    trataba como texto sigue igual. Lo que agrega es `.tipo`.
+
+    Por qué hizo falta: los avisos eran una sola lista de strings y la interfaz
+    los mostraba TODOS abajo de un cartel que decía «algunas fases con IA
+    fallaron y se cubrieron con datos sintéticos». Ahí adentro caían cosas que
+    no eran ni un fallo ni datos sintéticos: que ningún competidor tuviera base
+    en el mercado elegido (una nota del filtro), y hasta resultados buenos como
+    «Contactos públicos: 23 de 50 empresas reales publican correo». El programa
+    terminaba diciendo que había fallado y que los datos eran sintéticos justo
+    arriba de datos REALES que había verificado él mismo. Eso rompe la regla
+    del proyecto en los dos sentidos: lo sintético se dice sintético, y lo real
+    no se declara falso.
+    """
+
+    __slots__ = ("tipo",)
+
+    def __new__(cls, texto: str, tipo: str = AVISO_AJUSTE) -> Aviso:
+        obj = super().__new__(cls, texto)
+        obj.tipo = tipo if tipo in (AVISO_FALLO, AVISO_AJUSTE, AVISO_DATO) \
+            else AVISO_AJUSTE
+        return obj
+
+    def a_dict(self) -> dict:
+        return {"m": str(self), "t": self.tipo}
+
+
+def _aviso_desde(x) -> Aviso:
+    """Acepta lo nuevo y lo viejo.
+
+    Las corridas guardadas antes de que los avisos tuvieran clase son strings
+    pelados. Se leen como `ajuste`: es el tipo neutro — no acusa a esa corrida
+    vieja de haber fallado ni le atribuye un resultado verificado.
+    """
+    # Un `Aviso` ya clasificado se devuelve tal cual. La comprobación va
+    # PRIMERO y no se puede sacar: `Aviso` es un `str`, así que sin esto caía
+    # en la rama del texto pelado de abajo y perdía su tipo — todo terminaba
+    # como `ajuste` al guardar. Lo encontró la prueba de ida y vuelta, no la
+    # lectura del código.
+    if isinstance(x, Aviso):
+        return x
+    if isinstance(x, dict):
+        return Aviso(str(x.get("m", "")), str(x.get("t", AVISO_AJUSTE)))
+    return Aviso(str(x), AVISO_AJUSTE)
+
+
 @dataclass
 class Corrida:
     """Una corrida completa del AutoGTM sobre un dominio."""
@@ -237,11 +310,11 @@ class Corrida:
     decisores: list[Decisor] = field(default_factory=list)
     emails: list[Email] = field(default_factory=list)
     error: str = ""
-    # Qué falló POR DENTRO sin tumbar la corrida: cuando un proveedor de la
-    # cadena (p. ej. el LLM) se cae y otro lo cubre, acá queda el motivo. La
-    # interfaz lo muestra — una corrida "con IA" que en realidad usó datos
-    # sintéticos sin decir por qué ya confundió a un usuario.
-    avisos: list[str] = field(default_factory=list)
+    # Lo que hay que contarle al usuario de esta corrida, CADA COSA CON SU
+    # CLASE (ver `Aviso`). La interfaz lo muestra — una corrida "con IA" que en
+    # realidad usó datos sintéticos sin decir por qué ya confundió a un
+    # usuario, y meter todo en la misma bolsa confundió a otro (ver `Aviso`).
+    avisos: list[Aviso] = field(default_factory=list)
     # Las palabras que MIDEN el segmento del producto, contadas sobre su propia
     # web (cliente_ia/segmento.py). Se guardan para que la interfaz pueda
     # mostrar con qué criterio se filtró — un filtro que no dice qué usó es
@@ -275,7 +348,9 @@ class Corrida:
             "idioma_ui": self.idioma_ui,
             "enlaces": dict(self.enlaces),
             "error": self.error,
-            "avisos": list(self.avisos),
+            # Como dicts {m, t}: la interfaz necesita la CLASE de cada uno para
+            # no mostrar un resultado verificado abajo del cartel de fallos.
+            "avisos": [_aviso_desde(a).a_dict() for a in self.avisos],
             "palabras_segmento": list(self.palabras_segmento),
             "busquedas": list(self.busquedas),
             "pasos": [p.a_dict() for p in self.pasos],
@@ -332,7 +407,7 @@ def desde_dict(d: dict) -> Corrida:
         idioma_ui=d.get("idioma_ui", "es"), error=d.get("error", ""),
         enlaces=d.get("enlaces") or {},
     )
-    c.avisos = [str(a) for a in d.get("avisos", [])]
+    c.avisos = [_aviso_desde(a) for a in d.get("avisos", [])]
     c.palabras_segmento = [str(x) for x in d.get("palabras_segmento", [])]
     c.busquedas = [x for x in d.get("busquedas", []) if isinstance(x, dict)]
     c.pasos = [PasoFase(**_solo(PasoFase, p)) for p in d.get("pasos", [])]

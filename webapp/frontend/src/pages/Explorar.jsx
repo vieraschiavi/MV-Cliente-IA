@@ -447,21 +447,35 @@ export default function Explorar() {
             <div style={{ marginTop: 16 }}><Aviso>{t("aviso.sintetico")}</Aviso></div>
           ) : null}
 
-          {/* Fallos que la cadena de proveedores absorbió (p. ej. la IA falló
-              y la cubrió el demo): sin esto, una corrida "con IA" que terminó
-              en datos sintéticos parece rota sin explicación. */}
-          {(corrida.avisos || []).length ? (
-            <div style={{ marginTop: 16 }}>
-              <Aviso>
-                {t("aviso.avisos_corrida")}
-                <ul style={{ margin: "8px 0 0", paddingLeft: 18 }}>
-                  {corrida.avisos.map((a, i) => (
-                    <li key={i} style={{ marginBottom: 4 }}>{a}</li>
-                  ))}
-                </ul>
-              </Aviso>
-            </div>
-          ) : null}
+          {/* Los avisos van SEPARADOS POR CLASE, cada uno bajo su propio
+              cartel. Antes era una sola lista abajo de «algunas fases con IA
+              fallaron y se cubrieron con datos sintéticos», y ahí adentro
+              caían cosas que no eran ni un fallo ni datos sintéticos: que
+              ningún competidor tuviera base en el mercado elegido, y hasta
+              resultados buenos como «Contactos públicos: 23 de 50 empresas
+              REALES publican correo». El programa se acusaba de haber fallado
+              y declaraba sintéticos datos reales que él mismo había
+              verificado. `a.t` viene del backend (modelos.Aviso). */}
+          {["fallo", "ajuste", "dato"].map((tipo) => {
+            const grupo = (corrida.avisos || []).filter(
+              // Corridas viejas: strings pelados sin clase → al grupo neutro.
+              (a) => (typeof a === "string" ? "ajuste" : a.t) === tipo);
+            if (!grupo.length) return null;
+            return (
+              <div key={tipo} style={{ marginTop: 16 }}>
+                <Aviso>
+                  {t(`aviso.avisos_${tipo}`)}
+                  <ul style={{ margin: "8px 0 0", paddingLeft: 18 }}>
+                    {grupo.map((a, i) => (
+                      <li key={i} style={{ marginBottom: 4 }}>
+                        {typeof a === "string" ? a : a.m}
+                      </li>
+                    ))}
+                  </ul>
+                </Aviso>
+              </div>
+            );
+          })}
 
           <div className="fases">
             {/* 1 · investigar */}

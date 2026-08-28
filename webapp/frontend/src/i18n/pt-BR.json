@@ -279,7 +279,9 @@
   },
   "aviso": {
     "sintetico": "Dados de demonstração: as empresas e as pessoas desta lista são sintéticas, geradas para testar o fluxo. Mude a origem dos dados para «Ler meu site real» ou «Pesquisa com IA» para trabalhar com informação real.",
-    "avisos_corrida": "A busca terminou, mas algumas fases com IA falharam e foram cobertas com dados sintéticos:"
+    "avisos_fallo": "Algumas fases com IA falharam e foram cobertas com dados sintéticos:",
+    "avisos_ajuste": "Coisas para levar em conta desta busca:",
+    "avisos_dato": "O que foi verificado nesta busca:"
   },
   "nav_corto": {
     "explorar": "Explorar",

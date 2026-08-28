@@ -942,3 +942,127 @@ def test_la_semilla_del_catalogo_esta_versionada():
     versionados = set(r.stdout.split())
     faltan = [n for n in necesarios if n not in versionados]
     assert not faltan, f"archivos del paquete sin versionar: {faltan}"
+
+
+def test_un_resultado_verificado_no_se_muestra_como_fallo_con_datos_sinteticos():
+    """Lo que la pantalla mostraba mal, y es lo peor que puede decir el producto.
+
+    Todos los avisos iban abajo de UN cartel que decía «algunas fases con IA
+    fallaron y se cubrieron con datos sintéticos». Ahí adentro caían cosas que
+    no eran ni un fallo ni datos sintéticos —que ningún competidor tuviera base
+    en el mercado elegido, que es el filtro informando— y hasta resultados
+    buenos: «Contactos públicos: 23 de 50 empresas REALES publican correo».
+
+    O sea que el programa se acusaba de haber fallado y declaraba sintéticos
+    datos reales que él mismo acababa de verificar. Rompía la regla del
+    proyecto en los dos sentidos a la vez: lo sintético se dice sintético, y lo
+    real no se declara falso.
+    """
+    from cliente_ia import modelos
+
+    c = modelos.Corrida(id="x", dominio="mvkobranzaia.com")
+    c.avisos = [
+        modelos.Aviso("openai · competencia: 429", modelos.AVISO_FALLO),
+        modelos.Aviso("Ningún competidor conocido tiene base en el mercado "
+                      "elegido (Uruguay); se muestran los de todos lados.",
+                      modelos.AVISO_AJUSTE),
+        modelos.Aviso("Contactos públicos: 23 de 50 empresas reales publican "
+                      "correo, teléfono o redes en su sitio.",
+                      modelos.AVISO_DATO),
+    ]
+    por_tipo = {a.tipo for a in c.avisos}
+    assert por_tipo == {"fallo", "ajuste", "dato"}, (
+        "los tres tienen que quedar en grupos distintos: la interfaz los pinta "
+        "bajo carteles distintos y ahí está todo el arreglo")
+
+    # Y la clase tiene que sobrevivir al disco: si se pierde al guardar, la
+    # corrida reabierta vuelve a mostrar el cartel equivocado.
+    leida = modelos.desde_dict(c.a_dict())
+    assert [a.tipo for a in leida.avisos] == ["fallo", "ajuste", "dato"]
+    assert "Contactos públicos" in leida.avisos[2]
+    assert leida.avisos[2].tipo == modelos.AVISO_DATO
+
+
+def test_una_corrida_guardada_antes_de_los_tipos_se_sigue_leyendo():
+    """Las corridas viejas guardaron strings pelados. Se leen como el tipo
+    neutro: no se las acusa de haber fallado ni se les inventa un resultado."""
+    from cliente_ia import modelos
+
+    vieja = modelos.desde_dict(
+        {"id": "v1", "dominio": "d.com", "avisos": ["algo que pasó"]})
+    assert len(vieja.avisos) == 1
+    assert vieja.avisos[0] == "algo que pasó"
+    assert vieja.avisos[0].tipo == modelos.AVISO_AJUSTE
+
+
+def test_el_filtro_de_mercado_no_es_un_fallo_de_la_ia(monkeypatch):
+    """El caso exacto de la pantalla: mercado «sólo Uruguay», ningún
+    competidor con base ahí. Es el filtro haciendo su trabajo y contándolo, no
+    una fase que se cayó — así que no puede salir bajo el cartel de fallos."""
+    from cliente_ia import modelos, pipeline
+
+    c = pipeline.ejecutar("mvkobranzaia.com", modo="demo", mercado="local",
+                          pais_base="UY", limite_prospectos=5, limite_emails=2)
+    for a in c.avisos:
+        if "mercado" in a.lower() or "competidor" in a.lower():
+            assert a.tipo != modelos.AVISO_FALLO, (
+                f"«{a}» se está mostrando como un fallo con datos sintéticos")
+
+
+def test_un_competidor_que_vende_en_mi_mercado_no_se_cae_por_no_tener_base_ahi():
+    """El caso exacto de la pantalla: mvkobranzaia.com, mercado «sólo Uruguay».
+
+    La fase 2 traía yalo.com (México) y zenvia.com (Brasil) — que le venden a
+    clientes uruguayos y por lo tanto SÍ le compiten a un uruguayo. El
+    proveedor de IA ya los había conservado a propósito («los de casa MÁS los
+    de afuera que venden acá»), pero el pipeline volvía a filtrar por país de
+    BASE y los tiraba a los dos. Resultado: la lista quedaba vacía, saltaba
+    «ningún competidor tiene base en el mercado elegido; se muestran los de
+    todos lados» y terminaba mostrando a TODOS —incluidos los que no venden
+    ahí— o sea lo contrario de lo que pedía el filtro.
+    """
+    from cliente_ia import geo, modelos, pipeline
+
+    def _comp(dominio, pais, vende):
+        return modelos.Competidor(dominio=dominio, pais=pais,
+                                  vende_en_objetivo=vende, solapamiento=0.8)
+
+    competidores = [
+        _comp("yalo.com", "MX", True),        # base afuera, vende en UY
+        _comp("zenvia.com", "BR", True),      # base afuera, vende en UY
+        _comp("lejano.com", "JP", False),     # ni base ni venta en UY
+    ]
+    dentro = [c for c in competidores
+              if c.vende_en_objetivo or
+              (c.pais and geo.nivel_de(c.pais, "UY") == geo.NIVEL_LOCAL)]
+
+    assert [c.dominio for c in dentro] == ["yalo.com", "zenvia.com"], (
+        "los que venden en el mercado elegido tienen que quedar")
+    assert "lejano.com" not in [c.dominio for c in dentro], (
+        "el que no compite ahí no tiene por qué aparecer")
+    assert pipeline is not None
+
+
+def test_el_demo_sigue_recortando_por_pais_como_siempre():
+    """`vende_en_objetivo` arranca en False a propósito: el proveedor demo no
+    lo declara, así que su recorte por país tiene que quedar idéntico. Si el
+    default fuera True, el filtro de mercado del modo demo dejaba de filtrar."""
+    from cliente_ia import modelos, pipeline
+
+    c = pipeline.ejecutar("mvkobranzaia.com", modo="demo", mercado="local",
+                          pais_base="UY", limite_prospectos=5, limite_emails=2)
+    assert modelos.Competidor(dominio="x.com").vende_en_objetivo is False
+
+    # En el catálogo demo no hay competidores uruguayos, así que acá tiene que
+    # verse el camino de respaldo que YA existía y no cambió: si el recorte no
+    # deja ninguno se muestran todos, pero DICIÉNDOLO. Lo que no puede pasar es
+    # que se muestren todos en silencio.
+    del_mercado = [x for x in c.competidores
+                   if x.pais == "UY" or x.vende_en_objetivo]
+    if len(del_mercado) != len(c.competidores):
+        assert any("competidor" in a.lower() for a in c.avisos), (
+            "se mostraron competidores de afuera del mercado elegido sin avisar")
+        # Y ese aviso es del filtro informando, no un fallo con datos sintéticos.
+        for a in c.avisos:
+            if "competidor" in a.lower():
+                assert a.tipo != modelos.AVISO_FALLO

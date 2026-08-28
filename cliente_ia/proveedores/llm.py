@@ -36,7 +36,7 @@ import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
-from .. import geo, segmento
+from .. import geo, modelos, segmento
 from ..modelos import Campana, Competidor, Empresa, Prospecto
 from .base import Proveedor
 from .demo import ProveedorDemo
@@ -329,9 +329,9 @@ class ProveedorLLM(Proveedor):
                 raise ErrorLLM(
                     f"{self.proveedor} no respondió en {TIMEOUT}s y no queda "
                     "presupuesto de tiempo para reintentar") from e
-            self.notas.append(
+            self.notas.append(modelos.Aviso(
                 f"{self.proveedor} no respondió en {TIMEOUT}s; se reintentó "
-                "una vez")
+                "una vez", modelos.AVISO_FALLO))
             return self._pedir_una_vez(prompt, max_tokens)
 
     def _pedir_una_vez(self, prompt: str, max_tokens: int = 8000) -> str:
@@ -613,6 +613,10 @@ class ProveedorLLM(Proveedor):
                 posicionamiento=str(c.get("posicionamiento", "")).strip(),
                 pais=str(c.get("pais", "")).strip().upper()[:2],
                 solapamiento=max(0.0, min(1.0, _a_float(c.get("solapamiento"), 0.5))),
+                # Viaja en el Competidor, no sólo en el dict local: el recorte
+                # del pipeline lo necesita para no tirar a un competidor que
+                # tiene base afuera pero le saca clientes acá.
+                vende_en_objetivo=vende_ahi[dominio],
                 fuente=self.nombre,
             ))
         # Con filtro local/LATAM, si la primera pasada no trajo NINGUNO con
@@ -687,6 +691,7 @@ class ProveedorLLM(Proveedor):
                 posicionamiento=str(c.get("posicionamiento", "")).strip(),
                 pais=cod,
                 solapamiento=max(0.0, min(1.0, _a_float(c.get("solapamiento"), 0.5))),
+                vende_en_objetivo=True,   # tienen base en el recorte: venden ahí
                 fuente=self.nombre,
             ))
         return salida
@@ -743,17 +748,17 @@ class ProveedorLLM(Proveedor):
         # el filtro (una huella pobre, un idioma que no matchea), no la lista.
         # Antes de vaciar la fase se prefiere avisar y no tocar nada.
         if verificados and len(ajenos) == len(verificados):
-            self.notas.append(
+            self.notas.append(modelos.Aviso(
                 "Competencia: no se pudo confirmar el segmento de ninguno de "
                 f"los {len(verificados)} sitios verificados; se deja la lista "
-                "como la propuso el modelo.")
+                "como la propuso el modelo.", modelos.AVISO_AJUSTE))
             return competidores
         if ajenos:
             nombres = ", ".join(c.nombre or c.dominio for c in ajenos[:4])
-            self.notas.append(
+            self.notas.append(modelos.Aviso(
                 f"Competencia: se descartaron {len(ajenos)} de "
                 f"{len(verificados)} competidores porque su web no habla del "
-                f"mismo segmento ({nombres}).")
+                f"mismo segmento ({nombres}).", modelos.AVISO_DATO))
         fuera = {c.dominio for c in ajenos}
         return [c for c in competidores if c.dominio not in fuera]
 
@@ -775,9 +780,10 @@ class ProveedorLLM(Proveedor):
             # Decirlo vale más que devolver una lista global sin contexto.
             donde = (geo.nombre_pais(pais, self.idioma_base) if self.mercado == geo.NIVEL_LOCAL
                      else geo.nombre_region(geo.region_de(pais), self.idioma_base))
-            self.notas.append(
+            self.notas.append(modelos.Aviso(
                 f"Competencia: ninguno de los competidores directos tiene base "
-                f"en {donde}; los que se listan son de afuera pero venden ahí.")
+                f"en {donde}; los que se listan son de afuera pero venden ahí.",
+                modelos.AVISO_AJUSTE))
         return (sorted(de_casa, key=lambda c: -c.solapamiento)
                 + sorted(venden, key=lambda c: -c.solapamiento))
 
