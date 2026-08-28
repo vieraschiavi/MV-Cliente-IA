@@ -71,6 +71,35 @@ def _texto(valor, idioma: str = "es"):
     return valor
 
 
+# Sufijos societarios que ensucian una búsqueda de LinkedIn por palabra clave:
+# la gente pone "Banco Austral" en su perfil, no "Banco Austral S.R.L.", así
+# que el sufijo resta resultados en vez de afinarlos.
+_SUFIJO_LEGAL = re.compile(
+    r"[\s,]+(s\.?\s?a\.?|s\.?\s?r\.?\s?l\.?|s\.?a\.?s\.?|s\.?a\.?p\.?i\.?"
+    r"|ltda\.?|limitada|inc\.?|llc|corp\.?|co\.?|gmbh|s\.?l\.?|spa|s\.?p\.?a\.?"
+    r"|c\.?a\.?|e\.?i\.?r\.?l\.?|de\s+c\.?v\.?)\s*$", re.IGNORECASE)
+
+
+def _nombre_buscable(nombre: str) -> str:
+    """El nombre de la empresa como lo escribiría alguien en LinkedIn."""
+    limpio = (nombre or "").strip()
+    for _ in range(2):                     # "Algo S.A. de C.V." lleva dos pasadas
+        recortado = _SUFIJO_LEGAL.sub("", limpio).strip(" ,")
+        if recortado == limpio or not recortado:
+            break
+        limpio = recortado
+    return limpio or (nombre or "").strip()
+
+
+def _tokens_sector(nombre: str) -> set[str]:
+    _VACIAS = {"de", "del", "la", "las", "los", "el", "y", "e", "o", "a", "en",
+               "do", "da", "dos", "das", "em", "and", "of", "the", "com", "con",
+               "para", "al"}
+    t = unicodedata.normalize("NFKD", nombre or "").encode("ascii", "ignore").decode()
+    return {w for w in re.findall(r"[a-z0-9]+", t.lower())
+            if len(w) > 2 and w not in _VACIAS}
+
+
 def _repartir(total: int, pesos: list[float]) -> list[int]:
     """
     Reparte `total` entre `pesos` sin perder unidades por redondeo (método del
@@ -411,9 +440,36 @@ class ProveedorDemo(Proveedor):
         sectores = self.datos["sectores"]
         # Índice sector legible → clave, para recuperar los cargos del sector.
         por_nombre: dict[str, str] = {}
+        tokens_por_clave: dict[str, set[str]] = {}
         for clave, sec in sectores.items():
+            tokens_por_clave[clave] = set()
             for idioma in geo.IDIOMAS:
                 por_nombre[_texto(sec["nombre"], idioma)] = clave
+                tokens_por_clave[clave] |= _tokens_sector(_texto(sec["nombre"], idioma))
+
+        def _clave_sector(sector: str) -> str:
+            """Del nombre exacto al parecido, y recién al final el genérico.
+
+            El lookup era SÓLO por nombre exacto: con prospectos de la IA el
+            sector es texto libre ("Bancos privados", "Fintechs de pago") que
+            no coincide nunca, así que TODO caía a `saas_b2b` y a un banco le
+            aparecían "Head of Growth" y "VP of Sales" como decisores. La
+            coincidencia por tokens (con prefijos: "bancos"~"bancarias") no es
+            perfecta, pero errar a un sector vecino del catálogo da cargos
+            infinitamente mejores que errar siempre al genérico de SaaS."""
+            exacto = por_nombre.get(sector)
+            if exacto:
+                return exacto
+            mios = _tokens_sector(sector)
+            if mios:
+                def _pega(a: set[str], b: set[str]) -> int:
+                    return sum(1 for x in a for y in b
+                               if x == y or (len(x) >= 4 and len(y) >= 4
+                                             and (x.startswith(y) or y.startswith(x))))
+                mejor = max(sectores, key=lambda c: _pega(mios, tokens_por_clave[c]))
+                if _pega(mios, tokens_por_clave[mejor]) > 0:
+                    return mejor
+            return "saas_b2b"
 
         nombres = self.datos["nombres_persona"]
         salida: list[Decisor] = []
@@ -423,10 +479,18 @@ class ProveedorDemo(Proveedor):
         usados_nombres: set[str] = set()
         for prospecto in prospectos:
             rnd = random.Random(_semilla_de(prospecto.dominio))
-            clave = por_nombre.get(prospecto.sector, "saas_b2b")
-            cargos = sectores[clave]["cargos"]
             idioma = prospecto.idioma if prospecto.idioma in geo.IDIOMAS else "es"
-            elegidos = rnd.sample(cargos, min(por_empresa, len(cargos)))
+            # Los cargos que definió la campaña de la fase 3 (títulos que el
+            # modelo dedujo del producto REAL) mandan; el catálogo es el plan
+            # B. Sólo para empresas reales: las sintéticas siguen 100% en el
+            # catálogo, que es lo que mantiene determinista al modo demo.
+            if not prospecto.sintetico and prospecto.cargos_decisor:
+                cargos = prospecto.cargos_decisor
+                elegidos = cargos[:por_empresa]
+            else:
+                clave = _clave_sector(prospecto.sector)
+                cargos = sectores[clave]["cargos"]
+                elegidos = rnd.sample(cargos, min(por_empresa, len(cargos)))
             for cargo in elegidos:
                 if not prospecto.sintetico:
                     # Empresa REAL (la trajo la IA): acá no se inventa ni un
@@ -443,9 +507,15 @@ class ProveedorDemo(Proveedor):
                         enlace = (lk_empresa.rstrip("/") + "/people/?keywords="
                                   + urllib.parse.quote(cargo))
                     else:
+                        # El nombre va SIN sufijo societario y ENTRE COMILLAS:
+                        # `Gerente de Cobranzas Banco Austral S.R.L. Uruguay`
+                        # le pedía a LinkedIn seis palabras sueltas y devolvía
+                        # cualquier homónimo; la frase exacta "Banco Austral"
+                        # más el cargo es lo que una persona buscaría a mano.
                         pais_nombre = geo.obtener(prospecto.pais).nombre
                         consulta = urllib.parse.quote(
-                            f"{cargo} {prospecto.nombre} {pais_nombre}")
+                            f'"{_nombre_buscable(prospecto.nombre)}" '
+                            f"{cargo} {pais_nombre}")
                         enlace = ("https://www.linkedin.com/search/results/"
                                   f"people/?keywords={consulta}")
                     salida.append(Decisor(

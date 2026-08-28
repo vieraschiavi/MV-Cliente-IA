@@ -128,7 +128,8 @@ CARGOS = {
 
 
 def para_segmento(huella: segmento.Huella, sector: str = "", pais: str = "",
-                  idioma: str = "es", dolor: str = "") -> list[Busqueda]:
+                  idioma: str = "es", dolor: str = "",
+                  cargos: list[str] | None = None) -> list[Busqueda]:
     """Las consultas que encuentran CLIENTES de un segmento (sector × país).
 
     Ojo con qué palabra va en qué consulta, porque es donde esto se hace bien
@@ -172,8 +173,14 @@ def para_segmento(huella: segmento.Huella, sector: str = "", pais: str = "",
         red="linkedin", etiqueta="empresas del rubro", consulta=li,
         url=f"https://www.linkedin.com/search/results/companies/?keywords={q(li)}",
     ))
-    # LinkedIn · la gente que firma dentro de ese rubro.
-    li_gente = f"{comprador} {CARGOS[idi]} {nombre_pais}".strip()
+    # LinkedIn · la gente que firma dentro de ese rubro. Con los cargos que
+    # la campaña dedujo del producto real, la consulta busca ESOS puestos
+    # ("Gerente de Cobranzas" OR "Director de Riesgo"); sin ellos queda el
+    # genérico por idioma de siempre (director OR gerente…), que matchea a
+    # cualquier jefe de cualquier rubro — era la parte floja de la consulta.
+    termino_cargos = (" OR ".join(f'"{c}"' for c in cargos[:3])
+                      if cargos else CARGOS[idi])
+    li_gente = f"{comprador} {termino_cargos} {nombre_pais}".strip()
     salida.append(Busqueda(
         red="linkedin", etiqueta="decisores", consulta=li_gente,
         url=f"https://www.linkedin.com/search/results/people/?keywords={q(li_gente)}",
@@ -239,7 +246,8 @@ def por_campana(huella: segmento.Huella, campanas, idioma: str = "es",
         # portugués y con el dolor escrito en portugués, que es como lo va a
         # haber escrito quien se está quejando en X.
         busquedas = para_segmento(huella, c.sector, pais,
-                                  c.idioma or idioma, c.dolor)
+                                  c.idioma or idioma, c.dolor,
+                                  cargos=getattr(c, "cargos", None))
         if not busquedas:
             continue
         salida.append({

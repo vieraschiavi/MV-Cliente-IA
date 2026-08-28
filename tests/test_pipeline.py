@@ -1066,3 +1066,173 @@ def test_el_demo_sigue_recortando_por_pais_como_siempre():
         for a in c.avisos:
             if "competidor" in a.lower():
                 assert a.tipo != modelos.AVISO_FALLO
+
+
+def test_vender_en_el_mercado_no_se_presume_se_afirma():
+    """`vende_en_objetivo` omitido por el modelo NO es un sí. Con el default
+    en True, elegir «sólo mi país» no filtraba nada: todo competidor
+    extranjero pasaba por un campo que nadie había afirmado — la pantalla
+    mostraba US/MX/BR bajo «Sólo Uruguay» sin una línea de por qué."""
+    import json as _json
+
+    from cliente_ia.modelos import Empresa
+    from cliente_ia.proveedores.llm import ProveedorLLM
+
+    p = ProveedorLLM.__new__(ProveedorLLM)
+    p.proveedor, p.nombre, p.idioma_base = "claude", "claude", "es"
+    p.mercado, p.pais_base, p.notas = "local", "UY", []
+    respuesta = _json.dumps([
+        {"dominio": "concasa.com.uy", "nombre": "ConCasa", "pais": "UY",
+         "vende_en_objetivo": True, "solapamiento": 0.8},
+        {"dominio": "vendeahi.com", "nombre": "VendeAhí", "pais": "MX",
+         "vende_en_objetivo": True, "solapamiento": 0.7},
+        {"dominio": "sindecir.com", "nombre": "SinDecir", "pais": "US",
+         "solapamiento": 0.9},                      # sin el campo: no afirmó
+        {"dominio": "novende.com", "nombre": "NoVende", "pais": "BR",
+         "vende_en_objetivo": False, "solapamiento": 0.9},
+    ])
+    p._pedir = lambda prompt, max_tokens: respuesta
+    p._verificar_competencia = lambda comps, emp: comps   # sin red en el test
+    p._competencia_local = lambda emp, paises: []
+
+    quedaron = [c.dominio for c in p.competencia(Empresa(dominio="mi.com", pais="UY"))]
+    assert "concasa.com.uy" in quedaron          # base en el mercado
+    assert "vendeahi.com" in quedaron            # afirmó que vende ahí
+    assert "sindecir.com" not in quedaron        # no afirmó: no pasa
+    assert "novende.com" not in quedaron         # dijo que no vende ahí
+
+
+def test_un_competidor_medido_como_rubro_distinto_no_se_muestra(monkeypatch):
+    """La captura del dueño: yalo.ai etiquetado «RUBRO DISTINTO» por el propio
+    motor… y en la lista igual. Si la medición dio otro rubro y la lista
+    aguanta el descuento, se descarta y se dice; con la lista corta se
+    conserva etiquetado (una portada que es pura imagen también mide bajo)."""
+    from cliente_ia import modelos, segmento
+    from cliente_ia.modelos import Competidor, Empresa
+    from cliente_ia.proveedores.llm import ProveedorLLM
+
+    p = ProveedorLLM.__new__(ProveedorLLM)
+    p.nombre, p.notas = "claude", []
+    monkeypatch.setattr(segmento, "huella_verificable",
+                        lambda emp: segmento.Huella({"cobranza": 1.0}))
+
+    afinidades = {"bueno1.com": 0.5, "bueno2.com": 0.4, "bueno3.com": 0.35,
+                  "distinto.com": 0.10,   # entre AJENA (0.06) y DUDOSA (0.15)
+                  "ajeno.com": 0.01}
+
+    def _bajar_falso(dominio, timeout):
+        return f"html de {dominio}"
+
+    monkeypatch.setattr("cliente_ia.proveedores.web.bajar", _bajar_falso)
+    monkeypatch.setattr(segmento, "afinidad_de_html",
+                        lambda huella, html: afinidades[html.split()[-1]])
+
+    lista = [Competidor(dominio=d, solapamiento=0.6) for d in afinidades]
+    quedan = {c.dominio for c in p._verificar_competencia(
+        lista, Empresa(dominio="mi.com"))}
+    assert "ajeno.com" not in quedan
+    assert "distinto.com" not in quedan, "medido como otro rubro y mostrado igual"
+    assert {"bueno1.com", "bueno2.com", "bueno3.com"} <= quedan
+    assert any(a.tipo == modelos.AVISO_DATO for a in p.notas)
+
+    # Lista corta: el «rubro distinto» se CONSERVA (etiquetado) — descartar
+    # con dos competidores en pie vacía la fase por una medición dudosa.
+    p.notas = []
+    corta = [Competidor(dominio=d, solapamiento=0.6)
+             for d in ("bueno1.com", "distinto.com")]
+    quedan_corta = {c.dominio for c in p._verificar_competencia(
+        corta, Empresa(dominio="mi.com"))}
+    assert "distinto.com" in quedan_corta
+
+
+def test_los_decisores_reales_llevan_los_cargos_de_su_campana():
+    """A un banco no le firman la compra un «Head of Growth» y un «VP of
+    Sales». Con prospectos de la IA, el sector es texto libre que no coincidía
+    con los nombres EXACTOS del catálogo, todo caía al fallback de saas_b2b y
+    los cargos salían de otro rubro. Ahora mandan los cargos que la campaña
+    dedujo del producto real, y sin ellos el sector se matchea por parecido."""
+    from cliente_ia.modelos import Prospecto
+    from cliente_ia.proveedores.demo import ProveedorDemo
+
+    demo = ProveedorDemo("es")
+
+    con_cargos = Prospecto(
+        id="p0001", nombre="Banco Ejemplo S.A.", dominio="bancoejemplo.com.uy",
+        sector="Bancos privados y financieras", pais="UY", nivel="local",
+        prioridad=1, idioma="es", sintetico=False, fuente="llm",
+        cargos_decisor=["Gerente de Cobranzas", "Director de Riesgo"])
+    decisores = demo.decisores([con_cargos], 2)
+    assert [d.cargo for d in decisores] == ["Gerente de Cobranzas",
+                                            "Director de Riesgo"]
+
+    # Sin cargos de campaña: el sector libre "Bancos privados…" tiene que
+    # caer al sector BANCOS del catálogo por parecido, nunca a saas_b2b.
+    sin_cargos = Prospecto(
+        id="p0002", nombre="Banco Otro S.A.", dominio="bancootro.com.uy",
+        sector="Bancos privados", pais="UY", nivel="local",
+        prioridad=1, idioma="es", sintetico=False, fuente="llm")
+    cargos_banco = set(demo.datos["sectores"]["bancos"]["cargos"])
+    for d in demo.decisores([sin_cargos], 3):
+        assert d.cargo in cargos_banco, (
+            f"«{d.cargo}» no es un cargo de banca: cayó al fallback genérico")
+
+
+def test_la_busqueda_de_linkedin_no_lleva_el_sufijo_societario():
+    """`Gerente de Cobranzas Banco Austral S.R.L. Uruguay` como seis palabras
+    sueltas le pedía a LinkedIn cualquier homónimo. El nombre va limpio
+    («Banco Austral», sin S.R.L.) y ENTRE COMILLAS, que es la frase exacta
+    que una persona buscaría a mano."""
+    from cliente_ia.modelos import Prospecto
+    from cliente_ia.proveedores.demo import ProveedorDemo
+
+    demo = ProveedorDemo("es")
+    real = Prospecto(
+        id="p0001", nombre="Banco Austral S.R.L.", dominio="bancoaustral.com.uy",
+        sector="Bancos privados", pais="UY", nivel="local", prioridad=1,
+        idioma="es", sintetico=False, fuente="llm")
+    d = demo.decisores([real], 1)[0]
+    consulta = urllib.parse.unquote(d.linkedin)
+    assert '"Banco Austral"' in consulta
+    assert "S.R.L" not in consulta
+    assert "Uruguay" in consulta          # el país sigue acotando homónimos
+
+
+def test_la_consulta_de_decisores_usa_los_cargos_de_la_campana():
+    """La búsqueda de gente de LinkedIn buscaba `director OR gerente OR jefe`
+    para cualquier producto: matchea a cualquier jefe de cualquier rubro. Con
+    los cargos que la campaña dedujo del producto real, busca ESOS puestos."""
+    from cliente_ia import busqueda_social, segmento
+
+    huella = segmento.Huella({"cobranza": 1.0, "mora": 0.5})
+    con = busqueda_social.para_segmento(
+        huella, sector="bancos", pais="UY", idioma="es",
+        cargos=["Gerente de Cobranzas", "Director de Riesgo"])
+    gente = next(b for b in con if b.etiqueta == "decisores")
+    assert '"Gerente de Cobranzas" OR "Director de Riesgo"' in gente.consulta
+
+    sin = busqueda_social.para_segmento(huella, sector="bancos", pais="UY",
+                                        idioma="es")
+    gente_sin = next(b for b in sin if b.etiqueta == "decisores")
+    assert "director OR gerente" in gente_sin.consulta   # el genérico de siempre
+
+
+def test_un_prospecto_medido_como_de_otro_rubro_se_cae_de_la_lista(monkeypatch):
+    """Reordenar no alcanzaba: la empresa de otro rubro quedaba al final de la
+    lista… pero en la lista. Medida como claramente ajena, se descarta y se
+    avisa cuántas se cayeron — salvo que TODO lo medido dé ajeno, que es señal
+    de huella pobre y no de lista mala."""
+    from cliente_ia import modelos, pipeline, segmento
+
+    def _enriquecer_falso(prospectos, huella=None):
+        for i, p in enumerate(prospectos):
+            p.afinidad = 0.01 if i < 2 else 0.5   # dos claramente ajenos
+        return (3, len(prospectos))
+
+    monkeypatch.setattr("cliente_ia.proveedores.contactos.enriquecer",
+                        _enriquecer_falso)
+    c = pipeline.ejecutar("mvkobranzaia.com", modo="demo",
+                          limite_prospectos=8, limite_emails=2)
+    assert all(p.afinidad >= segmento.AFIN_AJENA for p in c.prospectos)
+    assert len(c.prospectos) == 6
+    caida = next(a for a in c.avisos if "descartaron" in a and "rubro" in a)
+    assert caida.tipo == modelos.AVISO_DATO

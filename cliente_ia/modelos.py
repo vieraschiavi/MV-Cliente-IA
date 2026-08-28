@@ -113,6 +113,14 @@ class Campana:
     dolor: str = ""
     prueba: str = ""                          # la prueba/dato que respalda el ángulo
     idioma: str = "es"
+    # Cargos típicos de quien FIRMA la compra en este sector, en el idioma de
+    # la ola. Son TÍTULOS de puesto, nunca personas — la regla 6 (el LLM no
+    # hace la fase 5) sigue intacta: proponer "Gerente de Cobranzas" no es
+    # proponer a nadie. Existen porque sin esto la fase 5 mapeaba el sector
+    # libre que escribió el modelo contra los nombres EXACTOS del catálogo
+    # demo, no encontraba nada y caía a los cargos de `saas_b2b`: a un banco
+    # le aparecían "Head of Growth" y "VP of Sales" como decisores.
+    cargos: list[str] = field(default_factory=list)
 
     def a_dict(self) -> dict:
         return asdict(self)
@@ -150,6 +158,10 @@ class Prospecto:
     # {email, emails, telefono, linkedin, instagram, web}. Lo que la empresa
     # no publica, no está — acá no se adivina nada.
     contactos: dict = field(default_factory=dict)
+    # Los cargos de la campaña de origen (`Campana.cargos`), copiados acá para
+    # que la fase 5 los tenga sin cambiar su firma: `decisores(prospectos, n)`
+    # no recibe las campañas.
+    cargos_decisor: list[str] = field(default_factory=list)
 
     def a_dict(self) -> dict:
         return asdict(self)

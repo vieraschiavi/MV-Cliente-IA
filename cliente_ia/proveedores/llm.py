@@ -47,6 +47,9 @@ from .demo import ProveedorDemo
 TIMEOUT_SITIO = 4
 HILOS_SITIO = 8
 MAX_SITIOS_COMPETENCIA = 12
+# Piso de la lista para animarse a descartar un «rubro distinto» medido: con
+# menos que esto, se conserva etiquetado (ver _verificar_competencia).
+MIN_COMPETIDORES = 3
 
 MODELO_DEFAULT = "claude-opus-5"
 PROVEEDORES_IA = ("claude", "openai", "gemini", "copilot", "grok")
@@ -606,7 +609,12 @@ class ProveedorLLM(Proveedor):
             if not isinstance(c, dict) or not c.get("dominio"):
                 continue
             dominio = str(c["dominio"]).strip().lower()
-            vende_ahi[dominio] = bool(c.get("vende_en_objetivo", True))
+            # Default False, no True: el campo se le PIDE al modelo, así que
+            # su ausencia no es una afirmación. Con True por omisión, elegir
+            # «sólo mi país» no filtraba nada — todo competidor extranjero
+            # pasaba por un campo que nadie había afirmado (se vio en vivo:
+            # «Sólo Uruguay» listaba US/MX/BR sin una línea de por qué).
+            vende_ahi[dominio] = bool(c.get("vende_en_objetivo", False))
             salida.append(Competidor(
                 dominio=dominio,
                 nombre=str(c.get("nombre", "")).strip(),
@@ -712,9 +720,18 @@ class ProveedorLLM(Proveedor):
            queda en -1 y el competidor se conserva con su orden declarado. Un
            filtro que borra por no poder verificar es peor que no filtrar: en
            una máquina sin salida a internet vaciaría la fase entera.
-        2. **Sólo se descarta lo claramente ajeno** (`AFIN_AJENA`). El umbral
-           está bajo a propósito: es preferible dejar pasar un competidor flojo
-           que borrar uno bueno cuya portada es una imagen sin texto.
+        2. **El umbral de descarte depende de cuánto queda en pie.** Lo
+           claramente ajeno (`AFIN_AJENA`) se cae siempre. Lo medido como
+           «rubro distinto» (`AFIN_DUDOSA`, la misma etiqueta que muestra la
+           interfaz) se cae SÓLO si después del corte quedan al menos
+           `MIN_COMPETIDORES` — con la lista corta se conserva, etiquetado,
+           porque una portada que es pura imagen también mide bajo y borrar un
+           competidor bueno por eso es peor que mostrar uno flojo con su
+           etiqueta. Antes el descarte era sólo `AFIN_AJENA` y pasaba esto: el
+           motor MEDÍA un competidor como de otro rubro, lo etiquetaba «rubro
+           distinto»… y lo dejaba en la lista igual — el producto contradecía
+           su propia medición delante del usuario (se vio en vivo con
+           yalo.ai).
         3. **Se dice lo que se hizo.** Cuántos se verificaron y cuántos se
            cayeron va a las notas de la corrida; un filtro silencioso que borra
            la mitad de la lista es indistinguible de un bug.
@@ -753,6 +770,13 @@ class ProveedorLLM(Proveedor):
                 f"los {len(verificados)} sitios verificados; se deja la lista "
                 "como la propuso el modelo.", modelos.AVISO_AJUSTE))
             return competidores
+        # Los medidos como «rubro distinto» (la etiqueta de la interfaz) se
+        # suman al corte sólo si la lista aguanta el descuento — ver el
+        # docstring, punto 2.
+        dudosos = [c for c in verificados
+                   if segmento.AFIN_AJENA <= c.afinidad < segmento.AFIN_DUDOSA]
+        if dudosos and len(competidores) - len(ajenos) - len(dudosos) >= MIN_COMPETIDORES:
+            ajenos = ajenos + dudosos
         if ajenos:
             nombres = ", ".join(c.nombre or c.dominio for c in ajenos[:4])
             self.notas.append(modelos.Aviso(
@@ -774,7 +798,7 @@ class ProveedorLLM(Proveedor):
         objetivo = self._paises_objetivo(pais)
         de_casa = [c for c in competidores if c.pais in objetivo]
         venden = [c for c in competidores
-                  if c.pais not in objetivo and vende_ahi.get(c.dominio, True)]
+                  if c.pais not in objetivo and vende_ahi.get(c.dominio, False)]
         if not de_casa and venden:
             # Mercado chico: puede no haber ni un competidor con base local.
             # Decirlo vale más que devolver una lista global sin contexto.
@@ -824,9 +848,13 @@ class ProveedorLLM(Proveedor):
             "armar cada búsqueda, y una ciudad metida ahí la vuelve una frase "
             "tan específica que ningún buscador la matchea), `dolor` = el "
             "problema de ese sector que este producto resuelve, `angulo` = "
-            "UNA frase comercial concreta y sin superlativos. Todo en el "
-            "`idioma` del recorte. Devolvé SOLO un array JSON: "
-            '[{"nivel": "local", "sector": "...", "dolor": "...", "angulo": "..."}]'
+            "UNA frase comercial concreta y sin superlativos, `cargos` = 2 a 4 "
+            "títulos de puesto de quien FIRMA esta compra en ese sector, tal "
+            "como aparecen en LinkedIn (títulos de puesto, NUNCA nombres de "
+            "personas). Todo en el `idioma` del recorte. Devolvé SOLO un array "
+            "JSON: "
+            '[{"nivel": "local", "sector": "...", "dolor": "...", '
+            '"angulo": "...", "cargos": ["...", "..."]}]'
         )
         datos = _json_del_texto(self._pedir(prompt, 8000))
         por_ola = {nivel: (prioridad, codigos) for nivel, prioridad, codigos in olas}
@@ -860,6 +888,12 @@ class ProveedorLLM(Proveedor):
                 dolor=str(c.get("dolor", "")).strip(),
                 prueba=prueba,
                 idioma=idioma,
+                # Títulos de puesto, nunca personas (regla 6). Van a la fase 5:
+                # sin esto, los cargos salían del catálogo demo mapeado por
+                # nombre EXACTO de sector, que con el texto libre del modelo no
+                # matcheaba nunca y caía a los de saas_b2b.
+                cargos=[str(x).strip() for x in (c.get("cargos") or [])
+                        if str(x).strip()][:4],
             ))
         # Sin campañas útiles se deja subir el error: la cadena cae al demo
         # (que al menos es coherente consigo mismo) y el aviso explica por qué.
@@ -945,6 +979,7 @@ class ProveedorLLM(Proveedor):
                     idioma=pais.idioma,
                     sintetico=False,
                     fuente=self.nombre,
+                    cargos_decisor=list(campana.cargos),
                 ))
         if not salida and fallos:
             raise ErrorLLM("; ".join(fallos))

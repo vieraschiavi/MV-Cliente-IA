@@ -286,6 +286,23 @@ def ejecutar(dominio: str,
                     modelos.AVISO_DATO))
                 medidos = [p for p in corrida.prospectos if p.afinidad >= 0]
                 if medidos:
+                    # Lo MEDIDO como claramente ajeno al rubro se cae, no se
+                    # reordena: reordenar dejaba a la empresa de otro rubro al
+                    # final de la lista… pero en la lista, y el dueño la veía
+                    # como "buscó mal las empresas". Misma salvaguarda que en
+                    # competencia: si TODO lo medido dio ajeno, el roto es el
+                    # filtro (huella pobre), no la lista — se avisa y no se
+                    # toca nada.
+                    ajenos_p = [p for p in medidos
+                                if p.afinidad < segmento.AFIN_AJENA]
+                    if ajenos_p and len(ajenos_p) < len(medidos):
+                        fuera = {p.id for p in ajenos_p}
+                        corrida.prospectos = [p for p in corrida.prospectos
+                                              if p.id not in fuera]
+                        corrida.avisos.append(modelos.Aviso(
+                            f"Se descartaron {len(ajenos_p)} empresas cuya web "
+                            "no habla del rubro del producto (medido sobre su "
+                            "propio sitio).", modelos.AVISO_DATO))
                     # Con la afinidad ya medida se vuelve a puntuar y a
                     # ordenar. La regla de olas no se toca: `ordenar_prospectos`
                     # sigue ordenando por ola ANTES que por puntaje.
