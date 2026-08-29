@@ -3,8 +3,10 @@
 > Puntaje bajo la rúbrica de `.claude/skills/ecc/SKILL.md` (ECC v2.2.0,
 > skill `production-audit`). **Evidencia ejecutada o no cuenta.**
 
-**Veredicto: 87/100 → 9/10. Sin bloqueantes. Suite grande y verde, linter
-limpio, health check presente y cero secretos versionados.**
+**Veredicto: 79/100 → 8/10. Sale con salvedades. El código está sano —496
+tests verdes, linter limpio, health check presente, cero secretos versionados—
+pero el repositorio no tiene rama `main`: la rama por defecto es una rama de
+trabajo, y eso frena la nota.**
 
 ## Evidencia ejecutada
 
@@ -15,9 +17,29 @@ limpio, health check presente y cero secretos versionados.**
 | Health check | `/api/salud` en el backend | ✅ presente |
 | Secretos versionados | `git ls-files \| grep -E '\.env$\|\.pem\|\.keystore'` | ✅ ninguno |
 
-## Por qué 9 y no 10
+## El tope: no hay rama `main`
 
-Ningún tope duro aplica. Lo que no pude verificar desde acá:
+La rama por defecto de este repositorio es `claude/replicate-explee-kobra-s9sx0s`
+—una rama de trabajo—, y **`main` no existe**. Las únicas dos ramas del repo son
+esa y la de este PR.
+
+No es cosmético:
+
+- **No hay línea estable.** Si esa rama se renombra o se borra, el producto se
+  va con ella. El nombre además ata el repositorio a una tarea puntual que ya
+  terminó.
+- **Un runner de CI o un deploy que apunte a `main` no encuentra nada.**
+- **Cualquiera que clone el repo aterriza en una rama de trabajo**, sin forma
+  de saber si es la versión buena.
+
+Arreglo: renombrar esa rama a `main` y ponerla como default en la
+configuración del repositorio. Son cinco minutos y sube el puntaje a 9/10 sin
+tocar una línea de código. Este PR se abre contra la rama por defecto actual
+porque es la única base posible.
+
+## Lo demás que falta para el 10
+
+Ningún tope duro de seguridad aplica. Lo que no pude verificar desde acá:
 
 1. **La corrida end-to-end de CI.** `ci.yml` tiene un paso "Corrida
    end-to-end" y un job de humo de la ventana Electron que no se corrieron
@@ -37,5 +59,6 @@ Ningún tope duro aplica. Lo que no pude verificar desde acá:
 
 ## Próxima acción
 
-Antes de cada push: `ruff check . && python -m pytest -q tests/`. Antes de un
+Renombrar la rama por defecto a `main` — es el arreglo de mayor impacto y el
+más barato. Después, antes de cada push: `ruff check . && python -m pytest -q tests/`. Antes de un
 release, además el build del frontend y el humo de la ventana.
