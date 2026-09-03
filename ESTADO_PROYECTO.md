@@ -387,6 +387,41 @@ pagar.** Para cerrarlo: borrar la Release `owner-latest`, volver a
 edición owner sigue fuera del build y el paso de publicación corta si el repo
 no es privado).
 
+## Competencia sembrable, pasada local con «todos» y envío a un botón (2026-09-03)
+
+Pedido del dueño con caso concreto: Mozart —competidor uruguayo real de MV
+Kobra AI— no aparecía en la fase 2 con ningún prompt, y quería mandar correos
+y LinkedIn a los decisores con UN botón. Tres cambios:
+
+1. **«Competidores que ya conocés»** (Explorar → Enlaces del mensaje).
+   Ningún modelo conoce a todas las empresas chicas de un mercado chico; el
+   que mejor conoce a su competencia es el dueño del producto. Los dominios
+   que nombre entran PRIMEROS a la fase 2, con el país deducido del TLD
+   (`geo.pais_de_dominio`), marcados como vendedores del mercado (pasan el
+   recorte) y, si hay huella verificable, con el rubro MEDIDO sobre su propia
+   web — pero nunca descartados por medir bajo: la afirmación del dueño pesa
+   más que una portada hecha de imágenes. Un nombre sin dominio («Mozart» a
+   secas) no se convierte en un dominio inventado: se avisa qué falta
+   (regla 5). Verificado con Playwright contra la app real: el sembrado
+   aparece primero, con UY y sin carteles de fallo.
+
+2. **La pasada local de competencia corre también con mercado «todos»** (el
+   default). Antes sólo corría con «sólo mi país»/«mi región»: con el filtro
+   por defecto, diez competidores extranjeros y ni un local, sin que nadie
+   fuera a buscarlo — contradiciendo «tu país primero». Con «mundo» sigue sin
+   correr: ahí el usuario excluyó su país a propósito.
+
+3. **«Enviar todo: correo + LinkedIn» en un solo botón** (Correos). Un solo
+   pedido a `/api/automatizar` con los dos canales —el backend siempre los
+   aceptó juntos; la separación era de la interfaz—, un solo comprobante, y
+   las métricas registradas POR CANAL para que el panel siga sumando correos
+   con correos. Sólo se ofrece cuando los dos canales están configurados
+   (SMTP + proveedor de LinkedIn); si falta uno, quedan los botones por canal
+   que dicen qué falta.
+
+Suite completa en verde (499: 469 + 30 de navegador), ruff limpio, frontend
+compilado y E2E del sembrado corrido contra el backend vivo.
+
 ## Cómo re-verificar todo (5 min)
 
 ```bash

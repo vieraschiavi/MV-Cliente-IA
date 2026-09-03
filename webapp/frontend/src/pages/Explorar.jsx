@@ -126,6 +126,10 @@ export default function Explorar() {
     // Enlaces del mensaje: el banner, el video y la web que llevan el correo y
     // el mensaje de LinkedIn, cada uno en el idioma del receptor.
     sitio: "", video_en_landing: true, videos: { es: "", pt: "", en: "" },
+    // Competidores que el usuario YA conoce (dominios separados por coma).
+    // Ningún modelo conoce a todas las empresas chicas de un mercado chico:
+    // el que mejor conoce a su competencia es el dueño del producto.
+    competidores: "",
   });
   const [verEnlaces, setVerEnlaces] = useState(false);
   // El backend dice qué modos puede correr de verdad: sin ANTHROPIC_API_KEY
@@ -211,6 +215,8 @@ export default function Explorar() {
         video_en_landing: form.video_en_landing,
         videos: Object.fromEntries(
           Object.entries(form.videos).filter(([, v]) => v.trim())),
+        competidores: form.competidores.split(",")
+          .map((c) => c.trim()).filter(Boolean).slice(0, 10),
         // El correo sólo hace falta para las búsquedas reales de la web
         // pública (cuenta el cupo gratis; el del dueño no descuenta).
         ...(form.modo !== "demo" && email.trim() ? { email: email.trim() } : {}),
@@ -361,6 +367,18 @@ export default function Explorar() {
           </button>
           {verEnlaces ? (
             <div className="enlaces-cuerpo">
+              <div className="campo crece">
+                <label htmlFor="competidores">
+                  {t("explorar.competidores")} <i>({t("explorar.opcional")})</i>
+                </label>
+                <input id="competidores" type="text" value={form.competidores}
+                       autoCapitalize="none" autoCorrect="off"
+                       placeholder="mozart.com.uy, otra.com"
+                       onChange={(e) => setForm({ ...form, competidores: e.target.value })} />
+                <p className="nota" style={{ marginTop: 6, marginBottom: 0 }}>
+                  {t("explorar.competidores_ayuda")}
+                </p>
+              </div>
               <div className="campo crece">
                 <label htmlFor="sitio">{t("explorar.sitio")} <i>({t("explorar.opcional")})</i></label>
                 <input id="sitio" type="text" value={form.sitio} inputMode="url"

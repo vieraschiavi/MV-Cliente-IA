@@ -627,13 +627,20 @@ class ProveedorLLM(Proveedor):
                 vende_en_objetivo=vende_ahi[dominio],
                 fuente=self.nombre,
             ))
-        # Con filtro local/LATAM, si la primera pasada no trajo NINGUNO con
-        # base en el recorte, se insiste con una pasada dedicada antes de
-        # conformarse con los regionales: los competidores de un mercado
-        # chico suelen ser empresas chicas que el modelo no nombra salvo que
-        # se le pregunte por ellas en concreto (pasó con «sólo Uruguay»: diez
-        # competidores, todos AR/CO/BR/US).
+        # Si la primera pasada no trajo NINGUNO con base en el recorte, se
+        # insiste con una pasada dedicada antes de conformarse con los
+        # regionales: los competidores de un mercado chico suelen ser empresas
+        # chicas que el modelo no nombra salvo que se le pregunte por ellas en
+        # concreto (pasó con «sólo Uruguay»: diez competidores, todos
+        # AR/CO/BR/US).
+        #
+        # También con mercado «todos»: la regla del producto es «tu país
+        # primero», y con el filtro por defecto esta pasada no corría nunca —
+        # diez competidores extranjeros y ni un local, sin que nadie fuera a
+        # buscarlo. Con «mundo» no: ahí el usuario excluyó su país a propósito.
         objetivo = self._paises_objetivo(pais)
+        if not objetivo and self.mercado == "todos":
+            objetivo = {pais}
         if objetivo and not any(c.pais in objetivo for c in salida):
             vistos = {c.dominio for c in salida}
             for c in self._competencia_local(empresa, sorted(objetivo)):

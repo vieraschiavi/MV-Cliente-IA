@@ -73,7 +73,8 @@ def ejecutar(dominio: str,
              modelo_ia: str = "",
              mercado: str = "todos",
              pais_base: str = "",
-             presupuesto_ia: float = 0) -> Corrida:
+             presupuesto_ia: float = 0,
+             competidores_conocidos: list[str] | None = None) -> Corrida:
     """
     Corre el AutoGTM completo sobre `dominio` y devuelve la corrida.
 
@@ -92,6 +93,13 @@ def ejecutar(dominio: str,
     `presupuesto_ia` es el techo de segundos para toda la parte de IA de la
     corrida (0 = sin techo). Sólo lo pasa el servidor serverless, que corta
     la conexión a los 300s igual: ver `ProveedorLLM._limite`.
+
+    `competidores_conocidos` son dominios que el usuario nombró a mano.
+    Existen porque ningún modelo conoce a todas las empresas chicas de un
+    mercado chico: a un cliente uruguayo le faltaba un competidor uruguayo
+    real en la fase 2 y no había prompt que lo hiciera aparecer. El que mejor
+    conoce a su competencia es el dueño del producto — se integra lo que
+    nombra y el motor hace el resto (país por TLD, medición de segmento).
     """
     dominio = (dominio or "").strip().lower().removeprefix("https://") \
                                             .removeprefix("http://").rstrip("/")
@@ -205,6 +213,7 @@ def ejecutar(dominio: str,
         # --- Fase 2 · explorar la competencia ---------------------------
         with _fase(corrida, "competencia", avisar) as paso:
             corrida.competidores = proveedor.competencia(corrida.empresa)
+            _sembrar_competidores(corrida, competidores_conocidos, huella_medir)
             # El mismo recorte de mercado que campañas y prospectos, que acá
             # faltaba: con «sólo Uruguay» elegido aparecían competidores de
             # Brasil y EE.UU. como si nada. Si el recorte no deja ninguno se
@@ -437,6 +446,62 @@ def _redactar_todos(corrida: Corrida, limite: int, firma: str,
                     d, prospecto, corrida.empresa,
                     campanas.get(prospecto.campana_id), firma, cfg_enlaces))
     return emails
+
+
+def _sembrar_competidores(corrida: Corrida, dominios: list[str] | None,
+                          huella_medir) -> None:
+    """Integra los competidores que el usuario nombró a mano.
+
+    Cada uno entra con `vende_en_objetivo=True` (el dueño lo afirma: por eso
+    lo escribió) y así pasa el recorte de mercado; el país sale del TLD
+    (`geo.pais_de_dominio`), y si hay huella verificable se le MIDE el
+    segmento sobre su propia web, igual que a los que propuso el modelo —
+    pero nunca se lo descarta por medir bajo: la afirmación del dueño pesa
+    más que una portada hecha de imágenes. Sin huella (modo demo) no se sale
+    a la red, que es lo que mantiene la regla 7 (determinismo).
+    """
+    if not dominios:
+        return
+    vistos = {c.dominio for c in corrida.competidores}
+    sembrados = 0
+    for crudo in dominios[:10]:
+        d = (str(crudo or "").strip().lower()
+             .removeprefix("https://").removeprefix("http://")
+             .removeprefix("www.").split("/")[0])
+        if not d or d in vistos:
+            continue
+        if "." not in d:
+            # "Mozart" a secas no es un dominio y un dominio no se inventa
+            # (regla 5: acá no se adivina nada). Se pide el dato que falta.
+            corrida.avisos.append(modelos.Aviso(
+                f"«{crudo}» no se pudo integrar como competidor: pegá su "
+                "dominio (ej. empresa.com.uy) para que el motor lo "
+                "verifique.", modelos.AVISO_AJUSTE))
+            continue
+        vistos.add(d)
+        pais_tld = geo.pais_de_dominio(d)
+        comp = modelos.Competidor(
+            dominio=d,
+            nombre=d.split(".")[0].capitalize(),
+            pais=pais_tld.codigo if pais_tld else "",
+            solapamiento=1.0,
+            vende_en_objetivo=True,
+            fuente="usuario",
+        )
+        if huella_medir is not None:
+            try:
+                from . import segmento as mod_segmento
+                from .proveedores.web import bajar
+                comp.afinidad = mod_segmento.afinidad_de_html(
+                    huella_medir, bajar(d, 4))
+            except Exception:                            # noqa: BLE001
+                comp.afinidad = -1.0                     # sitio caído: se conserva
+        corrida.competidores.insert(sembrados, comp)     # los tuyos, primero
+        sembrados += 1
+    if sembrados:
+        corrida.avisos.append(modelos.Aviso(
+            f"Se integraron {sembrados} competidores que nombraste vos; "
+            "quedan primeros en la lista.", modelos.AVISO_DATO))
 
 
 def _nombre_mercado(mercado: str, corrida: Corrida) -> str:

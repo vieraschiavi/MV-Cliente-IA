@@ -67,7 +67,9 @@
     "cupo_clave_propia": "You're using your own AI key: no search limit and no email needed.",
     "pais": "Your country",
     "pais_auto": "Detect it from my site",
-    "mercado_regional": "{{region}} only"
+    "mercado_regional": "{{region}} only",
+    "competidores": "Competitors you already know",
+    "competidores_ayuda": "Comma-separated domains. No model knows every small company in your market: the ones you name here go first into phase 2, and the engine infers their country and measures their segment on their own website."
   },
   "fase": {
     "investigar": {
@@ -368,7 +370,9 @@
     "enviando": "Sending…",
     "li_sin_perfiles": "No contact has a personal LinkedIn profile (/in/…): there's nobody to message.",
     "sin_smtp_comprobante": "It was sent, but the receipt didn't go out: no mail server configured.",
-    "lleva": "Every message carries: personalised text · video · product image · link to request a demo"
+    "lleva": "Every message carries: personalised text · video · product image · link to request a demo",
+    "boton_todo": "Send everything: email + LinkedIn ({{c}} + {{l}})",
+    "confirmar_todo": "Send {{c}} emails from your mailbox AND {{l}} LinkedIn messages through your provider, all at once?"
   },
   "metricas": {
     "subtitulo": "Conversion by segment, channel, day and hour from the backend; below, this device's send history.",

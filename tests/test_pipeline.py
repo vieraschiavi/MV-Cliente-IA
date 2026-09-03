@@ -1236,3 +1236,77 @@ def test_un_prospecto_medido_como_de_otro_rubro_se_cae_de_la_lista(monkeypatch):
     assert len(c.prospectos) == 6
     caida = next(a for a in c.avisos if "descartaron" in a and "rubro" in a)
     assert caida.tipo == modelos.AVISO_DATO
+
+
+def test_los_competidores_que_nombra_el_usuario_entran_y_primeros():
+    """El caso Mozart: una empresa uruguaya real que el modelo no conoce no
+    aparece con ningún prompt. El que mejor conoce a su competencia es el
+    dueño del producto — lo que nombre se integra, con el país deducido del
+    TLD, marcado como vendedor en el mercado (por eso pasa el recorte) y
+    PRIMERO en la lista. En demo no se sale a la red (regla 7)."""
+    from cliente_ia import modelos, pipeline
+
+    c = pipeline.ejecutar(
+        "mvkobranzaia.com", modo="demo", mercado="local", pais_base="UY",
+        limite_prospectos=5, limite_emails=2,
+        competidores_conocidos=["https://Mozart.com.uy/", "otra.com",
+                                "mozart.com.uy"])   # duplicado: entra una vez
+
+    dominios = [x.dominio for x in c.competidores]
+    assert dominios[0] == "mozart.com.uy"
+    assert dominios[1] == "otra.com"
+    assert dominios.count("mozart.com.uy") == 1
+
+    mozart = c.competidores[0]
+    assert mozart.pais == "UY"                      # deducido del .com.uy
+    assert mozart.vende_en_objetivo is True         # el dueño lo afirma
+    assert mozart.fuente == "usuario"
+    assert mozart.afinidad == -1.0                  # demo: no se midió (sin red)
+    assert any(a.tipo == modelos.AVISO_DATO and "nombraste" in a
+               for a in c.avisos)
+
+
+def test_un_nombre_sin_dominio_no_se_inventa_se_pide():
+    """«Mozart» a secas no es un dominio, y un dominio no se adivina (regla
+    5). Se avisa qué falta en vez de fabricar mozart.com y errarle."""
+    from cliente_ia import modelos, pipeline
+
+    c = pipeline.ejecutar("mvkobranzaia.com", modo="demo",
+                          limite_prospectos=5, limite_emails=2,
+                          competidores_conocidos=["Mozart"])
+    assert all(x.fuente != "usuario" for x in c.competidores)
+    aviso = next(a for a in c.avisos if "Mozart" in a)
+    assert aviso.tipo == modelos.AVISO_AJUSTE
+    assert "dominio" in aviso
+
+
+def test_la_pasada_local_de_competencia_corre_tambien_con_mercado_todos():
+    """Con el mercado por defecto («todos: tu país primero») la pasada
+    dedicada a competidores locales no corría nunca: diez extranjeros y ni un
+    local, sin que nadie fuera a buscarlo. La regla del producto es «tu país
+    primero» también en la fase 2. Con «mundo» no corre: ahí el usuario
+    excluyó su país a propósito."""
+    import json as _json
+
+    from cliente_ia.modelos import Empresa
+    from cliente_ia.proveedores.llm import ProveedorLLM
+
+    def _proveedor(mercado):
+        p = ProveedorLLM.__new__(ProveedorLLM)
+        p.proveedor, p.nombre, p.idioma_base = "claude", "claude", "es"
+        p.mercado, p.pais_base, p.notas = mercado, "UY", []
+        p._pedir = lambda prompt, max_tokens: _json.dumps([
+            {"dominio": "extranjero.com", "nombre": "Extranjero", "pais": "US",
+             "vende_en_objetivo": True, "solapamiento": 0.9}])
+        p._verificar_competencia = lambda comps, emp: comps
+        llamadas = []
+        p._competencia_local = lambda emp, paises: llamadas.append(paises) or []
+        return p, llamadas
+
+    p, llamadas = _proveedor("todos")
+    p.competencia(Empresa(dominio="mi.com", pais="UY"))
+    assert llamadas == [["UY"]], "con «todos» tiene que salir a buscar locales"
+
+    p2, llamadas2 = _proveedor("mundo")
+    p2.competencia(Empresa(dominio="mi.com", pais="UY"))
+    assert llamadas2 == [], "con «mundo» el usuario excluyó su país a propósito"

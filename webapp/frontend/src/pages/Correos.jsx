@@ -239,10 +239,17 @@ function Automatizar({ listos, adjunto, smtp, correoDe, corrida }) {
   };
 
   const correr = async (canal) => {
-    const n = canal === "correo" ? listos.length : paraLinkedIn.length;
-    if (!window.confirm(t(`auto.confirmar_${canal === "correo" ? "correo" : "li"}`, { n })))
-      return;
-    setEstado((e) => ({ ...e, [canal]: "corriendo" }));
+    // "todo" = correo + LinkedIn en UN solo pedido: el backend ya acepta los
+    // dos canales juntos (así nació /api/automatizar); la separación en dos
+    // botones era de la interfaz. Un comprobante, un click.
+    const confirmar = canal === "todo"
+      ? t("auto.confirmar_todo", { c: listos.length, l: paraLinkedIn.length })
+      : t(`auto.confirmar_${canal === "correo" ? "correo" : "li"}`,
+          { n: canal === "correo" ? listos.length : paraLinkedIn.length });
+    if (!window.confirm(confirmar)) return;
+    const canales = canal === "todo" ? ["correo", "linkedin"] : [canal];
+    setEstado((e) => ({
+      ...e, ...Object.fromEntries(canales.map((c) => [c, "corriendo"])) }));
     setComp(null);
     try {
       // El pedido lleva SÓLO lo del canal que se apretó. El backend acepta un
@@ -254,36 +261,53 @@ function Automatizar({ listos, adjunto, smtp, correoDe, corrida }) {
             remitente: smtp.remitente || "",
             comprobante_a: comprobanteA.trim() }
         : {};
-      const cuerpo = canal === "correo"
-        ? { ...conSmtp,
-            correos: listos.map(({ correo, para }) => correoDe(correo, para)),
-            adjuntos: adjunto ? [adjunto] : [],
-            manuales: manualesDe("correo"),
-            ...(conX && x && xTexto.trim() ? { x, x_texto: xTexto.trim() } : {}) }
-        : { ...conSmtp,
-            correos: [],
-            linkedin: li,
-            linkedin_mensajes: paraLinkedIn,
-            manuales: manualesDe("linkedin") };
+      const conCorreo = canales.includes("correo");
+      const conLi = canales.includes("linkedin");
+      const cuerpo = {
+        ...conSmtp,
+        correos: conCorreo
+          ? listos.map(({ correo, para }) => correoDe(correo, para)) : [],
+        ...(conCorreo && adjunto ? { adjuntos: [adjunto] } : {}),
+        ...(conLi ? { linkedin: li, linkedin_mensajes: paraLinkedIn } : {}),
+        manuales: manualesDe(conLi ? "linkedin" : "correo"),
+        ...(conCorreo && conX && x && xTexto.trim()
+          ? { x, x_texto: xTexto.trim() } : {}),
+      };
       const r = await api("/api/automatizar", { metodo: "POST", cuerpo });
       setComp(r);
-      setEstado((e) => ({ ...e, [canal]: "listo" }));
-      // Al panel de métricas: qué se mandó, cuándo y cómo salió.
-      agregarEnvio({
-        fecha: new Date().toISOString(),
-        dominio: corrida?.dominio || "",
-        corrida_id: corrida?.id || "",
-        canal,
-        correos: { total: r.correos.total, enviados: r.correos.enviados },
-        x: r.x ? { ok: r.x.ok, id: r.x.id, url: r.x.url, texto: xTexto.trim() } : null,
-        linkedin: r.linkedin
-          ? { total: r.linkedin.total, enviados: r.linkedin.enviados,
-              proveedor: r.linkedin.proveedor }
-          : null,
-        manuales: r.manuales || {},
-      });
+      setEstado((e) => ({
+        ...e, ...Object.fromEntries(canales.map((c) => [c, "listo"])) }));
+      // Al panel de métricas: qué se mandó, cuándo y cómo salió. El envío
+      // combinado se registra POR CANAL, para que el panel siga sumando
+      // correos con correos y LinkedIn con LinkedIn.
+      if (conCorreo) {
+        agregarEnvio({
+          fecha: new Date().toISOString(),
+          dominio: corrida?.dominio || "",
+          corrida_id: corrida?.id || "",
+          canal: "correo",
+          correos: { total: r.correos.total, enviados: r.correos.enviados },
+          x: r.x ? { ok: r.x.ok, id: r.x.id, url: r.x.url, texto: xTexto.trim() } : null,
+          linkedin: null,
+          manuales: conLi ? {} : (r.manuales || {}),
+        });
+      }
+      if (conLi && r.linkedin) {
+        agregarEnvio({
+          fecha: new Date().toISOString(),
+          dominio: corrida?.dominio || "",
+          corrida_id: corrida?.id || "",
+          canal: "linkedin",
+          correos: { total: 0, enviados: 0 },
+          x: null,
+          linkedin: { total: r.linkedin.total, enviados: r.linkedin.enviados,
+                      proveedor: r.linkedin.proveedor },
+          manuales: r.manuales || {},
+        });
+      }
     } catch (e) {
-      setEstado((s) => ({ ...s, [canal]: e.message }));
+      setEstado((s) => ({
+        ...s, ...Object.fromEntries(canales.map((c) => [c, e.message])) }));
     }
   };
   const corriendo = estado.correo === "corriendo" || estado.linkedin === "corriendo";
@@ -339,6 +363,21 @@ function Automatizar({ listos, adjunto, smtp, correoDe, corrida }) {
       </div>
 
       <div className="acciones-envio">
+        {/* El botón que pidió el dueño: TODO de una — correos por SMTP y
+            mensajes por el proveedor de LinkedIn, en un solo pedido y con un
+            solo comprobante. Sólo se ofrece cuando los DOS canales están
+            configurados; si falta uno, quedan los botones por canal de abajo,
+            que explican en su title qué falta. */}
+        {smtp && li && listos.length && paraLinkedIn.length ? (
+          <button className="btn cta" data-envio="todo"
+                  disabled={corriendo}
+                  onClick={() => correr("todo")}>
+            <Icono nombre="rayo" tam={16} />
+            <span>{corriendo
+              ? t("auto.enviando")
+              : t("auto.boton_todo", { c: listos.length, l: paraLinkedIn.length })}</span>
+          </button>
+        ) : null}
         <button className="btn" data-envio="correo"
                 disabled={!smtp || !listos.length || corriendo}
                 title={smtp ? "" : t("correos.smtp_falta")}

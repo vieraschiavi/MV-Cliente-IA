@@ -1834,6 +1834,11 @@ class CorridaIn(BaseModel):
     # elige el usuario en Configuración para regular su propio consumo de
     # tokens. Vacío usa el default del servidor para ese proveedor.
     modelo_ia: str = Field(default="", max_length=100)
+    # Competidores que el usuario YA conoce (dominios, hasta 10). Ningún
+    # modelo conoce a todas las empresas chicas de un mercado chico: esto
+    # deja que el dueño los nombre y el motor los integre y verifique
+    # (pipeline._sembrar_competidores).
+    competidores: list[str] = Field(default_factory=list, max_length=10)
     # Hasta mil por corrida — los tramos del selector (50/100/200/500/1000).
     # La corrida de mil pesa ~1,7 MB en JSON: entra en el límite de Vercel.
     prospectos: int = Field(default=pipeline.LIMITE_PROSPECTOS_DEFAULT, ge=5, le=1000)
@@ -1861,6 +1866,7 @@ def _lanzar(entrada: CorridaIn, corrida_id: str) -> None:
             modelo_ia=entrada.modelo_ia,
             mercado=entrada.mercado,
             pais_base=entrada.pais,
+            competidores_conocidos=entrada.competidores,
         )
     finally:
         with _lock:
@@ -1890,6 +1896,7 @@ def _ejecutar_sin_estado(entrada: CorridaIn, al_avanzar=None):
         pais_base=entrada.pais,
         al_avanzar=al_avanzar,
         presupuesto_ia=PRESUPUESTO_IA_SERVERLESS,
+        competidores_conocidos=entrada.competidores,
     )
     # Una línea por corrida en el log del servidor (sin secretos): fue lo
     # que faltó cuando el modo IA "no funcionaba" y no se veía por qué.

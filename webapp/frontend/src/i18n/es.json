@@ -67,7 +67,9 @@
     "cupo_clave_propia": "Estás usando tu propia clave de IA: sin límite de búsquedas y sin correo.",
     "pais": "Tu país",
     "pais_auto": "Detectarlo de mi web",
-    "mercado_regional": "Sólo {{region}}"
+    "mercado_regional": "Sólo {{region}}",
+    "competidores": "Competidores que ya conocés",
+    "competidores_ayuda": "Dominios separados por coma. Ningún modelo conoce a todas las empresas chicas de tu mercado: los que nombres acá entran primeros a la fase 2 y el motor les deduce el país y les mide el rubro sobre su propia web."
   },
   "fase": {
     "investigar": {
@@ -368,7 +370,9 @@
     "enviando": "Enviando…",
     "li_sin_perfiles": "Ningún contacto tiene un perfil personal de LinkedIn (/in/…): no hay a quién escribirle.",
     "sin_smtp_comprobante": "Se envió, pero el comprobante no salió: no hay servidor de correo configurado.",
-    "lleva": "Cada mensaje lleva: texto personalizado · video · imagen del producto · enlace para pedir la demo"
+    "lleva": "Cada mensaje lleva: texto personalizado · video · imagen del producto · enlace para pedir la demo",
+    "boton_todo": "Enviar todo: correo + LinkedIn ({{c}} + {{l}})",
+    "confirmar_todo": "¿Enviar {{c}} correos por tu casilla Y {{l}} mensajes de LinkedIn por tu proveedor, todo de una?"
   },
   "metricas": {
     "subtitulo": "Conversión por segmento, canal, día y hora desde el backend; abajo, el historial de envíos de este dispositivo.",
