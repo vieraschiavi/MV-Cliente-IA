@@ -58,7 +58,7 @@ function BusquedasRedes({ corrida }) {
   const [abierto, setAbierto] = useState("");
   if (!bloques.length) return null;
   const ICONO = { linkedin: "maletin", instagram: "camara", tiktok: "musica",
-                  x: "equis", buscador: "globo" };
+                  x: "equis", reddit: "burbuja", buscador: "globo" };
   return (
     <div className="busquedas">
       <h4 className="sub">{t("busquedas.titulo")}</h4>

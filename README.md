@@ -28,6 +28,16 @@ también **APK de Android**.
 | 5 | **Encontrá a los decisores** | Quién firma la decisión en cada empresa, con cargo y seniority. |
 | 6 | **Escribí los mensajes** | Correo (texto y HTML), y mensaje + nota de LinkedIn, **en el idioma del país de quien lo recibe**. |
 
+Al terminar las seis fases sale además la pestaña **Estrategia** (lo que
+[okara.ai](https://okara.ai) llama *strategy docs* + agentes de contenido,
+`cliente_ia/estrategia.py`): ficha del producto con los precios y los llamados a
+la acción leídos de tu sitio, cuadro de competencia con el rubro medido, voz de
+marca deducida de cómo escribe tu web (vos / tú / usted, largo de frase, cifras
+que podés citar, superlativos a sostener) y un plan de contenido por campaña —un
+post para LinkedIn, uno para X y la búsqueda de hilos en Reddit— cada uno en el
+idioma de su ola. Son borradores para publicar vos: ningún bot publica ni
+contesta por tu cuenta (regla 12), y todo lo que no se pudo medir lo dice.
+
 ---
 
 ## La regla que define el producto: Uruguay primero
@@ -237,6 +247,8 @@ cliente_ia/            motor
   modelos.py           Empresa · Competidor · Campana · Prospecto · Decisor · Email
   pipeline.py          orquesta las 6 fases y publica el avance
   redaccion.py         fase 6 — correo (texto y HTML) y LinkedIn en es/pt/en
+  estrategia.py        ficha · competencia · voz de marca · plan de contenido (okara.ai)
+  busqueda_social.py   consultas por red (LinkedIn, Instagram, X, TikTok, Reddit, buscador)
   enlaces.py           banner, video y web por idioma, con UTM
   proveedores/         demo (sintético) · web (tu sitio real) · llm (Claude)
   datos/mercado.json   semilla del catálogo de mercado

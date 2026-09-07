@@ -36,13 +36,14 @@ CLAVES_POR_CONSULTA = 3
 
 # Instagram y TikTok buscan por hashtag/palabra, no aceptan operadores.
 # LinkedIn y el buscador sí. Cada plantilla refleja lo que ESA red entiende.
-REDES = ("linkedin", "instagram", "x", "tiktok", "buscador")
+REDES = ("linkedin", "instagram", "x", "tiktok", "reddit", "buscador")
 
 NOMBRE_RED = {
     "linkedin": "LinkedIn",
     "instagram": "Instagram",
     "x": "X",
     "tiktok": "TikTok",
+    "reddit": "Reddit",
     "buscador": "Buscador",
 }
 
@@ -70,6 +71,29 @@ def _hashtag(termino: str) -> str:
     palabras = segmento.normalizar(termino)
     return "".join(palabras) or "".join(
         c for c in termino.lower() if c.isalnum())
+
+
+def hashtag(termino: str) -> str:
+    """El hashtag de un término, para los posts (cliente_ia/estrategia.py)."""
+    return _hashtag(termino)
+
+
+def reddit(huella: segmento.Huella, dolor: str = "", comprador: str = "") -> Busqueda:
+    """Los hilos de Reddit donde alguien cuenta el problema que resolvemos.
+
+    Es la parte de okara.ai que sí cabe acá: encontrar la conversación. Lo
+    que NO se hace es contestar por el usuario con un bot —Reddit lo
+    prohíbe y lo detecta igual que LinkedIn—, así que esto es una consulta
+    (regla 12 del proyecto), ordenada por reciente porque una queja de hace
+    tres años ya no compra nada.
+    """
+    claves = _claves(huella)
+    intencion = _sin_repetir(([dolor] if dolor else []) + claves)[:2]
+    consulta = _frase(intencion) or (comprador or "").strip() or (claves[0] if claves else "")
+    return Busqueda(
+        red="reddit", etiqueta="hilos con el problema", consulta=consulta,
+        url=f"https://www.reddit.com/search/?q={urllib.parse.quote_plus(consulta)}&sort=new",
+    )
 
 
 def _claves(huella: segmento.Huella, tope: int = CLAVES_POR_CONSULTA) -> list[str]:
@@ -207,6 +231,9 @@ def para_segmento(huella: segmento.Huella, sector: str = "", pais: str = "",
         red="x", etiqueta="quién tiene el problema", consulta=x_q,
         url=f"https://x.com/search?q={q(x_q)}&f=live",
     ))
+    # Reddit · la misma intención, donde la queja viene con contexto (qué
+    # probaron, qué les falló). Se lee y se contesta a mano: ver `reddit`.
+    salida.append(reddit(huella, dolor, comprador))
 
     # Buscador · el que más rinde: sitios del rubro comprador en el TLD del
     # país, sin los agregadores que ensucian toda búsqueda comercial.

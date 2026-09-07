@@ -190,6 +190,16 @@ const TRAZOS = {
     </>
   ),
   equis: <path d="M5.4 5.4 18.6 18.6M18.6 5.4 5.4 18.6" />,
+  // Estrategia: tres capas (ficha, competencia, voz) una sobre otra.
+  capas: (
+    <>
+      <path d="m12 4 8.5 4.6L12 13.2 3.5 8.6Z" />
+      <path d="m3.5 12.6 8.5 4.6 8.5-4.6" />
+      <path d="m3.5 16.4 8.5 4.6 8.5-4.6" />
+    </>
+  ),
+  // Reddit: un hilo de conversación.
+  burbuja: <path d="M4.5 6.5h15v9.5h-8.2L7.5 19.6v-3.6h-3Z" />,
 };
 
 export const NOMBRES_ICONO = Object.keys(TRAZOS);

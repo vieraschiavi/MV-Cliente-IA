@@ -226,7 +226,8 @@ def test_las_busquedas_por_campana_respetan_el_orden_de_olas():
 
 def test_todas_las_urls_son_https_y_de_la_red_que_dicen():
     dominios = {"linkedin": "linkedin.com", "instagram": "instagram.com",
-                "x": "x.com", "tiktok": "tiktok.com", "buscador": "duckduckgo.com"}
+                "x": "x.com", "tiktok": "tiktok.com", "reddit": "reddit.com",
+                "buscador": "duckduckgo.com"}
     for b in _busquedas():
         assert b.url.startswith("https://"), b.url
         assert dominios[b.red] in b.url, b.url

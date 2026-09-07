@@ -47,6 +47,12 @@ class Empresa:
     # sin esto usaba la categoría del catálogo demo y traía competidores y
     # prospectos de cualquier rubro menos el del sitio.
     resumen_sitio: str = ""
+    # El cuerpo del sitio MÁS largo que el resumen (hasta 6000 caracteres).
+    # Lo lee sólo cliente_ia/estrategia.py para sacar precios, llamados a la
+    # acción y frases con cifras: la tabla de planes vive más abajo de los
+    # 1500 caracteres del resumen, y estirar el resumen encarecía cada
+    # prompt de IA por un dato que la IA no necesita.
+    texto_sitio: str = ""
     fuente: str = "demo"                      # "web" | "llm" | "demo"
     # Los mismos textos en los tres idiomas del producto:
     #   {"es": {"propuesta": str, "dolores": [str], "diferenciales": [str]}, ...}
@@ -336,6 +342,11 @@ class Corrida:
     # redes (cliente_ia/busqueda_social.py): [{campana_id, sector, nivel,
     # pais, busquedas: [{red, etiqueta, consulta, url}]}].
     busquedas: list[dict] = field(default_factory=list)
+    # Los documentos estratégicos (ficha del producto, competencia, voz de
+    # marca, plan de contenido) que se derivan de la corrida terminada
+    # (cliente_ia/estrategia.py). Es un dict y no un dataclass a propósito:
+    # es un documento que se lee y se copia, no un registro que se filtra.
+    estrategia: dict = field(default_factory=dict)
 
     def paso(self, clave: str) -> PasoFase:
         for p in self.pasos:
@@ -365,6 +376,7 @@ class Corrida:
             "avisos": [_aviso_desde(a).a_dict() for a in self.avisos],
             "palabras_segmento": list(self.palabras_segmento),
             "busquedas": list(self.busquedas),
+            "estrategia": dict(self.estrategia),
             "pasos": [p.a_dict() for p in self.pasos],
             "empresa": self.empresa.a_dict() if self.empresa else None,
             "competidores": [c.a_dict() for c in self.competidores],
@@ -422,7 +434,8 @@ def desde_dict(d: dict) -> Corrida:
     c.avisos = [_aviso_desde(a) for a in d.get("avisos", [])]
     c.palabras_segmento = [str(x) for x in d.get("palabras_segmento", [])]
     c.busquedas = [x for x in d.get("busquedas", []) if isinstance(x, dict)]
-    c.pasos = [PasoFase(**_solo(PasoFase, p)) for p in d.get("pasos", [])]
+    c.estrategia = d["estrategia"] if isinstance(d.get("estrategia"), dict) else {}
+    c.pasos =[PasoFase(**_solo(PasoFase, p)) for p in d.get("pasos", [])]
     if d.get("empresa"):
         c.empresa = Empresa(**_solo(Empresa, d["empresa"]))
     c.competidores = [Competidor(**_solo(Competidor, x)) for x in d.get("competidores", [])]

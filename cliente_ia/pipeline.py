@@ -24,6 +24,7 @@ from datetime import UTC, datetime
 from . import (
     almacen,
     busqueda_social,
+    estrategia,
     geo,
     modelos,
     proveedores,
@@ -346,6 +347,17 @@ def ejecutar(dominio: str,
             corrida.emails = _redactar_todos(corrida, limite_emails, firma, cfg_enlaces)
             paso.items = len(corrida.emails)
             paso.detalle = _detalle_idiomas(corrida.emails)
+
+        # Con las seis fases hechas se derivan los documentos estratégicos
+        # (ficha, competencia, voz de marca, plan de contenido). No es una
+        # fase: no sale a la red ni puede fallar la corrida —si algo se
+        # rompe acá, la corrida sigue lista y el aviso dice qué faltó.
+        try:
+            corrida.estrategia = estrategia.armar(corrida, huella)
+        except Exception as e:                              # noqa: BLE001
+            corrida.avisos.append(modelos.Aviso(
+                f"No se pudo armar la estrategia de contenido: {e}",
+                modelos.AVISO_FALLO))
 
         corrida.estado = "listo"
     except Exception as e:                                  # noqa: BLE001

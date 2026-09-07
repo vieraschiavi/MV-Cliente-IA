@@ -26,6 +26,7 @@ from .demo import ProveedorDemo, _texto, semilla
 
 TIMEOUT = 12
 LARGO_MAX = 400_000          # 400 KB de HTML alcanzan de sobra para el <head> y el hero
+LARGO_TEXTO_SITIO = 20_000   # texto visible que guarda `Empresa.texto_sitio`
 UA = "Mozilla/5.0 (compatible; MVClienteIA/1.0; +https://github.com/vieraschiavi/MV-Cliente-IA)"
 # Un sitio público vive en 80 o 443. Cualquier otro puerto que alguien pida
 # es, en la práctica, un escaneo de la red donde corre el motor.
@@ -149,7 +150,8 @@ class ProveedorWeb(Proveedor):
         h1 = _etiqueta(html, r"<h1[^>]*>(.*?)</h1>")
         lang = _etiqueta(html, r'<html[^>]+lang=["\']([a-zA-Z-]+)')
 
-        cuerpo = _sin_html(html)[:6000]
+        texto_todo = _sin_html(html)
+        cuerpo = texto_todo[:6000]
         # La categoría sale del texto real del sitio, no sólo del dominio: es
         # la única diferencia de fondo con el proveedor demo en esta fase.
         # Se mira la IDENTIDAD de la página (dominio, título, descripción, h1)
@@ -207,6 +209,10 @@ class ProveedorWeb(Proveedor):
             nombre=nombre,
             propuesta=f"{nombre} {textos[idioma]['propuesta']}.",
             resumen_sitio=resumen_sitio,
+            # La tabla de planes de un sitio vive al final de la portada,
+            # bien pasados los 6000 caracteres del cuerpo: el texto largo
+            # existe para que la estrategia lea los precios reales.
+            texto_sitio=texto_todo[:LARGO_TEXTO_SITIO] if resumen_sitio else "",
             categoria=_texto(icp["categoria"], idioma),
             pais=pais.codigo,
             idiomas=idiomas,

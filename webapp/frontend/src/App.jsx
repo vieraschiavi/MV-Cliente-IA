@@ -8,6 +8,7 @@ import Analisis from "./pages/Analisis.jsx";
 import Correos from "./pages/Correos.jsx";
 import Configuracion from "./pages/Configuracion.jsx";
 import Decisores from "./pages/Decisores.jsx";
+import Estrategia from "./pages/Estrategia.jsx";
 import Explorar from "./pages/Explorar.jsx";
 import Historial from "./pages/Historial.jsx";
 import Login from "./pages/Login.jsx";
@@ -24,6 +25,7 @@ const NAV = [
   { ruta: "/prospectos", ico: "diana", clave: "nav.prospectos" },
   { ruta: "/decisores", ico: "ficha", clave: "nav.decisores" },
   { ruta: "/correos", ico: "sobre", clave: "nav.correos" },
+  { ruta: "/estrategia", ico: "capas", clave: "nav.estrategia" },
   { ruta: "/analisis", ico: "barras", clave: "nav.analisis" },
   { ruta: "/metricas", ico: "tendencia", clave: "nav.metricas" },
   { ruta: "/historial", ico: "reloj", clave: "nav.historial" },
@@ -151,6 +153,7 @@ export default function App() {
             <Route path="/prospectos" element={<Prospectos />} />
             <Route path="/decisores" element={<Decisores />} />
             <Route path="/correos" element={<Correos />} />
+            <Route path="/estrategia" element={<Estrategia />} />
             <Route path="/analisis" element={<Analisis />} />
             <Route path="/metricas" element={<Metricas />} />
             <Route path="/historial" element={<Historial />} />

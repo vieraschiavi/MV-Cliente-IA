@@ -422,6 +422,63 @@ y LinkedIn a los decisores con UN botón. Tres cambios:
 Suite completa en verde (499: 469 + 30 de navegador), ruff limpio, frontend
 compilado y E2E del sembrado corrido contra el backend vivo.
 
+## Estrategia y contenido al estilo okara.ai, con backtest sobre Kobra (2026-09-07)
+
+Pedido: «agregar o replicar funcionalidades de okara.ai y probarla en backtest
+con mvkobranzaia.com». Okara lee la web del cliente, arma cinco documentos
+(producto, marketing, competencia, voz de marca, contenido) y de ahí salen
+agentes que escriben posts y contestan hilos. Se replicó el NÚCLEO dentro de
+MV Cliente IA y se dejó afuera lo que no cabe en este producto — y se dice:
+
+**Qué se replicó** (`cliente_ia/estrategia.py`, pestaña **Estrategia**):
+
+1. **Ficha del producto**: propuesta, categoría, sectores, dolores y
+   diferenciales (en el idioma de la interfaz, de `Empresa.textos`), más los
+   **precios escritos en el sitio** con su período y los **llamados a la
+   acción**. Para eso `ProveedorWeb` guarda ahora `Empresa.texto_sitio`
+   (20 000 caracteres): la tabla de planes vive pasados los 1500 del resumen,
+   y estirar el resumen encarecía cada prompt de IA por un dato que la IA no
+   necesita.
+2. **Competencia**: la tabla con solapamiento declarado + rubro MEDIDO, y una
+   frase de posicionamiento relativo (cuántos tienen base en tu país, cuántos
+   te venden ahí, tu diferencial más fuerte).
+3. **Voz de marca**, deducida de cómo escribe la web: trato al lector
+   (vos / tú / usted / você / you), largo medio de frase, palabras que definen
+   el segmento, frases con cifras que un post puede citar, superlativos que ya
+   usa. De ahí salen 5 reglas para escribir. Sin sitio real no se mide y se
+   dice (`medido=False`): afirmar «tu web trata de tú» sobre el catálogo sería
+   inventar.
+4. **Plan de contenido por campaña**: un post para LinkedIn, uno para X
+   (≤ 280 con el sitio) y la búsqueda de hilos en Reddit, cada uno en el
+   idioma de la ola. Las seis campañas se reparten 3 / 2 / 1 por ola con el
+   país propio primero: tomar las seis primeras por prioridad dejaba el plan
+   sin un post en inglés.
+5. **Reddit entra a las búsquedas por redes** (`busqueda_social.reddit`),
+   como consulta ordenada por reciente. Regla 12: se encuentra la
+   conversación; contestar con un bot lo prohíbe Reddit igual que LinkedIn.
+6. Todo viaja en `Corrida.estrategia`, se guarda, sobrevive corridas viejas
+   (queda `{}`) y se copia entero como Markdown desde la pestaña.
+
+**Qué NO se replicó, a propósito**: SEO/GEO, publicar en el CMS del cliente,
+UGC con avatares, agente de código, marketplace de influencers y link
+building. No son de este producto y algunos son scraping o bots.
+
+**Backtest en vivo sobre mvkobranzaia.com (modo web, sin IA)**: la ficha se
+leyó del sitio real; detecta los planes **USD 99 / 349 / 690 / 1.500** con su
+período; reconoce que la web **trata de vos** (11 imperativos agudos contra 1
+«tus»); saca 5 pruebas con cifras («Tu cobranza gestionando 24/7, sin sumar
+gestores», «50 llamadas a la vez, las 24 horas»); avisa del superlativo «el
+mejor»; arma 6 planes (3 UY, 2 LATAM, 1 mundo en inglés), todos los posts de
+X en 280 y todos con Reddit. Dos cosas que el backtest corrigió antes de
+llegar: el `lang` del HTML no servía para saber el idioma de la portada
+(Kobra declara es/pt/en y el primero alfabético es «en»: ahora se cuenta
+sobre el texto), y las palabras agudas que no son imperativos («está»,
+«acá») contaban como voseo.
+
+Suite en verde (520), ruff limpio, frontend compilado, E2E de Playwright de la
+pestaña nueva contra el backend vivo (escritorio, móvil sin desborde y los
+tres idiomas).
+
 ## Cómo re-verificar todo (5 min)
 
 ```bash
