@@ -509,6 +509,56 @@ a `public/banners/`, que es lo que sirve Vercel). Sin cambios de código en
 HTML del correo (600 y 540) siguen siendo los mismos, sólo cambió cuántos
 píxeles reales hay detrás.
 
+## El instalador de Windows se trababa en «No se puede cerrar MV Cliente IA» (2026-09-07)
+
+Reportado con captura del instalador NSIS (`MVClienteIA_Setup_owner.exe`,
+pero el mismo `electron/build/installer.nsh` arma también la edición
+cliente): el diálogo de electron-builder pide cerrar la app a mano y
+reintentar, en loop, incluso con la app aparentemente cerrada.
+
+Causa real, encontrada leyendo el código fuente de electron-builder
+(`app-builder-lib` 26.15.3, `templates/nsis/include/
+allowOnlyOneInstallerInstance.nsh`): su chequeo de «¿está la app corriendo?»
+busca UN SOLO nombre de ejecutable, el de Electron (`MV Cliente IA.exe`).
+Nunca supo del motor (`MVClienteIA.exe`, el backend de FastAPI que
+`electron/main.js` levanta como proceso hijo) porque para electron-builder
+ese archivo es un recurso más, no «la app». Y cuando ese mismo chequeo,
+tras un par de reintentos, escala a `taskkill /F` sobre el proceso de
+Electron, ese kill es un `TerminateProcess` de sistema operativo — no
+dispara el evento `before-quit` de Electron, que es donde `main.js` mata al
+motor con `backend.kill()`. El motor queda HUÉRFANO, sigue corriendo, y
+sigue teniendo abiertos justo los archivos que el instalador necesita
+sobrescribir un paso después (`resources\backend\MVClienteIA.exe` y sus
+DLL) — ahí es donde el diálogo reaparece, aunque diga el nombre de la app.
+
+Dos cambios, ninguno toca el chequeo de electron-builder (que para lo que
+sabe, funciona bien):
+
+1. **`electron/build/installer.nsh`**: `customInit` (instalación) y
+   `customUnInit` (desinstalación) — los primeros puntos de extensión que
+   corren, antes del chequeo de electron-builder, antes de desinstalar la
+   versión vieja y antes de copiar archivos nuevos — matan `MVClienteIA.exe`
+   con `taskkill /F /T` de entrada. Así ningún paso posterior se encuentra
+   con el motor todavía abierto, venga de esta instalación o de una sesión
+   anterior mal cerrada.
+2. **`electron/main.js`**: `app.requestSingleInstanceLock()`. Sin esto, un
+   doble clic sobre el acceso directo levantaba un motor nuevo en otro
+   puerto por cada ventana — dos backends vivos a la vez, y la puerta de
+   atrás del mismo problema: si el instalador sólo alcanza a cerrar una de
+   las dos ventanas, la otra deja su motor huérfano bloqueando los mismos
+   archivos. Con el candado, la segunda apertura enfoca la ventana que ya
+   está corriendo en vez de abrir otra.
+
+Aplica igual a la edición cliente y a la owner: comparten el mismo
+`electron/package.json` y el mismo `installer.nsh`; sólo cambia el sello
+`edicion.json` que hornea cada workflow. No requerido para probar: no hay
+`makensis` en este entorno para compilar el `.exe` (eso lo hace el runner
+`windows-latest` del CI), así que la próxima build de cualquiera de los dos
+workflows (`build_windows.yml`, `owner.yml`) ya la lleva. Los tests
+`tests/test_instalacion.py` y `tests/test_escritorio.py` (que sí corren acá)
+siguen en verde: no rompen ningún supuesto sobre `installer.nsh` ni sobre
+`main.js`.
+
 ## Cómo re-verificar todo (5 min)
 
 ```bash

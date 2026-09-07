@@ -35,6 +35,35 @@ let backend = null;
 let cerrando = false;
 let flujoLog = null;
 
+// --- Una sola instancia ----------------------------------------------------
+// Sin esto, un doble clic sobre el acceso directo (o abrirlo de nuevo antes
+// de que la sesión previa terminara de cerrar) levanta UN MOTOR NUEVO en OTRO
+// puerto por cada ventana — dos backends vivos a la vez, cada uno con sus
+// propios datos en caché. Y es la puerta de atrás del problema del
+// instalador (ver `electron/build/installer.nsh`): si sólo una de las dos
+// ventanas recibe el cierre, la otra deja su motor corriendo, huérfano y
+// bloqueando los mismos archivos que el instalador necesita reescribir.
+//
+// `requestSingleInstanceLock` tiene que pedirse ANTES de `app.whenReady()` —
+// es la garantía de Electron: si ya hay una instancia dueña del candado,
+// esta vuelve `false` de inmediato y hay que salir sin tocar nada más (nada
+// de ventana, nada de motor).
+if (!app.requestSingleInstanceLock()) {
+  // `app.quit()` sólo AVISA que hay que cerrar — no corta la ejecución acá
+  // mismo. Sin el `return`, el resto de este archivo seguía corriendo igual
+  // (splash, motor nuevo, ventana nueva) antes de que el quit hiciera
+  // efecto: exactamente lo que este candado existe para evitar.
+  app.quit();
+  return;
+}
+app.on("second-instance", () => {
+  // Ya hay una corriendo: se trae al frente esa, no se abre una segunda.
+  if (ventana) {
+    if (ventana.isMinimized()) ventana.restore();
+    ventana.focus();
+  }
+});
+
 // --- Log en disco --------------------------------------------------------
 // Cuando el motor no arranca en la máquina del usuario (lo típico: el
 // antivirus pone en cuarentena el .exe del motor, que va sin firma), hay que
