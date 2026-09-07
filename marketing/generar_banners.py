@@ -2,8 +2,11 @@
 MV Cliente IA · banners de los correos
 =======================================
 Genera el banner que encabeza el correo HTML, uno por idioma, en
-`landing/banners/banner_<idioma>.png` (600 px de ancho: el estándar de los
-clientes de correo, se ve nítido en pantallas 2× sin pasarse en peso).
+`landing/banners/banner_<idioma>.png`. El `<img width="600">` de
+`redaccion.py` lo MUESTRA a 600 px —eso no cambia—, pero el PNG que se
+guarda tiene el triple de píxeles reales (`ESCALA`): así una pantalla
+retina, o simplemente hacer zoom en el correo, no estira 600 píxeles de
+verdad a 1800 en la pantalla, que es lo que se veía borroso.
 
     python3 -m marketing.generar_banners
 
@@ -23,7 +26,19 @@ RAIZ = Path(__file__).resolve().parent.parent
 DESTINO = RAIZ / "landing" / "banners"
 ICONO = RAIZ / "assets" / "brand" / "mv_icon.png"
 
-ANCHO, ALTO = 600, 220
+ANCHO, ALTO = 600, 220           # tamaño LÓGICO: el que declara el <img>
+# Factor de resolución interna del PNG. 3× es el estándar retina (el mismo
+# que un icono @3x de iOS): con 2× ya alcanza para la mayoría de pantallas,
+# pero al hacer zoom en el correo —que es exactamente el reclamo— 2× se
+# queda corto. El peso sube (más píxeles reales que comprimir), pero un
+# banner es casi todo degradado liso, que PNG comprime bien: se mide al
+# final de `generar()`.
+ESCALA = 3
+
+
+def _e(valor: float) -> int:
+    """Una coordenada o tamaño del diseño lógico, llevado al PNG real."""
+    return round(valor * ESCALA)
 
 # Tokens de la marca (los mismos de webapp/frontend/src/theme.css).
 NAVY = (10, 16, 32)
@@ -71,7 +86,15 @@ def _fuente(tam: int):
 
 
 def _fondo() -> Image.Image:
-    """Degradado diagonal navy con un halo verde arriba a la derecha."""
+    """Degradado diagonal navy con un halo verde arriba a la derecha.
+
+    Se calcula al tamaño LÓGICO (600×220): un degradado no tiene detalle
+    fino que perder al agrandarlo, así que hacer el barrido de píxeles ahí
+    y no a resolución ×3 mantiene el build rápido. Lo que sí tiene que
+    dibujarse ya a resolución real es el texto y el icono —eso es lo que
+    se ve pixelado al hacer zoom—, y eso lo hace `generar_uno` sobre el
+    resultado ya agrandado de esta función.
+    """
     img = Image.new("RGB", (ANCHO, ALTO), NAVY)
     px = img.load()
     for y in range(ALTO):
@@ -94,41 +117,45 @@ def _fondo() -> Image.Image:
             hpx[x, y] = c
             if x + 1 < ANCHO:
                 hpx[x + 1, y] = c
-    return halo
+    # Recién acá se lleva el degradado a la resolución real del PNG. LANCZOS
+    # sobre un degradado suave no deja ver la costura del agrandado.
+    return halo.resize((_e(ANCHO), _e(ALTO)), Image.LANCZOS)
 
 
 def generar_uno(idioma: str) -> Path:
     t = TEXTOS[idioma]
-    img = _fondo()
+    img = _fondo()                         # ya viene a resolución ×ESCALA
     d = ImageDraw.Draw(img)
+    ancho_px, alto_px = _e(ANCHO), _e(ALTO)
 
-    # Isotipo + nombre de la marca.
+    # Isotipo + nombre de la marca. El origen (mv_icon.png) es de 1024 px,
+    # así que bajar a resolución real sigue saliendo nítido.
     if ICONO.exists():
-        ico = Image.open(ICONO).convert("RGBA").resize((34, 34), Image.LANCZOS)
-        img.paste(ico, (34, 30), ico)
-    f_marca = _fuente(15)
-    x = 80
-    d.text((x, 38), t["marca"], font=f_marca, fill=TINTA)
-    x += int(d.textlength(t["marca"], font=f_marca)) + 6
-    d.text((x, 38), t["marca2"], font=f_marca, fill=VERDE)
+        ico = Image.open(ICONO).convert("RGBA").resize((_e(34), _e(34)), Image.LANCZOS)
+        img.paste(ico, (_e(34), _e(30)), ico)
+    f_marca = _fuente(_e(15))
+    x = _e(80)
+    d.text((x, _e(38)), t["marca"], font=f_marca, fill=TINTA)
+    x += int(d.textlength(t["marca"], font=f_marca)) + _e(6)
+    d.text((x, _e(38)), t["marca2"], font=f_marca, fill=VERDE)
 
     # Titular a dos líneas.
-    f_tit = _fuente(30)
-    y = 92
+    f_tit = _fuente(_e(30))
+    y = _e(92)
     for linea in t["titulo"].split("\n"):
-        d.text((34, y), linea, font=f_tit, fill=TINTA)
-        y += 38
+        d.text((_e(34), y), linea, font=f_tit, fill=TINTA)
+        y += _e(38)
 
     # Franja inferior: la llamada al video.
-    d.rectangle([0, ALTO - 42, ANCHO, ALTO], fill=(8, 13, 26))
-    d.rectangle([0, ALTO - 43, ANCHO, ALTO - 42], fill=(36, 52, 79))
-    f_pie = _fuente(14)
-    d.text((34, ALTO - 30), t["pie"], font=f_pie, fill=VERDE)
+    d.rectangle([0, alto_px - _e(42), ancho_px, alto_px], fill=(8, 13, 26))
+    d.rectangle([0, alto_px - _e(43), ancho_px, alto_px - _e(42)], fill=(36, 52, 79))
+    f_pie = _fuente(_e(14))
+    d.text((_e(34), alto_px - _e(30)), t["pie"], font=f_pie, fill=VERDE)
 
     # Triangulito de "reproducir" a la derecha.
-    cx, cy = ANCHO - 46, ALTO - 21
-    d.ellipse([cx - 13, cy - 13, cx + 13, cy + 13], outline=VERDE, width=2)
-    d.polygon([(cx - 4, cy - 6), (cx - 4, cy + 6), (cx + 6, cy)], fill=VERDE)
+    cx, cy, r = ancho_px - _e(46), alto_px - _e(21), _e(13)
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=VERDE, width=_e(2))
+    d.polygon([(cx - _e(4), cy - _e(6)), (cx - _e(4), cy + _e(6)), (cx + _e(6), cy)], fill=VERDE)
 
     DESTINO.mkdir(parents=True, exist_ok=True)
     destino = DESTINO / f"banner_{idioma}.png"

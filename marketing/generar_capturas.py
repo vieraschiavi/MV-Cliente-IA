@@ -42,11 +42,16 @@ DESTINO = RAIZ / "landing" / "banners"
 IDIOMAS = ("es", "pt", "en")
 
 # El bloque del correo la muestra a 540 px de ancho (`_BLOQUE_CAPTURA` en
-# redaccion.py). Se captura al doble y se baja a 1080: en una pantalla retina
-# una imagen de 540 px reales se ve borrosa, y 1080 px de PNG pesan ~150 KB,
-# que en un correo es aceptable.
+# redaccion.py). El viewport de Playwright queda en 1280 CSS px —eso decide
+# qué ve la app, no cambia— pero `ESCALA_CAPTURA` le pide a Chromium que
+# RENDERICE esos mismos 1280 px con el triple de píxeles reales (retina de
+# verdad, con su propio antialiasing, no un agrandado posterior de una foto
+# de baja resolución). De ahí se baja a `ANCHO_FINAL` (3× los 540 que se
+# muestran): sin este colchón, hacer zoom en el correo mostraba los mismos
+# 540 px estirados y se veía la tabla pixelada.
 ANCHO_CAPTURA, ALTO_CAPTURA = 1280, 760
-ANCHO_FINAL = 1080
+ESCALA_CAPTURA = 2
+ANCHO_FINAL = 1620
 
 
 def _chromium() -> dict:
@@ -72,7 +77,7 @@ def _foto(idioma: str, base: str, corrida_id: str, destino: Path) -> Path:
         try:
             ctx = navegador.new_context(
                 viewport={"width": ANCHO_CAPTURA, "height": ALTO_CAPTURA},
-                device_scale_factor=1)
+                device_scale_factor=ESCALA_CAPTURA)
             # Idioma y corrida fijados ANTES de que cargue la app, como si el
             # usuario ya los tuviera guardados de una sesión anterior.
             ctx.add_init_script(

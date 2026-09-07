@@ -479,6 +479,36 @@ Suite en verde (520), ruff limpio, frontend compilado, E2E de Playwright de la
 pestaña nueva contra el backend vivo (escritorio, móvil sin desborde y los
 tres idiomas).
 
+## Las dos imágenes del correo en frío, a resolución real (2026-09-07)
+
+Reclamo: el banner y la captura de producto que lleva cada correo se veían
+borrosos al hacer zoom. Causa real, una por imagen:
+
+- **`banner_<idioma>.png`** (`marketing/generar_banners.py`) se dibujaba
+  exactamente a 600×220 px y el `<img width="600">` del correo lo muestra a
+  esos mismos 600 px: 1 píxel real por píxel mostrado, cero margen para una
+  pantalla retina o para el zoom. El comentario del código decía «se ve
+  nítido en pantallas 2×», pero esa parte nunca se había implementado. Ahora
+  el degradado se sigue calculando al tamaño lógico (rápido: un degradado no
+  pierde nada al agrandarse) y recién ahí se lleva a ×3 con `LANCZOS`; texto,
+  isotipo y las formas se dibujan YA a esa resolución real. El `width="600"`
+  del correo no cambió — el PNG por dentro tiene el triple de píxeles.
+- **`captura_<idioma>.png`** (`marketing/generar_capturas.py`) ya bajaba de
+  1280 a 1080 px (2× de los 540 que se muestran), pero la screenshot de
+  origen se tomaba con `device_scale_factor=1`: 1280 px reales estirados a
+  1080, sin antialiasing extra. Ahora Playwright renderiza esos mismos
+  1280 px CSS con `device_scale_factor=2` (Chromium hace el antialiasing de
+  antemano, no un agrandado posterior) y se baja a 1620 px (3× de 540).
+
+Peso: banner 600→220 KB pasó de ~28 KB a ~72-77 KB; captura de ~180 KB a
+~315-321 KB — sigue siendo un peso normal de imagen de correo. Regenerado con
+`python3 -m marketing.generar_banners && python3 -m marketing.generar_capturas`
+y publicado con `python3 -m marketing.armar_sitio` (copia `landing/banners/`
+a `public/banners/`, que es lo que sirve Vercel). Sin cambios de código en
+`cliente_ia/enlaces.py` ni en `redaccion.py`: los anchos declarados en el
+HTML del correo (600 y 540) siguen siendo los mismos, sólo cambió cuántos
+píxeles reales hay detrás.
+
 ## Cómo re-verificar todo (5 min)
 
 ```bash
