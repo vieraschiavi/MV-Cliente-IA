@@ -445,7 +445,12 @@
     "afin_alta": "mismo rubro",
     "afin_media": "rubro cercano",
     "afin_baja": "rubro distinto",
-    "redes_ayuda": "Perfiles que el propio competidor publica en su sitio (no se visita ninguna red para armar esto).",
+    "redes_ayuda": "Perfil que el propio competidor publica en su sitio.",
+    "seguidores": "seguidores",
+    "publicaciones": "publicaciones",
+    "me_gusta": "me gusta",
+    "metrica_nd": "cifra no disponible: la red pidió iniciar sesión o limitó la consulta.",
+    "metrica_fuente": "Cifra pública leída del perfil el {{fecha}}.",
     "sin_zona": "Sin país conocido",
     "sin_direccion": "Sin dirección publicada"
   },

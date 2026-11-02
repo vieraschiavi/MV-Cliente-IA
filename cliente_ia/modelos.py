@@ -110,10 +110,10 @@ class Competidor:
     nivel: str = ""
     # Los perfiles que el PROPIO competidor publica en su sitio —web,
     # linkedin, instagram, facebook, tiktok—, leídos del MISMO html que ya
-    # se baja para medir `afinidad` (cero pedidos extra). Nunca se visita
-    # Instagram, Facebook ni TikTok para armar esto: se lee qué enlaces puso
-    # el competidor en su propia página, que es lo que vería cualquier
-    # visitante. Vacío si no se pudo bajar el sitio o no publica ninguno.
+    # se baja para medir `afinidad` (cero pedidos extra). La LISTA no sale de
+    # visitar las redes: es qué enlaces puso el competidor en su propia
+    # página. Sus cifras públicas van aparte, en `metricas`. Vacío si no se
+    # pudo bajar el sitio o no publica ninguno.
     redes: dict[str, str] = field(default_factory=dict)
     # Dónde está, más fino que el país: la dirección que el competidor
     # publica en su sitio y la ciudad y el barrio que salen de ella
@@ -122,6 +122,11 @@ class Competidor:
     ciudad: str = ""
     barrio: str = ""
     direccion: str = ""
+    # Cifras PÚBLICAS de esas redes, por red: {seguidores, publicaciones,
+    # me_gusta, estado, fuente, fecha} (cliente_ia/redes_publicas.py).
+    # `estado` = "no_disponible" cuando la red pidió iniciar sesión o limitó
+    # el pedido: se muestra así, sin estimar nada.
+    metricas: dict[str, dict] = field(default_factory=dict)
 
     def a_dict(self) -> dict:
         return asdict(self)

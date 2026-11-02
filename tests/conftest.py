@@ -25,6 +25,7 @@ def datos_aislados(tmp_path, monkeypatch):
     # Ningún test sale a OpenStreetMap por accidente: los de ubicación lo
     # vuelven a prender con un `bajar` falso.
     monkeypatch.setenv("MVCLIENTE_GEOCODIFICAR", "0")
+    monkeypatch.setenv("MVCLIENTE_METRICAS_REDES", "0")
     yield
 
 

@@ -56,6 +56,28 @@ function claseAfinidad(v) {
  * ninguna de esas redes — ver cliente_ia/proveedores/contactos.py). «web»
  * no se repite acá: el dominio ya es el título de la tarjeta.
  */
+function compacto(n) {
+  try {
+    return new Intl.NumberFormat(getIdioma(), { notation: "compact", maximumFractionDigits: 1 }).format(n);
+  } catch {
+    return String(n);
+  }
+}
+
+/**
+ * El detalle de cada cifra, con su fuente y su fecha: es una foto pública de
+ * ese día (cliente_ia/redes_publicas.py), no un número del modelo. Cuando la
+ * red pidió iniciar sesión se dice eso, sin estimar nada.
+ */
+function ayudaMetrica(red, m) {
+  if (!m) return `${red} · ${t("competencia.redes_ayuda")}`;
+  if (m.estado !== "ok") return `${red} · ${t("competencia.metrica_nd")}`;
+  const partes = [`${m.seguidores.toLocaleString(getIdioma())} ${t("competencia.seguidores")}`];
+  if (m.publicaciones != null) partes.push(`${m.publicaciones.toLocaleString(getIdioma())} ${t("competencia.publicaciones")}`);
+  if (m.me_gusta != null) partes.push(`${m.me_gusta.toLocaleString(getIdioma())} ${t("competencia.me_gusta")}`);
+  return `${red} · ${partes.join(" · ")}\n${t("competencia.metrica_fuente", { fecha: m.fecha })}`;
+}
+
 function TarjetaCompetidor({ c }) {
   const redes = Object.entries(c.redes || {}).filter(([red]) => red !== "web");
   return (
@@ -88,12 +110,19 @@ function TarjetaCompetidor({ c }) {
         </div>
       ) : null}
       {redes.length ? (
-        <div className="comp-redes" title={t("competencia.redes_ayuda")}>
-          {redes.map(([red, url]) => (
-            <a key={red} href={urlSegura(url)} target="_blank" rel="noreferrer" title={red}>
-              <Icono nombre={ICONO_RED[red] || "globo"} tam={14} />
-            </a>
-          ))}
+        <div className="comp-redes">
+          {redes.map(([red, url]) => {
+            const m = (c.metricas || {})[red];
+            const ok = m && m.estado === "ok";
+            return (
+              <a key={red} href={urlSegura(url)} target="_blank" rel="noreferrer"
+                 className={`red-met${m && !ok ? " nd" : ""}`} title={ayudaMetrica(red, m)}>
+                <Icono nombre={ICONO_RED[red] || "globo"} tam={14} />
+                {ok ? <span className="tnum">{compacto(m.seguidores)}</span> : null}
+                {m && !ok ? <span>—</span> : null}
+              </a>
+            );
+          })}
         </div>
       ) : null}
     </div>

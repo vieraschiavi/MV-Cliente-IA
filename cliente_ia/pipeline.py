@@ -253,6 +253,10 @@ def ejecutar(dominio: str,
                         f"elegido ({_nombre_mercado(mercado, corrida)}); se "
                         "muestran los de todos lados.",
                         modelos.AVISO_AJUSTE))
+            # Al final, sobre los que quedaron tras el recorte de mercado:
+            # medir a los descartados sería gastar pedidos a las redes.
+            from . import redes_publicas
+            redes_publicas.medir(corrida.competidores)
             paso.items = len(corrida.competidores)
             paso.detalle = ", ".join(c.dominio for c in corrida.competidores[:3])
 

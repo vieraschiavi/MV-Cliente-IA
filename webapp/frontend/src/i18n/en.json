@@ -445,7 +445,12 @@
     "afin_alta": "same industry",
     "afin_media": "close industry",
     "afin_baja": "different industry",
-    "redes_ayuda": "Profiles the competitor itself publishes on its site (no network is visited to build this).",
+    "redes_ayuda": "Profile the competitor itself publishes on its site.",
+    "seguidores": "followers",
+    "publicaciones": "posts",
+    "me_gusta": "likes",
+    "metrica_nd": "figure unavailable: the network asked to log in or rate-limited the request.",
+    "metrica_fuente": "Public figure read from the profile on {{fecha}}.",
     "sin_zona": "Country unknown",
     "sin_direccion": "No published address"
   },

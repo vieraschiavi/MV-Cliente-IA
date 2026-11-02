@@ -445,7 +445,12 @@
     "afin_alta": "mesmo setor",
     "afin_media": "setor próximo",
     "afin_baja": "setor diferente",
-    "redes_ayuda": "Perfis que o próprio concorrente publica no site dele (nenhuma rede é visitada para montar isso).",
+    "redes_ayuda": "Perfil que o próprio concorrente publica no site dele.",
+    "seguidores": "seguidores",
+    "publicaciones": "publicações",
+    "me_gusta": "curtidas",
+    "metrica_nd": "número indisponível: a rede pediu login ou limitou a consulta.",
+    "metrica_fuente": "Número público lido do perfil em {{fecha}}.",
     "sin_zona": "Sem país conhecido",
     "sin_direccion": "Sem endereço publicado"
   },

@@ -97,7 +97,16 @@ diseño de **MV Kobra AI**: se le pasa la URL de un producto y recorre seis fase
 12. **Las búsquedas por redes son consultas, no listas.** LinkedIn e Instagram
     prohíben y bloquean el scraping: devolver perfiles "automáticos" sería
     inventarlos o romperse. Se automatiza escribir la consulta correcta, que
-    es donde estaba el trabajo. No convertir esto en un scraper.
+    es donde estaba el trabajo. No convertir esto en un scraper de personas.
+    **Excepción decidida por el dueño (nov. 2026):** las cifras PÚBLICAS
+    (seguidores, publicaciones, me gusta) de los perfiles de EMPRESA que cada
+    competidor enlaza en su propia web se miden en `redes_publicas.py`, con
+    estos límites que no se tocan: una visita anónima por perfil con el
+    User-Agent de la app, sin sesión, sin proxies, sin rotar identidades y
+    sin esquivar bloqueos — si la red pide login o limita, queda
+    «no disponible» y esa red no se vuelve a tocar en la corrida. Cada cifra
+    lleva `fuente` y `fecha`. Nunca personas. Se apaga con
+    `MVCLIENTE_METRICAS_REDES=0`. Cubierto por `tests/test_redes_publicas.py`.
 
 ## Convenciones
 - Español en el dominio y en los nombres de módulo, igual que MV Kobra AI.

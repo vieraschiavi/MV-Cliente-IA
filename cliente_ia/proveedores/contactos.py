@@ -10,7 +10,9 @@ perfiles de LinkedIn, Instagram, Facebook y TikTok.
 también la fase 2 para los competidores (`cliente_ia/pipeline.py` y
 `cliente_ia/proveedores/llm.py`), sobre el mismo HTML que YA se baja para
 medir su afinidad de rubro. Cero visitas nuevas a ninguna red social: todo
-sale de leer qué enlaces puso cada sitio en su propia página.
+sale de leer qué enlaces puso cada sitio en su propia página. (Las cifras
+públicas de esos perfiles, sólo para competidores, las mide aparte
+`cliente_ia/redes_publicas.py`, con sus propios límites.)
 
 Dos límites deliberados:
 
