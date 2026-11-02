@@ -521,5 +521,10 @@
     "linkedin": "LinkedIn post",
     "x": "X post",
     "reddit": "Reddit threads discussing the problem"
+  },
+  "errores_ia": {
+    "clave_invalida": "{{proveedor}} rejected your API key: it doesn't exist, was revoked, or was copied incompletely. Create a new one at {{consola}}, paste it in full in Settings and search again.",
+    "prefijo": "That key doesn't look like one from the selected provider: theirs start with «{{prefijo}}». Check it's the right one and that it's complete.",
+    "corta": "Your key has {{n}} characters and a full Claude key has more than 100: it's almost certainly the shortened version the console list shows. Create a new key at console.anthropic.com and copy it the moment it appears (it's never shown in full again)."
   }
 }

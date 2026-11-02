@@ -521,5 +521,10 @@
     "linkedin": "Post para LinkedIn",
     "x": "Post para X",
     "reddit": "Tópicos no Reddit onde se fala do problema"
+  },
+  "errores_ia": {
+    "clave_invalida": "{{proveedor}} recusou sua chave de API: ela não existe, foi revogada ou foi copiada incompleta. Gere uma nova em {{consola}}, cole-a completa em Configurações e busque de novo.",
+    "prefijo": "Essa chave não parece ser do provedor escolhido: as dele começam com «{{prefijo}}». Confira se é a certa e se está completa.",
+    "corta": "Sua chave tem {{n}} caracteres e uma completa do Claude tem mais de 100: quase certamente é a versão abreviada que a lista do console mostra. Crie uma chave nova em console.anthropic.com e copie-a no momento em que aparece (depois ela não é mostrada inteira de novo)."
   }
 }

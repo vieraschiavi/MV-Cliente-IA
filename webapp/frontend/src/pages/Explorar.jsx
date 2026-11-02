@@ -4,7 +4,7 @@ import { api, apiStream, descargar, ErrorApi, fmtScore, getClaveIA, getEmail, ge
 import { Aviso, etiquetasOla, Idioma, Kpis, Ola, Vacio } from "../componentes/Comunes.jsx";
 import { Icono } from "../componentes/Iconos.jsx";
 import { getCorridaId, setCorridaId, setCorridaLocal, useCorrida } from "../estado.js";
-import { getIdioma, t } from "../i18n/index.js";
+import { getIdioma, mensajeDeError, t } from "../i18n/index.js";
 
 // El orden es el del pipeline (cliente_ia/modelos.py:FASES) y es el que se
 // numera 1..6 en pantalla.
@@ -346,7 +346,7 @@ export default function Explorar() {
       setAbierta(r && r.estado === "listo" ? "prospectos" : "investigar");
       traerCupo();                       // la búsqueda real pudo gastar cupo
     } catch (e2) {
-      setErrLanzar(`${t("explorar.error")}: ${e2.message}`);
+      setErrLanzar(`${t("explorar.error")}: ${mensajeDeError(e2.message)}`);
     } finally {
       setLanzando(false);
     }
@@ -523,8 +523,12 @@ export default function Explorar() {
       ) : null}
 
       {errLanzar ? <p className="error-note">{errLanzar}</p> : null}
-      {error ? <p className="error-note">{error}</p> : null}
-      {corrida?.error ? <p className="error-note">{corrida.error}</p> : null}
+      {error ? <p className="error-note">{mensajeDeError(error)}</p> : null}
+      {/* El error de la corrida ya viene adentro de `errLanzar` cuando la
+          búsqueda se cortó al lanzarla: mostrarlo de nuevo debajo era el
+          mismo párrafo dos veces seguidas (captura del dueño). */}
+      {corrida?.error && !errLanzar.includes(mensajeDeError(corrida.error))
+        ? <p className="error-note">{mensajeDeError(corrida.error)}</p> : null}
 
       {corrida ? (
         <>

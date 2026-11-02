@@ -8,9 +8,17 @@ import {
   setImap, setOwner, setProveedorIA, setSmtp, setToken, setX,
 } from "../api.js";
 import { SelectorIdioma } from "../App.jsx";
+
+// Cómo empieza una clave real de cada proveedor. Copilot (Azure) no tiene un
+// prefijo fijo, así que no se le chequea nada.
+const PREFIJO_CLAVE = { claude: "sk-ant-", openai: "sk-", gemini: "AIza", grok: "xai-" };
+// Una clave completa de Claude tiene más de 100 caracteres; la versión
+// abreviada que muestra la consola, unos 20. Sólo se chequea Claude: los
+// largos de los otros cambiaron con los años y daría falsos avisos.
+const LARGO_MINIMO_CLAVE = { claude: 90 };
 import { Aviso } from "../componentes/Comunes.jsx";
 import { Icono } from "../componentes/Iconos.jsx";
-import { t } from "../i18n/index.js";
+import { mensajeDeError, t } from "../i18n/index.js";
 
 /**
  * Licencia del programa instalado. En la web no se muestra: ahí el límite es
@@ -486,8 +494,29 @@ export default function Configuracion({ onSalir }) {
                 </>
               ) : t("config.modelo_sin_lista")}
             </p>
-            {errorModelos ? <p className="error-note">{errorModelos}</p> : null}
+            {errorModelos ? <p className="error-note">{mensajeDeError(errorModelos)}</p> : null}
           </div>
+        ) : null}
+        {/* Antes de gastar una llamada: si la clave no tiene la forma de las
+            del proveedor elegido, casi seguro es la de otro (o le falta un
+            pedazo). El 401 que devuelve el proveedor no lo dice. */}
+        {clave.trim() && PREFIJO_CLAVE[proveedor]
+          && !clave.trim().startsWith(PREFIJO_CLAVE[proveedor]) ? (
+          <p className="error-note">
+            {t("errores_ia.prefijo", { prefijo: PREFIJO_CLAVE[proveedor] })}
+          </p>
+        ) : null}
+        {/* El caso más común del 401 «invalid x-api-key»: la consola de
+            Anthropic muestra la clave completa UNA sola vez, al crearla;
+            después la lista enseña una versión abreviada (sk-ant-api03-ab…yz)
+            y copiar ESA da exactamente ese error. Se mide el largo — nunca
+            se muestra la clave. */}
+        {clave.trim() && LARGO_MINIMO_CLAVE[proveedor]
+          && clave.trim().startsWith(PREFIJO_CLAVE[proveedor] || "")
+          && clave.trim().length < LARGO_MINIMO_CLAVE[proveedor] ? (
+          <p className="error-note">
+            {t("errores_ia.corta", { n: clave.trim().length })}
+          </p>
         ) : null}
         <p className="nota" style={{ marginTop: 0 }}>{t("config.clave_ayuda")}</p>
         <div className="campo crece" style={{ margin: "12px 0 6px" }}>

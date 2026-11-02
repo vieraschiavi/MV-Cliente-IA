@@ -72,6 +72,13 @@ jobs:
       # siempre intentando instalar el paquete legado "tools", que Google
       # sacó del repositorio remoto del SDK.
 
+      - name: Número de versión del APK
+        # Mismo criterio que apk.yml: minutos desde 1970, común a los dos
+        # workflows, para que instalar uno sobre el otro nunca sea downgrade.
+        run: |
+          echo "MVCLIENTE_VERSION_CODE=$(( $(date +%s) / 60 ))" >> "$GITHUB_ENV"
+          echo "MVCLIENTE_VERSION_NAME=$(python3 -c 'import cliente_ia,sys;sys.stdout.write(cliente_ia.__version__)')" >> "$GITHUB_ENV"
+
       - name: Comprobar que estén los secrets
         # Cortar acá con un mensaje claro y no veinte minutos después con un
         # APK que parece owner y no lo es.

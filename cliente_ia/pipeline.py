@@ -192,11 +192,17 @@ def ejecutar(dominio: str,
                             "genérico: para deducirlos de tu web hace falta el modo "
                             "«Investigación con IA» con tu clave.",
                             modelos.AVISO_AJUSTE))
-                except Exception:                        # noqa: BLE001
+                except Exception as e:                   # noqa: BLE001
                     # Con IA, el motivo del fallo ya quedó en los errores de la
                     # cadena, que el final de la corrida copia a los avisos. Se
                     # sigue con el perfil del catálogo: es peor no tener fase 1.
-                    pass
+                    #
+                    # Salvo una clave rechazada: seguir era hacer una SEGUNDA
+                    # llamada (competencia) con la misma clave mala, sólo para
+                    # recibir el mismo 401 y cortar ahí. Se corta acá, en la
+                    # primera, con el motivo a la vista.
+                    if getattr(e, "corta_la_corrida", False):
+                        raise
             paso.items = 1
             paso.detalle = corrida.empresa.categoria
 
@@ -369,7 +375,10 @@ def ejecutar(dominio: str,
         corrida.estado = "listo"
     except Exception as e:                                  # noqa: BLE001
         corrida.estado = "error"
-        corrida.error = f"{type(e).__name__}: {e}"
+        # Un error pensado para el usuario (clave rechazada) ya trae su
+        # mensaje completo: el nombre de la clase delante no le dice nada.
+        corrida.error = (str(e) if getattr(e, "corta_la_corrida", False)
+                         else f"{type(e).__name__}: {e}")
         for p in corrida.pasos:
             if p.estado == "corriendo":
                 p.estado = "error"
@@ -384,9 +393,16 @@ def ejecutar(dominio: str,
         # `notas` vienen ya clasificadas del proveedor: ahí adentro hay tanto
         # un timeout como «ninguno de los competidores tiene base en X», que
         # no es un fallo de nada.
-        corrida.avisos.extend(
-            modelos.Aviso(e, modelos.AVISO_FALLO)
-            for e in getattr(proveedor, "errores", []))
+        #
+        # Con la corrida en error, los fallos de la cadena NO se cubrieron
+        # con nada: son el motivo del error, que ya se muestra en
+        # `corrida.error`. Copiarlos además a los avisos los pintaba debajo
+        # del cartel «algunas fases con IA fallaron y se cubrieron con datos
+        # sintéticos» — dos veces el mismo mensaje y uno de los dos falso.
+        if corrida.estado != "error":
+            corrida.avisos.extend(
+                modelos.Aviso(e, modelos.AVISO_FALLO)
+                for e in getattr(proveedor, "errores", []))
         for p in getattr(proveedor, "proveedores", []):
             corrida.avisos.extend(
                 n if isinstance(n, modelos.Aviso) else modelos.Aviso(n)

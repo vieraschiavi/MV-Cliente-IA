@@ -80,6 +80,60 @@ class ErrorLLM(RuntimeError):
     pass
 
 
+# Prefijo estable del mensaje de clave rechazada. La interfaz lo reconoce y lo
+# reemplaza por el texto en el idioma de la pantalla (es/pt/en); sin
+# interfaz (CLI, logs) el mensaje en castellano que sigue se lee igual.
+CODIGO_CLAVE_INVALIDA = "clave_ia_invalida"
+
+_NOMBRE_PROVEEDOR = {"claude": "Claude", "openai": "ChatGPT", "gemini": "Gemini",
+                     "grok": "Grok", "copilot": "Copilot (Azure OpenAI)"}
+_CONSOLA_PROVEEDOR = {"claude": "console.anthropic.com",
+                      "openai": "platform.openai.com",
+                      "gemini": "aistudio.google.com",
+                      "grok": "console.x.ai",
+                      "copilot": "portal.azure.com"}
+
+
+class ErrorClaveIA(ErrorLLM):
+    """La clave LLEGÓ al proveedor y el proveedor la rechazó.
+
+    Es distinto de cualquier otro fallo de IA y por eso tiene tipo propio:
+    no se arregla reintentando ni cayendo a otra fase — se arregla pegando
+    una clave que sirva. Antes salía como el JSON crudo del proveedor
+    («authentication_error … invalid x-api-key»), dos veces en pantalla, y
+    con un cartel que decía que las fases «se cubrieron con datos
+    sintéticos» cuando en realidad la búsqueda se había cortado. Un usuario
+    lo mandó en captura: no había forma de entender que el problema era la
+    clave y no el programa."""
+
+    # La cadena de proveedores y el pipeline lo leen sin importar este
+    # módulo (base.py no puede importar llm.py: sería circular). Un fallo con
+    # esta marca no se cubre con otra fase ni con el demo: corta la corrida.
+    corta_la_corrida = True
+
+    def __init__(self, proveedor: str, codigo: int):
+        self.proveedor = proveedor
+        self.codigo = codigo
+        nombre = _NOMBRE_PROVEEDOR.get(proveedor, proveedor)
+        consola = _CONSOLA_PROVEEDOR.get(proveedor, "la consola del proveedor")
+        super().__init__(
+            f"[{CODIGO_CLAVE_INVALIDA}:{proveedor}] {nombre} rechazó tu clave "
+            f"de API ({codigo}): no existe, fue revocada o se copió "
+            f"incompleta. Generá una nueva en {consola}, pegala completa en "
+            "Configuración y volvé a buscar.")
+
+
+def _rechazo_de_clave(codigo: int, detalle: str) -> bool:
+    """Si la respuesta del proveedor dice «tu clave no sirve».
+
+    401 lo usan Claude, OpenAI y Grok; 403 es clave sin permiso o cuenta
+    deshabilitada; Gemini contesta 400 con API_KEY_INVALID en el cuerpo."""
+    if codigo in (401, 403):
+        return True
+    d = (detalle or "").lower()
+    return codigo == 400 and ("api_key_invalid" in d or "api key not valid" in d)
+
+
 def _es_timeout(e: BaseException | None) -> bool:
     """Recorre la cadena de causas buscando un timeout. Un 401 o un JSON
     malformado no merecen reintento; un timeout sí.
@@ -198,6 +252,8 @@ def listar_modelos(proveedor: str, clave: str, endpoint: str = "") -> list[str]:
         except Exception:                                # noqa: BLE001
             pass
         detalle = detalle.replace(clave, "•••")
+        if _rechazo_de_clave(e.code, detalle):
+            raise ErrorClaveIA(proveedor, e.code) from e
         raise ErrorLLM(f"{proveedor} respondió {e.code} al pedir los "
                        f"modelos: {detalle}") from e
     except ErrorLLM:
@@ -290,6 +346,8 @@ class ProveedorLLM(Proveedor):
             except Exception:                            # noqa: BLE001
                 pass
             detalle = detalle.replace(self.clave, "•••")[:200]
+            if _rechazo_de_clave(e.code, detalle):
+                raise ErrorClaveIA(self.proveedor, e.code) from e
             raise ErrorLLM(f"{self.proveedor} respondió {e.code}: {detalle}") from e
         except ErrorLLM:
             raise
@@ -430,8 +488,11 @@ class ProveedorLLM(Proveedor):
                 messages=[{"role": "user", "content": prompt}],
             )
         except anthropic.APIStatusError as e:
+            detalle = str(getattr(e, "message", "") or e)
+            if _rechazo_de_clave(e.status_code, detalle):
+                raise ErrorClaveIA("claude", e.status_code) from e
             raise ErrorLLM(f"La API de Claude respondió {e.status_code}: "
-                           f"{getattr(e, 'message', '') or e}") from e
+                           f"{detalle}") from e
         if r.stop_reason == "max_tokens":
             raise ErrorLLM("La respuesta del modelo quedó truncada por el "
                            "límite de tokens — se descarta para no parsear "

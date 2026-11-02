@@ -521,5 +521,10 @@
     "linkedin": "Post para LinkedIn",
     "x": "Post para X",
     "reddit": "Hilos en Reddit donde se habla del problema"
+  },
+  "errores_ia": {
+    "clave_invalida": "{{proveedor}} rechazó tu clave de API: no existe, fue revocada o se copió incompleta. Generá una nueva en {{consola}}, pegala completa en Configuración y volvé a buscar.",
+    "prefijo": "Esa clave no parece del proveedor elegido: las suyas empiezan con «{{prefijo}}». Revisá que sea la correcta y que esté completa.",
+    "corta": "Tu clave tiene {{n}} caracteres y una completa de Claude tiene más de 100: casi seguro es la versión abreviada que muestra la lista de la consola. Creá una clave nueva en console.anthropic.com y copiala en el momento en que aparece (después no se vuelve a mostrar entera)."
   }
 }

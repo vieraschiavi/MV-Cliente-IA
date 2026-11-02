@@ -35,6 +35,31 @@ export function t(clave, vars) {
   return valor;
 }
 
+const NOMBRE_PROVEEDOR = { claude: "Claude", openai: "ChatGPT", gemini: "Gemini",
+                           grok: "Grok", copilot: "Copilot (Azure OpenAI)" };
+const CONSOLA_PROVEEDOR = { claude: "console.anthropic.com", openai: "platform.openai.com",
+                            gemini: "aistudio.google.com", grok: "console.x.ai",
+                            copilot: "portal.azure.com" };
+
+/**
+ * Un error del servidor, listo para mostrar en el idioma de la pantalla.
+ *
+ * El backend marca los errores que tienen solución del lado del usuario con
+ * un prefijo estable (`[clave_ia_invalida:claude]`, ver
+ * cliente_ia/proveedores/llm.py:ErrorClaveIA): acá se reemplazan por el texto
+ * traducido. Cualquier otro error pasa tal cual — mejor el mensaje técnico
+ * que uno inventado.
+ */
+export function mensajeDeError(texto) {
+  const m = /\[clave_ia_invalida:(\w+)\]/.exec(texto || "");
+  if (!m) return texto || "";
+  const p = m[1];
+  return t("errores_ia.clave_invalida", {
+    proveedor: NOMBRE_PROVEEDOR[p] || p,
+    consola: CONSOLA_PROVEEDOR[p] || p,
+  });
+}
+
 export function cambiarIdioma(codigo) {
   if (!DICCIONARIOS[codigo]) return;
   setIdioma(codigo);

@@ -7,8 +7,17 @@ android {
         applicationId "com.mvclienteia.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // Número de versión que crece en cada build del CI (minutos desde
+        // 1970, ver apk.yml / apk_owner.yml). Estuvo fijo en 1 desde el
+        // primer APK: Android no podía distinguir una versión de otra y Play
+        // Store rechaza subir dos veces el mismo número. Por minutos y no por
+        // `run_number` porque el APK cliente y el owner salen de workflows
+        // distintos con contadores distintos, comparten applicationId y
+        // firma, y el número de uno no puede quedar por debajo del otro (eso
+        // es un "downgrade" que Android no instala). Sin la variable (build
+        // local) queda en 1, como antes.
+        versionCode (System.getenv("MVCLIENTE_VERSION_CODE") ?: "1").toInteger()
+        versionName System.getenv("MVCLIENTE_VERSION_NAME") ?: "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

@@ -68,6 +68,14 @@ jobs:
       # to find package 'tools'", sin que el proyecto tuviera nada que ver.
       # Sacarla no le saca nada al build — el SDK que hace falta ya estaba.
 
+      - name: Número de versión del APK
+        # Una sola vez por job, para que el APK y el AAB lleven el mismo
+        # número. Minutos desde 1970: crece solo y es común a este workflow y
+        # a apk_owner.yml (ver android/app/build.gradle).
+        run: |
+          echo "MVCLIENTE_VERSION_CODE=$(( $(date +%s) / 60 ))" >> "$GITHUB_ENV"
+          echo "MVCLIENTE_VERSION_NAME=$(python3 -c 'import cliente_ia,sys;sys.stdout.write(cliente_ia.__version__)')" >> "$GITHUB_ENV"
+
       - name: Instalar dependencias
         run: |
           npm install

@@ -87,8 +87,12 @@ class ProveedorEncadenado(Proveedor):
             except Exception as e:                      # noqa: BLE001
                 # El mensaje va al usuario: proveedor + fase + motivo, corto.
                 self.errores.append(f"{p.nombre} · {metodo}: {str(e)[:300]}")
-                if p is self.decisivo:
-                    raise                               # sin red: el usuario pidió ESTE
+                if p is self.decisivo or getattr(e, "corta_la_corrida", False):
+                    # Sin red: el usuario pidió ESTE. Y una clave rechazada
+                    # (`corta_la_corrida`) tampoco se tapa con datos
+                    # sintéticos aunque el proveedor no sea el decisivo: lo
+                    # que hay que hacer es cambiar la clave, no seguir.
+                    raise
                 ultimo_error = e                        # se prueba el siguiente
                 continue
             alguno_respondio = True
