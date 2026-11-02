@@ -110,3 +110,42 @@ def test_la_corrida_corta_en_la_primera_llamada_con_un_mensaje_y_sin_cartel(monk
     # Nada de «se cubrieron con datos sintéticos»: no se cubrió nada.
     assert not [a for a in c.avisos if a.tipo == modelos.AVISO_FALLO]
     assert c.competidores == []
+
+
+@pytest.mark.parametrize("pegada", [
+    " sk-ant-api03-abc​def ",          # espacio de ancho cero en el medio
+    "sk-ant-api03-abc\ndef",                 # salto al copiar de un PDF
+    "﻿sk-ant-api03-abc def ",      # BOM y espacio duro
+])
+def test_la_clave_se_limpia_de_lo_que_ningun_proveedor_pone(pegada):
+    assert llm.limpiar_clave(pegada) == "sk-ant-api03-abcdef"
+    p = llm.ProveedorLLM(clave=pegada)
+    assert p.clave == "sk-ant-api03-abcdef"
+
+
+def test_el_default_de_claude_es_un_modelo_vigente():
+    assert llm.MODELO_DEFAULT == "claude-opus-5-5"
+
+
+@pytest.mark.parametrize("modelo", ["claude-haiku-5-5", "gemini-2.5-flash",
+                                    "ft:gpt-4o:org:custom:abc123", "grok-4"])
+def test_acepta_ids_de_modelo_reales(modelo):
+    assert llm.ProveedorLLM(clave="x", modelo=modelo).modelo == modelo
+
+
+@pytest.mark.parametrize("modelo", ["../v1/otra", "gemini?key=robada", "a b", "-x"])
+def test_rechaza_un_modelo_que_cambiaria_la_url(modelo):
+    # El de Gemini va DENTRO de la URL: con texto libre, un «../» o un
+    # «?key=» apuntaría la clave del usuario a otro endpoint.
+    with pytest.raises(llm.ErrorLLM):
+        llm.ProveedorLLM(clave="x", proveedor="gemini", modelo=modelo)
+
+
+def test_la_api_rechaza_un_modelo_mal_formado_antes_de_correr():
+    from fastapi.testclient import TestClient
+
+    from webapp.backend import api
+    r = TestClient(api.app).post("/api/corridas", json={
+        "dominio": "mvkobranzaia.com", "modo": "llm", "clave_ia": "sk-ant-api03-x",
+        "modelo_ia": "../../otra?key=1"})
+    assert r.status_code == 422

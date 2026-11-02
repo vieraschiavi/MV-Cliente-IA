@@ -1830,10 +1830,12 @@ class CorridaIn(BaseModel):
     # grok. Copilot es Azure OpenAI y necesita además la URL del endpoint.
     proveedor_ia: str = "claude"
     endpoint_ia: str = Field(default="", max_length=500)
-    # El modelo puntual dentro del proveedor (p. ej. "claude-opus-5"): lo
-    # elige el usuario en Configuración para regular su propio consumo de
-    # tokens. Vacío usa el default del servidor para ese proveedor.
-    modelo_ia: str = Field(default="", max_length=100)
+    # El modelo puntual dentro del proveedor (p. ej. "claude-sonnet-5-5"): lo
+    # elige el usuario en Configuración o en Explorar para regular su propio
+    # consumo de tokens. Vacío usa el default del servidor. El patrón es el
+    # de `llm.RE_MODELO`: el nombre puede terminar dentro de una URL.
+    modelo_ia: str = Field(default="", max_length=100,
+                           pattern=r"^$|^[A-Za-z0-9][A-Za-z0-9._:\-]{0,99}$")
     # Competidores que el usuario YA conoce (dominios, hasta 10). Ningún
     # modelo conoce a todas las empresas chicas de un mercado chico: esto
     # deja que el dueño los nombre y el motor los integre y verifique

@@ -78,8 +78,15 @@ export function setToken(t) {
 export function getClaveIA() {
   return localStorage.getItem(KEY_CLAVE_IA) || "";
 }
+// Ninguna clave de API lleva espacios ni caracteres invisibles, y al copiarla
+// del celular o de un PDF se cuelan: un espacio de ancho cero en el medio da
+// el mismo 401 que una clave revocada. Mismo criterio que llm.limpiar_clave.
+export function limpiarClave(clave) {
+  return (clave || "").replace(/[\s\u200B-\u200D\u2060\uFEFF\u0000-\u001F\u007F]/g, "");
+}
+
 export function setClaveIA(clave) {
-  const limpia = (clave || "").trim();
+  const limpia = limpiarClave(clave);
   if (limpia) localStorage.setItem(KEY_CLAVE_IA, limpia);
   else localStorage.removeItem(KEY_CLAVE_IA);
 }
@@ -88,6 +95,23 @@ export const PROVEEDORES_IA = ["claude", "openai", "gemini", "copilot", "grok"];
 // Copilot no entra: en Azure el modelo lo fija el deployment de la URL del
 // endpoint, no hay lista que traer (cliente_ia/proveedores/llm.py).
 export const PROVEEDORES_CON_LISTA_DE_MODELOS = ["claude", "openai", "gemini", "grok"];
+
+// Modelos que se pueden elegir SIN traer la lista con «Actualizar» (que
+// necesita una clave aceptada): antes, sin clave válida, el selector sólo
+// ofrecía «el de siempre». Sólo van IDs verificados contra la documentación
+// del proveedor — de los otros no se escribe ninguno de memoria: para ellos
+// está «Actualizar» y el campo «Otro modelo».
+export const CATALOGO_MODELOS = {
+  claude: [
+    { id: "claude-opus-5-5", nombre: "Claude Opus 5.5", nivel: "recomendado" },
+    { id: "claude-fable-5-1", nombre: "Claude Fable 5.1", nivel: "mas_capaz" },
+    { id: "claude-sonnet-5-5", nombre: "Claude Sonnet 5.5", nivel: "equilibrado" },
+    { id: "claude-haiku-5-5", nombre: "Claude Haiku 5.5", nivel: "economico" },
+  ],
+};
+
+// El mismo patrón que valida el servidor (llm.RE_MODELO).
+export const RE_MODELO = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,99}$/;
 
 export function getProveedorIA() {
   const p = localStorage.getItem(KEY_PROVEEDOR_IA) || "claude";

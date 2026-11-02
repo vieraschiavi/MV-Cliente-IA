@@ -268,7 +268,18 @@
     "imap_ayuda": "Optional and separate from sending: this lets the program count how many of your emails got a reply. It reads ONLY the thread headers, never the body of an email, and connects read-only (it cannot flag, move or delete anything). Credentials live in this browser and travel only with each query. Gmail needs an app password.",
     "imap_guardado": "Mailbox reading saved",
     "imap_carpeta": "Folder (usually INBOX)",
-    "imap_ssl": "Direct SSL (port 993, the usual)"
+    "imap_ssl": "Direct SSL (port 993, the usual)",
+    "modelo_sugeridos": "Suggested",
+    "modelo_con_tu_clave": "Available with your key",
+    "modelo_otro": "Other model (type it)…",
+    "modelo_otro_ph": "Exact model ID, e.g. claude-sonnet-5-5",
+    "modelo_invalido": "That isn't a valid model name: only letters, numbers, dots, hyphens and colons.",
+    "modelo_con_catalogo": "Pick one of the suggested models without fetching anything, or press «Refresh» with your key to see every model it can use. A smaller one spends fewer tokens per search; a larger one reasons better but costs more.",
+    "nivel_recomendado": "recommended",
+    "nivel_mas_capaz": "most capable (pricier)",
+    "nivel_equilibrado": "balanced",
+    "nivel_economico": "fast and economical",
+    "modelo_explorar": "AI model"
   },
   "pago": {
     "cargando": "Confirming the payment with MercadoPago…",
@@ -533,6 +544,9 @@
   "errores_ia": {
     "clave_invalida": "{{proveedor}} rejected your API key: it doesn't exist, was revoked, or was copied incompletely. Create a new one at {{consola}}, paste it in full in Settings and search again.",
     "prefijo": "That key doesn't look like one from the selected provider: theirs start with «{{prefijo}}». Check it's the right one and that it's complete.",
-    "corta": "Your key has {{n}} characters and a full Claude key has more than 100: it's almost certainly the shortened version the console list shows. Create a new key at console.anthropic.com and copy it the moment it appears (it's never shown in full again)."
+    "corta": "Your key has {{n}} characters and a full Claude key has more than 100: it's almost certainly the shortened version the console list shows. Create a new key at console.anthropic.com and copy it the moment it appears (it's never shown in full again).",
+    "invisibles": "Your key had spaces or invisible characters in the middle (it happens when copying it from a phone or a PDF). They are removed when you save: try again.",
+    "token_suscripcion": "That's a token from your Claude subscription (Claude Code or claude.ai, it starts with «sk-ant-oat»), not an API key: the API rejects it. Create an API key at console.anthropic.com → API Keys; it starts with «sk-ant-api».",
+    "clave_admin": "That's an admin key (it starts with «sk-ant-admin»): it manages the organization, it can't use the models. Create a regular API key at console.anthropic.com → API Keys."
   }
 }

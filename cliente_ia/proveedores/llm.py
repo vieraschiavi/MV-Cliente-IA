@@ -51,7 +51,21 @@ MAX_SITIOS_COMPETENCIA = 12
 # menos que esto, se conserva etiquetado (ver _verificar_competencia).
 MIN_COMPETIDORES = 3
 
-MODELO_DEFAULT = "claude-opus-5"
+MODELO_DEFAULT = "claude-opus-5-5"
+# Un ID de modelo como los que publican los proveedores: «claude-opus-5-5»,
+# «gemini-2.5-flash», «ft:gpt-4o:org:x:id». Sin barras ni «?»: el de Gemini
+# va DENTRO de la URL, y desde que el usuario puede escribir el suyo, un
+# «../» o un «?key=» cambiaría a qué endpoint se le pega.
+RE_MODELO = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:\-]{0,99}")
+# Lo que nunca va dentro de una clave y sí se cuela al copiarla del celular
+# o de un PDF: espacios y saltos en el medio, espacios de ancho cero, BOM.
+_RE_BASURA_CLAVE = re.compile("[\\s\u200b-\u200d\u2060\ufeff\x00-\x1f\x7f]")
+
+
+def limpiar_clave(clave: str) -> str:
+    """La clave sin lo que ningún proveedor pone en una: un 401 por un
+    espacio invisible pegado se ve igual que una clave revocada."""
+    return _RE_BASURA_CLAVE.sub("", clave or "")
 PROVEEDORES_IA = ("claude", "openai", "gemini", "copilot", "grok")
 # Modelos por defecto de cada proveedor, pisables por variable de entorno.
 # Copilot no lleva: en Azure el modelo lo decide el deployment del endpoint.
@@ -224,7 +238,7 @@ def listar_modelos(proveedor: str, clave: str, endpoint: str = "") -> list[str]:
     if proveedor not in PROVEEDORES_CON_LISTA_DE_MODELOS:
         raise ErrorLLM(f"{proveedor or 'este proveedor'} no tiene una lista "
                        "de modelos para traer: el modelo se escribe a mano")
-    clave = (clave or "").strip()
+    clave = limpiar_clave(clave)
     if not clave:
         raise ErrorLLM("Pegá la clave de API antes de actualizar los modelos")
 
@@ -288,8 +302,8 @@ class ProveedorLLM(Proveedor):
         self.proveedor = (proveedor or "claude").lower()
         if self.proveedor not in PROVEEDORES_IA:
             raise ErrorLLM(f"Proveedor de IA desconocido: {proveedor}")
-        self.clave = clave or (os.getenv("ANTHROPIC_API_KEY", "")
-                               if self.proveedor == "claude" else "")
+        self.clave = limpiar_clave(clave) or (os.getenv("ANTHROPIC_API_KEY", "")
+                                              if self.proveedor == "claude" else "")
         if not self.clave:
             raise ErrorLLM(f"Falta la clave de API de {self.proveedor}")
         self.endpoint = (endpoint or "").strip()
@@ -297,6 +311,9 @@ class ProveedorLLM(Proveedor):
             if not self.endpoint.startswith("https://"):
                 raise ErrorLLM("Copilot (Azure OpenAI) necesita la URL https "
                                "del endpoint de chat completions")
+        modelo = (modelo or "").strip()
+        if modelo and not RE_MODELO.fullmatch(modelo):
+            raise ErrorLLM(f"«{modelo[:40]}» no es un nombre de modelo válido")
         self.modelo = modelo or MODELOS_IA[self.proveedor]()
         self.idioma_base = idioma_base
         self.mercado = ("todos" if mercado in (None, "", "todos")

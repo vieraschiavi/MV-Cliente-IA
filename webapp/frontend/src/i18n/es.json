@@ -268,7 +268,18 @@
     "imap_ayuda": "Opcional y aparte del envío: con esto el programa cuenta cuántos de tus correos tuvieron respuesta. Lee SÓLO las cabeceras del hilo, nunca el cuerpo de un correo, y se conecta en modo lectura (no puede marcar, mover ni borrar nada). Las credenciales viven en este navegador y viajan sólo con cada consulta. En Gmail hace falta una contraseña de aplicación.",
     "imap_guardado": "Lectura de la casilla guardada",
     "imap_carpeta": "Carpeta (normalmente INBOX)",
-    "imap_ssl": "SSL directo (puerto 993, lo normal)"
+    "imap_ssl": "SSL directo (puerto 993, lo normal)",
+    "modelo_sugeridos": "Sugeridos",
+    "modelo_con_tu_clave": "Disponibles con tu clave",
+    "modelo_otro": "Otro modelo (escribirlo)…",
+    "modelo_otro_ph": "ID exacto del modelo, p. ej. claude-sonnet-5-5",
+    "modelo_invalido": "Ese no es un nombre de modelo válido: sólo letras, números, puntos, guiones y dos puntos.",
+    "modelo_con_catalogo": "Elegí uno de los sugeridos sin traer nada, o apretá «Actualizar» con tu clave para ver todos los que ella puede usar. Uno más chico gasta menos tokens por búsqueda; uno más grande razona mejor pero cuesta más.",
+    "nivel_recomendado": "recomendado",
+    "nivel_mas_capaz": "el más capaz (más caro)",
+    "nivel_equilibrado": "equilibrado",
+    "nivel_economico": "rápido y económico",
+    "modelo_explorar": "Modelo de IA"
   },
   "pago": {
     "cargando": "Confirmando el pago con MercadoPago…",
@@ -533,6 +544,9 @@
   "errores_ia": {
     "clave_invalida": "{{proveedor}} rechazó tu clave de API: no existe, fue revocada o se copió incompleta. Generá una nueva en {{consola}}, pegala completa en Configuración y volvé a buscar.",
     "prefijo": "Esa clave no parece del proveedor elegido: las suyas empiezan con «{{prefijo}}». Revisá que sea la correcta y que esté completa.",
-    "corta": "Tu clave tiene {{n}} caracteres y una completa de Claude tiene más de 100: casi seguro es la versión abreviada que muestra la lista de la consola. Creá una clave nueva en console.anthropic.com y copiala en el momento en que aparece (después no se vuelve a mostrar entera)."
+    "corta": "Tu clave tiene {{n}} caracteres y una completa de Claude tiene más de 100: casi seguro es la versión abreviada que muestra la lista de la consola. Creá una clave nueva en console.anthropic.com y copiala en el momento en que aparece (después no se vuelve a mostrar entera).",
+    "invisibles": "Tu clave tenía espacios o caracteres invisibles en el medio (pasa al copiarla del celular o de un PDF). Se quitan solos al guardar: probá de nuevo.",
+    "token_suscripcion": "Eso es un token de tu suscripción de Claude (Claude Code o claude.ai, empieza con «sk-ant-oat»), no una clave de API: la API lo rechaza. Creá una clave de API en console.anthropic.com → API Keys; empieza con «sk-ant-api».",
+    "clave_admin": "Eso es una clave de administración (empieza con «sk-ant-admin»): sirve para gestionar la organización, no para usar los modelos. Creá una clave de API común en console.anthropic.com → API Keys."
   }
 }

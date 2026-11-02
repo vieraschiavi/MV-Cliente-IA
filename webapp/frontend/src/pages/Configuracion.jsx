@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import {
-  api, esNativo, getBase, getClaveIA, getEndpointIA, getModeloIA, getModelosActualizado,
+  api, CATALOGO_MODELOS, esNativo, getBase, getClaveIA, getEndpointIA, getModeloIA, getModelosActualizado,
   getModelosDisponibles, getOwner, getProveedorIA, activarLicencia, getLicencia,
-  getImap, getLicenciaClave, getLinkedIn, getSmtp, getX, listarModelosIA,
+  getImap, getLicenciaClave, getLinkedIn, getSmtp, getX, limpiarClave, listarModelosIA,
   PROVEEDORES_CON_LISTA_DE_MODELOS,
   setBase, setClaveIA, setEndpointIA, setLicenciaClave, setLinkedIn, setModeloIA, setModelosDisponibles,
   setImap, setOwner, setProveedorIA, setSmtp, setToken, setX,
@@ -17,6 +17,39 @@ const PREFIJO_CLAVE = { claude: "sk-ant-", openai: "sk-", gemini: "AIza", grok: 
 // largos de los otros cambiaron con los años y daría falsos avisos.
 const LARGO_MINIMO_CLAVE = { claude: 90 };
 import { Aviso } from "../componentes/Comunes.jsx";
+import SelectorModelo from "../componentes/SelectorModelo.jsx";
+
+/**
+ * Lo que se puede decir de una clave ANTES de gastar una llamada. El 401 del
+ * proveedor («invalid x-api-key») no distingue entre una clave revocada, una
+ * abreviada, una con un carácter invisible o directamente otro tipo de clave;
+ * acá sí se puede. Se miden la forma y el largo: la clave nunca se muestra.
+ */
+function AvisosClave({ clave, proveedor }) {
+  const limpia = limpiarClave(clave);
+  if (!limpia) return null;
+  const avisos = [];
+  // Espacios o invisibles EN EL MEDIO (los de los bordes no cuentan: la
+  // gente los deja al pegar y siempre se recortaron). Se quitan solos al
+  // guardar; se avisa para que se entienda si antes daba 401.
+  if (clave.trim() !== limpia) avisos.push(t("errores_ia.invisibles"));
+  if (proveedor === "claude" && limpia.startsWith("sk-ant-oat")) {
+    // El token de la suscripción de Claude (Claude Code / claude.ai) no es
+    // una clave de API: la API lo rechaza con el mismo 401.
+    avisos.push(t("errores_ia.token_suscripcion"));
+  } else if (proveedor === "claude" && limpia.startsWith("sk-ant-admin")) {
+    avisos.push(t("errores_ia.clave_admin"));
+  } else if (PREFIJO_CLAVE[proveedor] && !limpia.startsWith(PREFIJO_CLAVE[proveedor])) {
+    // El formato delata al proveedor: «pegué la de OpenAI con Claude elegido».
+    avisos.push(t("errores_ia.prefijo", { prefijo: PREFIJO_CLAVE[proveedor] }));
+  } else if (LARGO_MINIMO_CLAVE[proveedor] && limpia.length < LARGO_MINIMO_CLAVE[proveedor]) {
+    // El caso más común del 401: la consola de Anthropic muestra la clave
+    // completa UNA vez; después la lista enseña sk-ant-api03-ab…yz y copiar
+    // ESA da exactamente ese error.
+    avisos.push(t("errores_ia.corta", { n: limpia.length }));
+  }
+  return avisos.map((a) => <p className="error-note" key={a}>{a}</p>);
+}
 import { Icono } from "../componentes/Iconos.jsx";
 import { mensajeDeError, t } from "../i18n/index.js";
 
@@ -357,14 +390,15 @@ export default function Configuracion({ onSalir }) {
     setErrorModelos("");
     setActualizandoModelos(true);
     try {
-      const r = await listarModelosIA(proveedor, clave.trim());
+      const r = await listarModelosIA(proveedor, limpiarClave(clave));
       setModelosLocal(r.modelos);
       setModelosDisponibles(proveedor, r.modelos);
       setActualizadoModelos(new Date().toISOString());
-      // Si el modelo elegido hasta ahora ya no está en la lista nueva (o
-      // todavía no había ninguno), se cae al primero — nunca se manda al
-      // servidor un modelo que el proveedor ya no reconoce.
-      if (!r.modelos.includes(modelo)) setModeloLocal(r.modelos[0] || "");
+      // Si el modelo elegido ya no está en la lista nueva, se vuelve al
+      // default del servidor: nunca se manda un modelo que esta clave no
+      // puede usar. Antes caía al PRIMERO de la lista, que es alfabético y
+      // solía ser el más viejo.
+      if (modelo && !r.modelos.includes(modelo)) setModeloLocal("");
     } catch (err) {
       setErrorModelos(err.message);
     } finally {
@@ -382,6 +416,8 @@ export default function Configuracion({ onSalir }) {
   const guardarClave = (e) => {
     e.preventDefault();
     setClaveIA(clave);
+    // Lo guardado es la clave limpia: el campo pasa a mostrar eso mismo.
+    setClaveLocal(limpiarClave(clave));
     setProveedorIA(proveedor);
     setEndpointIA(proveedor === "copilot" ? endpoint : "");
     setModeloIA(proveedor, modelo);
@@ -473,13 +509,10 @@ export default function Configuracion({ onSalir }) {
           <div className="campo crece" style={{ marginBottom: 10 }}>
             <label htmlFor="modelo-ia">{t("config.modelo")}</label>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <select id="modelo-ia" value={modelo} style={{ flex: "1 1 220px" }}
-                      onChange={(e) => setModeloLocal(e.target.value)}>
-                <option value="">{t("config.modelo_default")}</option>
-                {modelos.map((m) => <option key={m} value={m}>{m}</option>)}
-              </select>
+              <SelectorModelo key={proveedor} proveedor={proveedor} valor={modelo}
+                              modelos={modelos} onChange={setModeloLocal} />
               <button className="btn ghost" type="button" onClick={actualizarModelos}
-                      disabled={actualizandoModelos || !clave.trim()}>
+                      disabled={actualizandoModelos || !limpiarClave(clave)}>
                 {actualizandoModelos ? t("config.modelo_actualizando") : t("config.modelo_actualizar")}
               </button>
             </div>
@@ -492,32 +525,12 @@ export default function Configuracion({ onSalir }) {
                         { fecha: new Date(actualizadoModelos).toLocaleDateString() })}</>
                   ) : null}
                 </>
-              ) : t("config.modelo_sin_lista")}
+              ) : t(CATALOGO_MODELOS[proveedor] ? "config.modelo_con_catalogo" : "config.modelo_sin_lista")}
             </p>
             {errorModelos ? <p className="error-note">{mensajeDeError(errorModelos)}</p> : null}
           </div>
         ) : null}
-        {/* Antes de gastar una llamada: si la clave no tiene la forma de las
-            del proveedor elegido, casi seguro es la de otro (o le falta un
-            pedazo). El 401 que devuelve el proveedor no lo dice. */}
-        {clave.trim() && PREFIJO_CLAVE[proveedor]
-          && !clave.trim().startsWith(PREFIJO_CLAVE[proveedor]) ? (
-          <p className="error-note">
-            {t("errores_ia.prefijo", { prefijo: PREFIJO_CLAVE[proveedor] })}
-          </p>
-        ) : null}
-        {/* El caso más común del 401 «invalid x-api-key»: la consola de
-            Anthropic muestra la clave completa UNA sola vez, al crearla;
-            después la lista enseña una versión abreviada (sk-ant-api03-ab…yz)
-            y copiar ESA da exactamente ese error. Se mide el largo — nunca
-            se muestra la clave. */}
-        {clave.trim() && LARGO_MINIMO_CLAVE[proveedor]
-          && clave.trim().startsWith(PREFIJO_CLAVE[proveedor] || "")
-          && clave.trim().length < LARGO_MINIMO_CLAVE[proveedor] ? (
-          <p className="error-note">
-            {t("errores_ia.corta", { n: clave.trim().length })}
-          </p>
-        ) : null}
+        <AvisosClave clave={clave} proveedor={proveedor} />
         <p className="nota" style={{ marginTop: 0 }}>{t("config.clave_ayuda")}</p>
         <div className="campo crece" style={{ margin: "12px 0 6px" }}>
           <label htmlFor="owner">{t("config.owner")} <i>({t("explorar.opcional")})</i></label>

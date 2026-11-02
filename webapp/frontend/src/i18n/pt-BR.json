@@ -268,7 +268,18 @@
     "imap_ayuda": "Opcional e separado do envio: com isto o programa conta quantos dos seus e-mails tiveram resposta. Lê SÓ os cabeçalhos do fio, nunca o corpo de um e-mail, e conecta em modo leitura (não pode marcar, mover nem apagar nada). As credenciais ficam neste navegador e viajam só com cada consulta. No Gmail é preciso uma senha de app.",
     "imap_guardado": "Leitura da caixa salva",
     "imap_carpeta": "Pasta (normalmente INBOX)",
-    "imap_ssl": "SSL direto (porta 993, o normal)"
+    "imap_ssl": "SSL direto (porta 993, o normal)",
+    "modelo_sugeridos": "Sugeridos",
+    "modelo_con_tu_clave": "Disponíveis com a sua chave",
+    "modelo_otro": "Outro modelo (digitar)…",
+    "modelo_otro_ph": "ID exato do modelo, ex. claude-sonnet-5-5",
+    "modelo_invalido": "Esse não é um nome de modelo válido: só letras, números, pontos, hifens e dois-pontos.",
+    "modelo_con_catalogo": "Escolha um dos sugeridos sem buscar nada, ou toque em «Atualizar» com a sua chave para ver todos os que ela pode usar. Um menor gasta menos tokens por busca; um maior raciocina melhor, mas custa mais.",
+    "nivel_recomendado": "recomendado",
+    "nivel_mas_capaz": "o mais capaz (mais caro)",
+    "nivel_equilibrado": "equilibrado",
+    "nivel_economico": "rápido e econômico",
+    "modelo_explorar": "Modelo de IA"
   },
   "pago": {
     "cargando": "Confirmando o pagamento com o MercadoPago…",
@@ -533,6 +544,9 @@
   "errores_ia": {
     "clave_invalida": "{{proveedor}} recusou sua chave de API: ela não existe, foi revogada ou foi copiada incompleta. Gere uma nova em {{consola}}, cole-a completa em Configurações e busque de novo.",
     "prefijo": "Essa chave não parece ser do provedor escolhido: as dele começam com «{{prefijo}}». Confira se é a certa e se está completa.",
-    "corta": "Sua chave tem {{n}} caracteres e uma completa do Claude tem mais de 100: quase certamente é a versão abreviada que a lista do console mostra. Crie uma chave nova em console.anthropic.com e copie-a no momento em que aparece (depois ela não é mostrada inteira de novo)."
+    "corta": "Sua chave tem {{n}} caracteres e uma completa do Claude tem mais de 100: quase certamente é a versão abreviada que a lista do console mostra. Crie uma chave nova em console.anthropic.com e copie-a no momento em que aparece (depois ela não é mostrada inteira de novo).",
+    "invisibles": "A sua chave tinha espaços ou caracteres invisíveis no meio (acontece ao copiá-la do celular ou de um PDF). Eles são removidos ao salvar: tente de novo.",
+    "token_suscripcion": "Isso é um token da sua assinatura do Claude (Claude Code ou claude.ai, começa com «sk-ant-oat»), não uma chave de API: a API o rejeita. Crie uma chave de API em console.anthropic.com → API Keys; ela começa com «sk-ant-api».",
+    "clave_admin": "Isso é uma chave de administração (começa com «sk-ant-admin»): serve para gerenciar a organização, não para usar os modelos. Crie uma chave de API comum em console.anthropic.com → API Keys."
   }
 }

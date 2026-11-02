@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, apiStream, descargar, ErrorApi, fmtScore, getClaveIA, getEmail, getEndpointIA, getLicenciaClave, getModeloIA, getProveedorIA, setEmail, urlSegura } from "../api.js";
+import { api, apiStream, descargar, ErrorApi, fmtScore, getClaveIA, getEmail, getEndpointIA, getLicenciaClave, getModeloIA, getProveedorIA, setEmail, setModeloIA, urlSegura } from "../api.js";
 import { Aviso, etiquetasOla, Idioma, Kpis, Ola, Vacio } from "../componentes/Comunes.jsx";
 import { Icono } from "../componentes/Iconos.jsx";
+import SelectorModelo from "../componentes/SelectorModelo.jsx";
 import { getCorridaId, setCorridaId, setCorridaLocal, useCorrida } from "../estado.js";
 import { getIdioma, mensajeDeError, t } from "../i18n/index.js";
 
@@ -332,6 +333,7 @@ export default function Explorar() {
       setForm((f) => (f.modo === "llm" ? { ...f, modo: "web" } : f));
     }
   }, [salud, hayLLM]);
+  const [modeloIA, setModeloIALocal] = useState(() => getModeloIA(getProveedorIA()));
   const [lanzando, setLanzando] = useState(false);
   const [errLanzar, setErrLanzar] = useState("");
   const [abierta, setAbierta] = useState("investigar");
@@ -461,6 +463,20 @@ export default function Explorar() {
             {hayLLM ? <option value="llm">{t("explorar.modo_llm")}</option> : null}
           </select>
         </div>
+        {/* El modelo, a mano donde se busca: antes había que ir a
+            Configuración para cambiarlo. Es el mismo valor guardado (lo
+            usa la corrida vía getModeloIA). Copilot no: su modelo lo fija
+            el deployment de Azure. */}
+        {form.modo === "llm" && getClaveIA() && getProveedorIA() !== "copilot" ? (
+          <div className="campo">
+            <label htmlFor="modelo-explorar">{t("config.modelo_explorar")}</label>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <SelectorModelo id="modelo-explorar" proveedor={getProveedorIA()}
+                              valor={modeloIA}
+                              onChange={(m) => { setModeloIA(getProveedorIA(), m); setModeloIALocal(m); }} />
+            </div>
+          </div>
+        ) : null}
         <div className="campo">
           <label htmlFor="pais">{t("explorar.pais")}</label>
           <select id="pais" value={form.pais}
