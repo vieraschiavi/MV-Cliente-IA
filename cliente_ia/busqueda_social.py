@@ -35,11 +35,13 @@ from . import geo, segmento
 CLAVES_POR_CONSULTA = 3
 
 # Instagram y TikTok buscan por hashtag/palabra, no aceptan operadores.
-# LinkedIn y el buscador sí. Cada plantilla refleja lo que ESA red entiende.
-REDES = ("linkedin", "instagram", "x", "tiktok", "reddit", "buscador")
+# LinkedIn, Facebook y el buscador sí. Cada plantilla refleja lo que ESA red
+# entiende.
+REDES = ("linkedin", "facebook", "instagram", "x", "tiktok", "reddit", "buscador")
 
 NOMBRE_RED = {
     "linkedin": "LinkedIn",
+    "facebook": "Facebook",
     "instagram": "Instagram",
     "x": "X",
     "tiktok": "TikTok",
@@ -208,6 +210,15 @@ def para_segmento(huella: segmento.Huella, sector: str = "", pais: str = "",
     salida.append(Busqueda(
         red="linkedin", etiqueta="decisores", consulta=li_gente,
         url=f"https://www.linkedin.com/search/results/people/?keywords={q(li_gente)}",
+    ))
+
+    # Facebook · páginas del rubro comprador en el país. Es la búsqueda
+    # pública de Páginas (no de perfiles): entra sin credenciales, igual que
+    # las de LinkedIn de arriba.
+    fb = f"{comprador} {nombre_pais}".strip()
+    salida.append(Busqueda(
+        red="facebook", etiqueta="empresas del rubro", consulta=fb,
+        url=f"https://www.facebook.com/search/pages/?q={q(fb)}",
     ))
 
     etiqueta_ig = _hashtag(comprador)

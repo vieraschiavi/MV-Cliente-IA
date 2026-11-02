@@ -4,14 +4,21 @@ MV Cliente IA · contactos públicos de cada empresa real
 Visita el sitio de cada prospecto REAL (la portada más sus páginas de
 contacto) y extrae los datos que la propia empresa publica para que la
 contacten: el correo comercial (info@/ventas@/contacto@), el teléfono y sus
-perfiles de LinkedIn e Instagram.
+perfiles de LinkedIn, Instagram, Facebook y TikTok.
+
+`redes_de_html` es la misma extracción de perfiles, pero reusable: la usa
+también la fase 2 para los competidores (`cliente_ia/pipeline.py` y
+`cliente_ia/proveedores/llm.py`), sobre el mismo HTML que YA se baja para
+medir su afinidad de rubro. Cero visitas nuevas a ninguna red social: todo
+sale de leer qué enlaces puso cada sitio en su propia página.
 
 Dos límites deliberados:
 
 1. **Sólo lo publicado.** Se lee el sitio de la empresa, que es donde ella
    misma pide que le escriban. No se adivinan casillas, no se scrapea
-   Google ni LinkedIn (los dos lo bloquean y lo prohíben) y no se buscan
-   personas: para la persona está el cargo + la búsqueda de LinkedIn armada.
+   Google, LinkedIn, Instagram, Facebook ni TikTok (los cuatro lo bloquean
+   y lo prohíben) y no se buscan personas: para la persona está el cargo +
+   la búsqueda de LinkedIn armada.
 2. **Lo que no está, no está.** Una empresa sin correo publicado queda sin
    correo; inventarlo es exactamente el bug que acabamos de sacar.
 """
@@ -35,6 +42,23 @@ RE_TEL = re.compile(r'href=["\']tel:([+0-9() .\-]{7,20})', re.I)
 RE_LINKEDIN = re.compile(
     r"https?://(?:[a-z.]+\.)?linkedin\.com/(?:company|school)/[A-Za-z0-9._%\-]+", re.I)
 RE_INSTAGRAM = re.compile(r"https?://(?:www\.)?instagram\.com/([A-Za-z0-9._]+)/?", re.I)
+# Facebook mete botones de compartir, el píxel y widgets de "me gusta" en
+# CUALQUIER página que use su SDK — nada de eso es el perfil del sitio. Se
+# matchean las tres formas reales de perfil (slug, /pages/nombre/id,
+# profile.php?id=) y se descarta todo lo demás por el primer segmento.
+RE_FACEBOOK = re.compile(
+    r"https?://(?:www\.|m\.|web\.)?facebook\.com/"
+    r"(?:pages/[^/\"'?#\s]+/\d+|profile\.php\?id=\d+|[A-Za-z0-9.\-]{2,})/?", re.I)
+_NO_PERFIL_FB = {
+    "sharer", "share", "share.php", "sharer.php", "dialog", "plugins",
+    "tr", "l.php", "login", "login.php", "help", "policy", "policies",
+    "privacy", "legal", "ads", "business", "developers", "settings",
+    "groups", "events", "marketplace", "watch", "video.php", "photo.php",
+    "home.php", "search", "pages.php",
+}
+# TikTok sí es simple: todo perfil real empieza con "@" justo después del
+# dominio — las páginas de etiqueta (/tag/...) o de descubrimiento no.
+RE_TIKTOK = re.compile(r"https?://(?:www\.|m\.)?tiktok\.com/(@[A-Za-z0-9._]{2,})", re.I)
 RE_ENLACE = re.compile(r'href=["\']([^"\']+)["\']', re.I)
 RE_PAGINA_CONTACTO = re.compile(r"contact|contacto|contato|nosotros|quienes|about|sobre", re.I)
 
@@ -78,6 +102,44 @@ def _instagram(html: str) -> str:
         if usuario.lower() not in _NO_PERFIL_IG:
             return f"https://www.instagram.com/{usuario}"
     return ""
+
+
+def _facebook(html: str) -> str:
+    for m in RE_FACEBOOK.finditer(html):
+        texto = m.group(0).rstrip("/")
+        slug = texto.rsplit("/", 1)[-1].split("?")[0].lower()
+        if slug not in _NO_PERFIL_FB:
+            return texto
+    return ""
+
+
+def _tiktok(html: str) -> str:
+    m = RE_TIKTOK.search(html)
+    return f"https://www.tiktok.com/{m.group(1)}" if m else ""
+
+
+def redes_de_html(html: str, dominio: str) -> dict[str, str]:
+    """Los perfiles sociales que ESTE sitio declara —linkedin, instagram,
+    facebook, tiktok—, sobre un html que YA se bajó para otra cosa (medir el
+    rubro en `cliente_ia/segmento.py`, o los contactos de arriba). Cero
+    pedidos nuevos y cero visitas a esas redes: se lee qué puso el propio
+    sitio en su pie de página, que es justo lo que vería cualquier
+    visitante. Usado tanto para prospectos como para competidores (fase 2).
+
+    Sólo entran las claves que SÍ se encontraron —a diferencia de
+    `contactos_de`, que por compatibilidad siempre devuelve las mismas
+    claves aunque vacías—, porque acá no hay un consumidor viejo que dependa
+    de esa forma."""
+    salida = {"web": f"https://{_base(dominio)}"}
+    linkedin = RE_LINKEDIN.search(html)
+    if linkedin:
+        salida["linkedin"] = linkedin.group(0)
+    for clave, valor in (("instagram", _instagram(html)),
+                         ("facebook", _facebook(html)),
+                         ("tiktok", _tiktok(html))):
+        if valor:
+            salida[clave] = valor
+    return salida
 
 
 def contactos_de(dominio: str, timeout: int = TIMEOUT,
@@ -141,13 +203,17 @@ def contactos_de(dominio: str, timeout: int = TIMEOUT,
         "telefono": tel.group(1).strip() if tel else "",
         "linkedin": linkedin.group(0) if linkedin else "",
         "instagram": _instagram(junto),
+        "facebook": _facebook(junto),
+        "tiktok": _tiktok(junto),
         "web": f"https://{base}",
     }
     if devolver_html:
         # El HTML sale por separado, no dentro de `contactos`: ahí adentro
         # viajaría a la interfaz, al CSV y al JSON de la corrida guardada.
         return salida, junto
-    return salida if any(salida[k] for k in ("email", "telefono", "linkedin", "instagram")) \
+    return salida if any(salida[k] for k in
+                         ("email", "telefono", "linkedin", "instagram",
+                          "facebook", "tiktok")) \
         else {"web": salida["web"]}
 
 
@@ -174,12 +240,14 @@ def enriquecer(prospectos, max_empresas: int = MAX_EMPRESAS,
             except Exception:                            # noqa: BLE001
                 contactos, html = {}, ""
             util = any(contactos.get(k) for k in
-                       ("email", "telefono", "linkedin", "instagram"))
+                       ("email", "telefono", "linkedin", "instagram",
+                        "facebook", "tiktok"))
             p.contactos = contactos if util else (
                 {"web": contactos["web"]} if contactos.get("web") else {})
             if huella and html:
                 p.afinidad = segmento.afinidad_de_html(huella, html)
     con_datos = sum(1 for p in reales
                     if any(p.contactos.get(k) for k in
-                           ("email", "telefono", "linkedin", "instagram")))
+                           ("email", "telefono", "linkedin", "instagram",
+                            "facebook", "tiktok")))
     return (con_datos, len(reales))

@@ -248,7 +248,7 @@ cliente_ia/            motor
   pipeline.py          orquesta las 6 fases y publica el avance
   redaccion.py         fase 6 — correo (texto y HTML) y LinkedIn en es/pt/en
   estrategia.py        ficha · competencia · voz de marca · plan de contenido (okara.ai)
-  busqueda_social.py   consultas por red (LinkedIn, Instagram, X, TikTok, Reddit, buscador)
+  busqueda_social.py   consultas por red (LinkedIn, Facebook, Instagram, X, TikTok, Reddit, buscador)
   enlaces.py           banner, video y web por idioma, con UTM
   proveedores/         demo (sintético) · web (tu sitio real) · llm (Claude)
   datos/mercado.json   semilla del catálogo de mercado

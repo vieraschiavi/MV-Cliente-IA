@@ -215,6 +215,14 @@ def ejecutar(dominio: str,
         with _fase(corrida, "competencia", avisar) as paso:
             corrida.competidores = proveedor.competencia(corrida.empresa)
             _sembrar_competidores(corrida, competidores_conocidos, huella_medir)
+            # La ola de cada competidor, vista desde el país del cliente —
+            # lo que deja agruparlos «por zona» igual que campañas y
+            # prospectos. Sin país conocido queda vacía a propósito (ver el
+            # comentario de `Competidor.nivel`): no inventa un local donde
+            # no se sabe nada.
+            for c in corrida.competidores:
+                if c.pais:
+                    c.nivel = geo.nivel_de(c.pais, corrida.pais_base)
             # El mismo recorte de mercado que campañas y prospectos, que acá
             # faltaba: con «sólo Uruguay» elegido aparecían competidores de
             # Brasil y EE.UU. como si nada. Si el recorte no deja ninguno se
@@ -230,8 +238,7 @@ def ejecutar(dominio: str,
                 # todos lados» — o sea, terminaba mostrando a los que NO le
                 # compiten ahí y escondiendo a los que sí.
                 dentro = [c for c in corrida.competidores
-                          if c.vende_en_objetivo or
-                          (c.pais and geo.nivel_de(c.pais, corrida.pais_base) == mercado)]
+                          if c.vende_en_objetivo or c.nivel == mercado]
                 if dentro:
                     corrida.competidores = dentro
                 else:
@@ -503,9 +510,11 @@ def _sembrar_competidores(corrida: Corrida, dominios: list[str] | None,
         if huella_medir is not None:
             try:
                 from . import segmento as mod_segmento
+                from .proveedores import contactos as mod_contactos
                 from .proveedores.web import bajar
-                comp.afinidad = mod_segmento.afinidad_de_html(
-                    huella_medir, bajar(d, 4))
+                html = bajar(d, 4)
+                comp.afinidad = mod_segmento.afinidad_de_html(huella_medir, html)
+                comp.redes = mod_contactos.redes_de_html(html, d)
             except Exception:                            # noqa: BLE001
                 comp.afinidad = -1.0                     # sitio caído: se conserva
         corrida.competidores.insert(sembrados, comp)     # los tuyos, primero

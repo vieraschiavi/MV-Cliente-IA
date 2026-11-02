@@ -169,6 +169,16 @@ def test_la_busqueda_de_empresas_usa_el_sector_no_el_producto():
     assert "software cobranzas" not in empresas.consulta.lower()
 
 
+def test_facebook_busca_paginas_del_rubro_en_el_pais_como_linkedin():
+    """Facebook entra al mismo paquete que LinkedIn: búsqueda pública de
+    Páginas por sector y país, sin credenciales — ni acá se scrapea nada."""
+    paginas = [b for b in _busquedas(pais="BR") if b.red == "facebook"
+               and b.etiqueta == "empresas del rubro"][0]
+    assert "Fintech de préstamos" in paginas.consulta
+    assert "Brasil" in paginas.consulta
+    assert paginas.url.startswith("https://www.facebook.com/search/pages/?q=")
+
+
 def test_la_busqueda_de_intencion_si_usa_el_dolor():
     x = [b for b in _busquedas(dolor="la mora crece más rápido que el equipo")
          if b.red == "x"][0]
@@ -225,9 +235,9 @@ def test_las_busquedas_por_campana_respetan_el_orden_de_olas():
 
 
 def test_todas_las_urls_son_https_y_de_la_red_que_dicen():
-    dominios = {"linkedin": "linkedin.com", "instagram": "instagram.com",
-                "x": "x.com", "tiktok": "tiktok.com", "reddit": "reddit.com",
-                "buscador": "duckduckgo.com"}
+    dominios = {"linkedin": "linkedin.com", "facebook": "facebook.com",
+                "instagram": "instagram.com", "x": "x.com", "tiktok": "tiktok.com",
+                "reddit": "reddit.com", "buscador": "duckduckgo.com"}
     for b in _busquedas():
         assert b.url.startswith("https://"), b.url
         assert dominios[b.red] in b.url, b.url

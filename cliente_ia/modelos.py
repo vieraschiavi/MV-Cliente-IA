@@ -101,6 +101,20 @@ class Competidor:
     # recorte por país sigue siendo exactamente el de antes.
     vende_en_objetivo: bool = False
     fuente: str = "demo"
+    # La ola geográfica del competidor, vista desde el país del cliente —
+    # la misma noción que ya tienen Campana y Prospecto (local/regional/
+    # mundo). La calcula el pipeline, no el proveedor, porque hace falta
+    # `corrida.pais_base` para saberla. Vacía si `pais` no se conoce: con
+    # país vacío `geo.nivel_de` cae al país por defecto del catálogo y
+    # clasificaría como local a un competidor del que no se sabe nada.
+    nivel: str = ""
+    # Los perfiles que el PROPIO competidor publica en su sitio —web,
+    # linkedin, instagram, facebook, tiktok—, leídos del MISMO html que ya
+    # se baja para medir `afinidad` (cero pedidos extra). Nunca se visita
+    # Instagram, Facebook ni TikTok para armar esto: se lee qué enlaces puso
+    # el competidor en su propia página, que es lo que vería cualquier
+    # visitante. Vacío si no se pudo bajar el sitio o no publica ninguno.
+    redes: dict[str, str] = field(default_factory=dict)
 
     def a_dict(self) -> dict:
         return asdict(self)

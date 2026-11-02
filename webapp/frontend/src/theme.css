@@ -177,17 +177,32 @@ button { font-family: inherit; }
 .progreso i { display: block; height: 100%; background: var(--green-deep); transition: width .35s ease; }
 
 /* ---- grilla de competidores (fase 2) ---- */
+/* Una sección por ola (local/regional/mundo) — misma idea que las olas de
+   campañas y prospectos, acá aplicada a competidores. */
+.comp-zona { margin-bottom: 16px; }
+.comp-zona:last-child { margin-bottom: 0; }
+.comp-zona .sub { margin: 0 0 8px; display: flex; align-items: center; gap: 8px; }
 .comp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
 .comp {
-  display: flex; align-items: center; gap: 10px; background: var(--navy-800);
+  display: flex; flex-direction: column; gap: 8px; background: var(--navy-800);
   border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; font-size: 13px;
 }
+.comp-cab { display: flex; align-items: center; gap: 10px; }
 .comp .fav {
   width: 26px; height: 26px; flex: none; border-radius: 7px; display: grid; place-items: center;
   background: var(--navy-700); color: var(--green-deep); font-weight: 800; font-size: 12px;
 }
 .comp .dom { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .comp .sol { color: var(--faint); font-size: 11.5px; flex: none; }
+/* Las redes que el propio competidor publica (ver TarjetaCompetidor en
+   Explorar.jsx): una fila de iconos chicos, debajo de la cabecera de la
+   tarjeta — no arriba, para no competir con el dominio por la vista. */
+.comp-redes { display: flex; gap: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+.comp-redes a {
+  display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px;
+  color: var(--muted); background: var(--navy-700);
+}
+.comp-redes a:hover { color: var(--green-deep); }
 
 /* ---- tarjetas de campaña (fase 3) ---- */
 .camp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }

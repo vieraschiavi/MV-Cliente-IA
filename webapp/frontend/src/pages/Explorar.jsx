@@ -10,6 +10,12 @@ import { getIdioma, t } from "../i18n/index.js";
 // numera 1..6 en pantalla.
 const FASES = ["investigar", "competencia", "campanas", "prospectos", "decisores", "emails"];
 const CUANTOS_EN_RESUMEN = 6;
+// Un icono por red, compartido entre las búsquedas de clientes (fase 3) y
+// las redes que un competidor declara en su propio sitio (fase 2): la
+// misma red se dibuja igual en los dos lugares.
+const ICONO_RED = { linkedin: "maletin", facebook: "pulgar", instagram: "camara",
+                    tiktok: "musica", x: "equis", reddit: "burbuja", buscador: "globo",
+                    web: "globo" };
 
 function Fase({ n, clave, paso, abierta, alternar, children }) {
   const estado = paso?.estado || "pendiente";
@@ -45,6 +51,87 @@ function claseAfinidad(v) {
 }
 
 /**
+ * Una tarjeta de competidor, con las redes que ÉL MISMO declara en su
+ * sitio (web/linkedin/instagram/facebook/tiktok, leídas sin visitar
+ * ninguna de esas redes — ver cliente_ia/proveedores/contactos.py). «web»
+ * no se repite acá: el dominio ya es el título de la tarjeta.
+ */
+function TarjetaCompetidor({ c }) {
+  const redes = Object.entries(c.redes || {}).filter(([red]) => red !== "web");
+  return (
+    <div className="comp">
+      <div className="comp-cab">
+        <span className="fav">{(c.nombre || c.dominio)[0].toUpperCase()}</span>
+        <span className="dom" title={c.posicionamiento}>{c.dominio}</span>
+        {/* El país a la vista: es lo que permite VER que el filtro de
+            mercado se aplicó (o leer el aviso si ningún competidor tiene
+            base local). */}
+        {c.pais ? <span className="pill mundo">{c.pais}</span> : null}
+        {/* Dos números distintos a propósito: el gris es el solapamiento
+            que DECLARA el modelo; el verde es la afinidad MEDIDA sobre la
+            web del competidor. Cuando no coinciden, el que vale es el
+            medido. */}
+        {c.afinidad >= 0 ? (
+          <span className={`afin ${claseAfinidad(c.afinidad)}`}
+                title={t("competencia.afinidad_ayuda")}>
+            {t(`competencia.afin_${claseAfinidad(c.afinidad)}`)}
+          </span>
+        ) : null}
+        <span className="sol tnum" title={t("competencia.solapamiento_ayuda")}>
+          {Math.round((c.solapamiento || 0) * 100)}%
+        </span>
+      </div>
+      {redes.length ? (
+        <div className="comp-redes" title={t("competencia.redes_ayuda")}>
+          {redes.map(([red, url]) => (
+            <a key={red} href={urlSegura(url)} target="_blank" rel="noreferrer" title={red}>
+              <Icono nombre={ICONO_RED[red] || "globo"} tam={14} />
+            </a>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Los competidores agrupados por ola geográfica — la misma noción que ya
+ * tienen campañas y prospectos (cliente_ia/modelos.py:Competidor.nivel).
+ * Los que llegaron sin país conocido (una corrida vieja, o un proveedor que
+ * no lo supo) van aparte, sin inventarles una zona.
+ */
+function CompetenciaPorZona({ corrida }) {
+  const etiquetas = etiquetasOla(corrida);
+  const niveles = ["local", "regional", "mundo"];
+  const porNivel = { local: [], regional: [], mundo: [] };
+  const sinZona = [];
+  for (const c of corrida.competidores) {
+    (porNivel[c.nivel] || sinZona).push(c);
+  }
+  const hayZonas = niveles.some((n) => porNivel[n].length);
+  return (
+    <>
+      {niveles.filter((n) => porNivel[n].length).map((n) => (
+        <div className="comp-zona" key={n}>
+          <h4 className="sub"><Ola nivel={n} etiquetas={etiquetas} /></h4>
+          <div className="comp-grid">
+            {porNivel[n].map((c) => <TarjetaCompetidor c={c} key={c.dominio} />)}
+          </div>
+        </div>
+      ))}
+      {sinZona.length ? (
+        <div className="comp-zona">
+          {hayZonas ? <h4 className="sub">{t("competencia.sin_zona")}</h4> : null}
+          <div className="comp-grid">
+            {sinZona.map((c) => <TarjetaCompetidor c={c} key={c.dominio} />)}
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+/**
  * Buscar MÁS clientes del mismo segmento en las redes.
  *
  * Son consultas, no resultados: LinkedIn e Instagram prohíben el scraping y lo
@@ -57,8 +144,7 @@ function BusquedasRedes({ corrida }) {
   const bloques = corrida.busquedas || [];
   const [abierto, setAbierto] = useState("");
   if (!bloques.length) return null;
-  const ICONO = { linkedin: "maletin", instagram: "camara", tiktok: "musica",
-                  x: "equis", reddit: "burbuja", buscador: "globo" };
+  const ICONO = ICONO_RED;
   return (
     <div className="busquedas">
       <h4 className="sub">{t("busquedas.titulo")}</h4>
@@ -516,31 +602,7 @@ export default function Explorar() {
             <Fase n={2} clave="competencia" paso={pasos.competencia}
                   abierta={abierta === "competencia"} alternar={() => alternar("competencia")}>
               {(corrida.competidores || []).length ? (
-                <div className="comp-grid">
-                  {corrida.competidores.map((c) => (
-                    <div className="comp" key={c.dominio}>
-                      <span className="fav">{(c.nombre || c.dominio)[0].toUpperCase()}</span>
-                      <span className="dom" title={c.posicionamiento}>{c.dominio}</span>
-                      {/* El país a la vista: es lo que permite VER que el
-                          filtro de mercado se aplicó (o leer el aviso si
-                          ningún competidor tiene base local). */}
-                      {c.pais ? <span className="pill mundo">{c.pais}</span> : null}
-                      {/* Dos números distintos a propósito: el gris es el
-                          solapamiento que DECLARA el modelo; el verde es la
-                          afinidad MEDIDA sobre la web del competidor. Cuando
-                          no coinciden, el que vale es el medido. */}
-                      {c.afinidad >= 0 ? (
-                        <span className={`afin ${claseAfinidad(c.afinidad)}`}
-                              title={t("competencia.afinidad_ayuda")}>
-                          {t(`competencia.afin_${claseAfinidad(c.afinidad)}`)}
-                        </span>
-                      ) : null}
-                      <span className="sol tnum" title={t("competencia.solapamiento_ayuda")}>
-                        {Math.round((c.solapamiento || 0) * 100)}%
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                <CompetenciaPorZona corrida={corrida} />
               ) : <Vacio texto={t("common.cargando")} />}
             </Fase>
 

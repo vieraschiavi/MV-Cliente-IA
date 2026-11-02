@@ -752,6 +752,7 @@ class ProveedorLLM(Proveedor):
             return competidores
         # Import local: `contactos` importa `web`, y traerlo arriba metía una
         # dependencia de red en el import del proveedor.
+        from . import contactos
         from .web import ErrorWeb, bajar
 
         def _mirar(c: Competidor) -> tuple[Competidor, float]:
@@ -759,6 +760,10 @@ class ProveedorLLM(Proveedor):
                 html = bajar(c.dominio, TIMEOUT_SITIO)
             except (ErrorWeb, Exception):             # noqa: BLE001
                 return (c, -1.0)
+            # Mismo html, dos lecturas: cuánto habla del rubro (la afinidad
+            # que ya hacía esto) y qué redes declara en su propia página
+            # (linkedin/instagram/facebook/tiktok) — sin un pedido más.
+            c.redes = contactos.redes_de_html(html, c.dominio)
             return (c, segmento.afinidad_de_html(huella, html))
 
         with ThreadPoolExecutor(max_workers=HILOS_SITIO) as pool:

@@ -442,7 +442,9 @@
     "solapamiento_ayuda": "Sobreposição declarada pela análise.",
     "afin_alta": "mesmo setor",
     "afin_media": "setor próximo",
-    "afin_baja": "setor diferente"
+    "afin_baja": "setor diferente",
+    "redes_ayuda": "Perfis que o próprio concorrente publica no site dele (nenhuma rede é visitada para montar isso).",
+    "sin_zona": "Sem país conhecido"
   },
   "panel": {
     "titulo": "Painel do dono",

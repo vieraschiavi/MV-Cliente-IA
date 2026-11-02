@@ -367,6 +367,50 @@ def test_contactos_publicos_salen_del_sitio_de_la_empresa(monkeypatch):
     assert c["instagram"] == "https://www.instagram.com/empresareal.uy"
 
 
+def test_los_perfiles_de_facebook_y_tiktok_tambien_salen_del_sitio():
+    """Mismo principio que LinkedIn/Instagram: se lee lo que el sitio
+    publica en su pie de página. Los botones de compartir y los widgets de
+    Facebook (sharer, plugins, el píxel) no son el perfil y se descartan;
+    la página de etiqueta de TikTok tampoco es un perfil."""
+    from cliente_ia.proveedores import contactos
+
+    html = """
+    <html><body>
+      <a href="https://www.facebook.com/sharer/sharer.php?u=https://x.com">compartir</a>
+      <div id="fb-root"></div>
+      <script src="https://connect.facebook.net/es_LA/sdk.js"></script>
+      <a href="https://www.facebook.com/EmpresaRealUY">Facebook</a>
+      <a href="https://www.tiktok.com/tag/cobranzas">#cobranzas</a>
+      <a href="https://www.tiktok.com/@empresareal.uy">TikTok</a>
+    </body></html>
+    """
+    assert contactos._facebook(html) == "https://www.facebook.com/EmpresaRealUY"
+    assert contactos._tiktok(html) == "https://www.tiktok.com/@empresareal.uy"
+
+    c = contactos.redes_de_html(html, "empresareal.com.uy")
+    assert c["facebook"] == "https://www.facebook.com/EmpresaRealUY"
+    assert c["tiktok"] == "https://www.tiktok.com/@empresareal.uy"
+    assert c["web"] == "https://empresareal.com.uy"
+    # Sin LinkedIn ni Instagram en este HTML, esas dos claves ni aparecen —
+    # a diferencia de `contactos_de`, que por compatibilidad siempre las
+    # trae (vacías).
+    assert "linkedin" not in c and "instagram" not in c
+
+
+def test_facebook_no_confunde_un_boton_de_compartir_con_el_perfil():
+    """El caso real que rompía esto: cualquier sitio con el botón "Me gusta"
+    de Facebook tiene un enlace a facebook.com/sharer o /plugins en el HTML
+    — eso no es la página de la empresa, es un widget."""
+    from cliente_ia.proveedores import contactos
+
+    solo_widgets = """
+    <a href="https://www.facebook.com/sharer/sharer.php?u=https://x.com">compartir</a>
+    <a href="https://www.facebook.com/plugins/like.php?href=https://x.com">me gusta</a>
+    <a href="https://www.facebook.com/tr?id=123&ev=PageView">pixel</a>
+    """
+    assert contactos._facebook(solo_widgets) == ""
+
+
 def test_el_correo_va_a_la_casilla_publica_de_la_empresa_real():
     """Sin persona identificada, el destinatario es la casilla comercial que
     la empresa publica — no una inventada. Sin casilla publicada, vacío."""
@@ -1262,8 +1306,69 @@ def test_los_competidores_que_nombra_el_usuario_entran_y_primeros():
     assert mozart.vende_en_objetivo is True         # el dueño lo afirma
     assert mozart.fuente == "usuario"
     assert mozart.afinidad == -1.0                  # demo: no se midió (sin red)
+    assert mozart.nivel == "local"                  # UY visto desde UY
     assert any(a.tipo == modelos.AVISO_DATO and "nombraste" in a
                for a in c.avisos)
+
+
+def test_los_competidores_llevan_su_ola_y_las_redes_que_publican(monkeypatch):
+    """Lo nuevo: cada competidor queda agrupable «por zona» (la misma ola
+    que ya tienen campañas y prospectos) y, si se pudo visitar su sitio,
+    con los perfiles que él mismo declara en linkedin/instagram/facebook/
+    tiktok — leídos del MISMO html que mide la afinidad, sin un pedido
+    extra ni una visita a esas redes."""
+    from cliente_ia import pipeline
+
+    HTML = """
+    <html><head>
+      <title>Mozart Cobranzas</title>
+      <meta name="description" content="Software de gestión de cobranzas con
+        inteligencia artificial. Priorizá la cartera por valor esperado de
+        recupero, no por días de atraso. Predecimos qué deudores van a pagar
+        y automatizamos la gestión de cobranzas por voz y WhatsApp, para
+        fintech, bancos y financieras.">
+    </head><body>
+      <h1>Mozart Cobranzas</h1>
+      <a href="https://www.linkedin.com/company/mozart-cobranzas">in</a>
+      <a href="https://www.instagram.com/mozart.uy">IG</a>
+      <a href="https://www.facebook.com/MozartCobranzas">FB</a>
+      <a href="https://www.tiktok.com/@mozart.uy">TT</a>
+    </body></html>
+    """
+    monkeypatch.setattr("cliente_ia.proveedores.web.bajar",
+                        lambda url, timeout=4: HTML)
+
+    c = pipeline.ejecutar(
+        "mvkobranzaia.com", modo="web", mercado="todos", pais_base="UY",
+        limite_prospectos=5, limite_emails=2,
+        competidores_conocidos=["mozart.com.uy"])
+
+    mozart = next(x for x in c.competidores if x.dominio == "mozart.com.uy")
+    assert mozart.nivel == "local"
+    assert mozart.redes["linkedin"] == "https://www.linkedin.com/company/mozart-cobranzas"
+    assert mozart.redes["instagram"] == "https://www.instagram.com/mozart.uy"
+    assert mozart.redes["facebook"] == "https://www.facebook.com/MozartCobranzas"
+    assert mozart.redes["tiktok"] == "https://www.tiktok.com/@mozart.uy"
+    assert mozart.redes["web"] == "https://mozart.com.uy"
+
+
+def test_la_ola_del_competidor_queda_vacia_sin_pais_conocido():
+    """`geo.nivel_de` con país vacío cae al país por defecto del catálogo —
+    clasificar a un competidor sin país como "local" sería inventar un dato
+    que nadie midió. Vacío, y se dice vacío."""
+    from cliente_ia.modelos import Competidor
+
+    sin_pais = Competidor(dominio="desconocido.com", pais="")
+    assert sin_pais.nivel == ""                      # default del propio campo
+
+
+def test_los_competidores_del_catalogo_tambien_quedan_agrupados_por_zona(corrida_kobra):
+    """Con mercado «todos» (el default) entran competidores de las tres
+    olas; cada uno tiene que llegar con su `nivel` puesto, para que la
+    interfaz los agrupe por zona en vez de mostrar una lista plana."""
+    niveles = {c.nivel for c in corrida_kobra.competidores if c.pais}
+    assert niveles <= {"local", "regional", "mundo"}
+    assert niveles, "ningún competidor demo trae país: no hay nada que agrupar"
 
 
 def test_un_nombre_sin_dominio_no_se_inventa_se_pide():

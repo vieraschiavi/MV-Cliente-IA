@@ -442,7 +442,9 @@
     "solapamiento_ayuda": "Overlap as declared by the analysis.",
     "afin_alta": "same industry",
     "afin_media": "close industry",
-    "afin_baja": "different industry"
+    "afin_baja": "different industry",
+    "redes_ayuda": "Profiles the competitor itself publishes on its site (no network is visited to build this).",
+    "sin_zona": "Country unknown"
   },
   "panel": {
     "titulo": "Owner dashboard",

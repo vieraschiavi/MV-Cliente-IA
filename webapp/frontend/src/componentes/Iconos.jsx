@@ -200,6 +200,15 @@ const TRAZOS = {
   ),
   // Reddit: un hilo de conversación.
   burbuja: <path d="M4.5 6.5h15v9.5h-8.2L7.5 19.6v-3.6h-3Z" />,
+  // Facebook: un "me gusta" genérico — no es el isotipo de la red, es la
+  // misma idea de icono temático que ya usan maletin/camara/musica para
+  // LinkedIn/Instagram/TikTok (ver el encabezado de este archivo).
+  pulgar: (
+    <>
+      <path d="M7.5 11v9H5a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1h2.5Z" />
+      <path d="M7.5 11 11 4.5a1.8 1.8 0 0 1 3.2 1.6L13 9h5a2 2 0 0 1 1.9 2.7l-2.2 6A2 2 0 0 1 15.8 19H7.5" />
+    </>
+  ),
 };
 
 export const NOMBRES_ICONO = Object.keys(TRAZOS);

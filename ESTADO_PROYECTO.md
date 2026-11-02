@@ -559,6 +559,66 @@ workflows (`build_windows.yml`, `owner.yml`) ya la lleva. Los tests
 siguen en verde: no rompen ningún supuesto sobre `installer.nsh` ni sobre
 `main.js`.
 
+## Competencia por zona, con las redes que cada uno publica (2026-11-02)
+
+Pedido: que al buscar por web, Instagram, Facebook y TikTok el motor también
+detecte, por zona, a los competidores principales y las métricas de esas
+redes. Dos cosas del pedido chocaban con una regla ya existente y se
+resolvieron ANTES de tocar código, no después:
+
+- **Falta Facebook.** `busqueda_social.REDES` tenía linkedin/instagram/x/
+  tiktok/reddit/buscador — Facebook no estaba en ningún lado. Agregado como
+  la misma búsqueda pública de Páginas que ya existía para LinkedIn
+  (`https://www.facebook.com/search/pages/?q=…`): sin credenciales, consulta
+  no lista.
+- **«Métricas de las redes» no puede ser scraping.** La regla 12 del
+  proyecto es explícita: LinkedIn e Instagram prohíben y bloquean el
+  scraping, y acá no se convierte esto en un scraper. Seguidores o
+  engagement de Facebook/Instagram/TikTok sólo se consiguen de dos formas
+  honestas: la API oficial de cada red (necesita credenciales que el
+  proyecto no tiene) o visitando esas redes directamente (lo que la regla
+  12 prohíbe). Ninguna de las dos es lo que se construyó.
+
+Lo que SÍ es honesto y se construyó, reusando el mismo patrón ya probado en
+`cliente_ia/proveedores/contactos.py` para los prospectos (leer qué publica
+la EMPRESA en su propio sitio, nunca visitar la red social en sí):
+
+1. **`Competidor.redes`** (nuevo campo): los perfiles de linkedin/instagram/
+   facebook/tiktok que el competidor declara en su propio pie de página,
+   leídos del MISMO html que ya se baja para medir `afinidad` —cero
+   pedidos extra, cero visita a esas redes—. Nuevas regex `_facebook`/
+   `_tiktok` en `contactos.py` (con su lista de exclusión: el botón
+   "compartir" y el píxel de Facebook aparecen en cualquier sitio que use
+   su SDK y no son el perfil de nadie) y una función reusable
+   `redes_de_html`, enchufada en `proveedores/llm.py::_verificar_competencia`
+   y en `pipeline.py::_sembrar_competidores` (los dos puntos donde la fase 2
+   ya baja el sitio de un competidor).
+2. **`Competidor.nivel`** (nuevo campo): la misma ola que ya tienen Campana
+   y Prospecto (local/regional/mundo), calculada por el pipeline contra
+   `corrida.pais_base`. Vacía a propósito si no se conoce el país del
+   competidor — `geo.nivel_de` con país vacío cae al país por defecto del
+   catálogo, y clasificarlo como "local" sería inventar un dato.
+3. **Explorar → fase 2** ahora agrupa a los competidores por zona (mismo
+   componente `Ola` que ya usan campañas y prospectos) y cada tarjeta
+   muestra, si se detectaron, los íconos de las redes que ese competidor
+   publica — ninguno si no se pudo medir nada, nunca un ícono vacío que
+   parezca un dato inventado. `contactos_de()` (prospectos) también suma
+   facebook/tiktok a lo que ya traía.
+
+Qué queda explícitamente AFUERA, y por qué: seguidores, likes, tasa de
+engagement o cualquier número de la red social en sí. Si el dueño del
+producto consigue claves de la API oficial de Meta o de TikTok más adelante,
+ese es un proveedor nuevo y aparte — no se hornearon credenciales de nadie
+ni se simuló un número para no dejar el pedido a medias.
+
+Tests nuevos en `tests/test_pipeline.py` (extracción de facebook/tiktok,
+exclusión de los widgets de compartir, `nivel`/`redes` de punta a punta con
+un competidor sembrado y con el catálogo demo) y en `tests/test_segmento.py`
+(la consulta de Facebook). E2E de Playwright de la fase 2 agrupada por zona,
+con y sin redes detectadas, en escritorio y en móvil, sin desborde.
+
+Suite completa en verde, ruff limpio, frontend compilado.
+
 ## Cómo re-verificar todo (5 min)
 
 ```bash
