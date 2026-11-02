@@ -57,7 +57,16 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - uses: android-actions/setup-android@v3
+      # No hay paso de "instalar el SDK de Android": el runner `ubuntu-latest`
+      # YA lo trae con las licencias aceptadas — platforms;android-34 y
+      # build-tools;34.0.0 incluidos, que es lo que pide
+      # android/variables.gradle — y $ANDROID_HOME ya apunta ahí. Hasta acá
+      # ese trabajo lo hacía `android-actions/setup-android@v3`, pero esa
+      # acción de paso intenta instalar el paquete LEGADO "tools"
+      # (reemplazado hace años por cmdline-tools), y Google lo sacó del todo
+      # del repositorio remoto del SDK: el paso fallaba siempre con "Failed
+      # to find package 'tools'", sin que el proyecto tuviera nada que ver.
+      # Sacarla no le saca nada al build — el SDK que hace falta ya estaba.
 
       - name: Instalar dependencias
         run: |

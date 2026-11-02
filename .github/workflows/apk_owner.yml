@@ -67,7 +67,10 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - uses: android-actions/setup-android@v3
+      # Mismo motivo que apk.yml: el runner YA trae el SDK que hace falta
+      # (ver ese archivo), y `android-actions/setup-android@v3` fallaba
+      # siempre intentando instalar el paquete legado "tools", que Google
+      # sacó del repositorio remoto del SDK.
 
       - name: Comprobar que estén los secrets
         # Cortar acá con un mensaje claro y no veinte minutos después con un
