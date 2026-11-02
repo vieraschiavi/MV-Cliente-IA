@@ -27,3 +27,16 @@ un texto, se cambia el generador y se regenera — no se editan los videos a
 mano, que a la primera corrección quedan desincronizados. Un video grabado
 "de verdad" (con voz humana) puede reemplazar a cualquiera de los tres cuando
 exista: mismo nombre de archivo y listo.
+
+## Lo que acompaña a cada video
+
+`python3 -m marketing.generar_video` deja, al lado de cada `demo.mp4`:
+
+- `poster.jpg` — la portada del reproductor (marca, botón de play y duración).
+- `demo.vtt` — subtítulos con el texto de la locución; la landing los activa
+  por defecto porque en la web el video casi siempre arranca sin sonido.
+- `capitulos.json` — el segundo en que empieza cada escena; la landing lo
+  convierte en botones que llevan directo a esa parte.
+
+Si reemplazás el mp4 a mano, borrá esos tres archivos: si no, la landing
+mostraría capítulos y subtítulos de otro video.

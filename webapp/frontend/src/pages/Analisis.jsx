@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { api, fmtNum, getClaveIA, getEndpointIA, getModeloIA, getProveedorIA } from "../api.js";
 import { Aviso, etiquetasOla, Vacio } from "../componentes/Comunes.jsx";
 import { getCorridaId, useCorrida } from "../estado.js";
-import { getIdioma, t } from "../i18n/index.js";
+import { getIdioma, mensajeDeError, t } from "../i18n/index.js";
 
 // Campos financieros del formulario: [clave, i18n, ejemplo]. Todo en la
 // misma moneda, la que el usuario use en su negocio — acá no se convierte
@@ -171,7 +171,7 @@ export default function Analisis() {
       } });
       setResultado(r);
     } catch (err) {
-      setError(err.message);
+      setError(mensajeDeError(err.message));
     } finally {
       setCargando(false);
     }
@@ -231,7 +231,9 @@ export default function Analisis() {
       {resultado?.avisos?.length ? (
         <Aviso>
           {resultado.avisos.map((a, i) => (
-            <div key={i}>{a === "analisis_sin_clave" ? t("analisis.sin_clave") : a}</div>
+            // Por mensajeDeError: un 401 de la IA llegaba con su código interno
+            // («[clave_ia_invalida:claude] …») a la vista y en español siempre.
+            <div key={i}>{a === "analisis_sin_clave" ? t("analisis.sin_clave") : mensajeDeError(a)}</div>
           ))}
         </Aviso>
       ) : null}

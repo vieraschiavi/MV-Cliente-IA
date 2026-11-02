@@ -1,0 +1,45 @@
+{
+ "duracion": 80.5,
+ "capitulos": [
+  {
+   "t": 7.2,
+   "titulo": "Six automatic phases"
+  },
+  {
+   "t": 16.7,
+   "titulo": "Pick your AI model"
+  },
+  {
+   "t": 24.4,
+   "titulo": "Competitors by area, down to the neighborhood"
+  },
+  {
+   "t": 31.4,
+   "titulo": "Customers ranked by likelihood to close"
+  },
+  {
+   "t": 37.8,
+   "titulo": "The roles that decide"
+  },
+  {
+   "t": 41.9,
+   "titulo": "Emails in each country's language"
+  },
+  {
+   "t": 48.3,
+   "titulo": "HTML ready to send"
+  },
+  {
+   "t": 53.5,
+   "titulo": "LinkedIn message and invitation"
+  },
+  {
+   "t": 59.0,
+   "titulo": "Your business projected over 24 months"
+  },
+  {
+   "t": 67.8,
+   "titulo": "Digital marketing, actually measured"
+  }
+ ]
+}

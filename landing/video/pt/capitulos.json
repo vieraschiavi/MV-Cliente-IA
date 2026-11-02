@@ -1,0 +1,45 @@
+{
+ "duracion": 88.5,
+ "capitulos": [
+  {
+   "t": 8.5,
+   "titulo": "Seis fases automáticas"
+  },
+  {
+   "t": 19.1,
+   "titulo": "Escolha o seu modelo de IA"
+  },
+  {
+   "t": 27.0,
+   "titulo": "Concorrência por região, até o bairro"
+  },
+  {
+   "t": 34.4,
+   "titulo": "Clientes por probabilidade de fechamento"
+  },
+  {
+   "t": 41.2,
+   "titulo": "Os cargos que decidem"
+  },
+  {
+   "t": 46.2,
+   "titulo": "E-mails no idioma de cada país"
+  },
+  {
+   "t": 53.2,
+   "titulo": "HTML pronto para enviar"
+  },
+  {
+   "t": 58.7,
+   "titulo": "Mensagem e convite do LinkedIn"
+  },
+  {
+   "t": 64.6,
+   "titulo": "O seu negócio projetado em 24 meses"
+  },
+  {
+   "t": 74.5,
+   "titulo": "Marketing digital, medido de verdade"
+  }
+ ]
+}

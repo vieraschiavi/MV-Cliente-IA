@@ -100,6 +100,12 @@ section{padding:64px 0;border-top:1px solid var(--line)}
 .video-caja{background:var(--navy2);border:1px solid var(--line);border-radius:16px;
   padding:14px;max-width:820px}
 .video-caja video{display:block;width:100%;border-radius:10px;background:#000}
+.caps{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 2px 2px}
+.caps span{color:var(--faint);font-size:12.5px;font-weight:700;margin-right:4px}
+.cap{background:var(--navy3);border:1px solid var(--line);color:var(--ink);border-radius:20px;
+  padding:6px 12px;font:600 12.5px/1.2 inherit;cursor:pointer;display:inline-flex;gap:7px}
+.cap i{font-style:normal;color:var(--green);font-variant-numeric:tabular-nums}
+.cap:hover,.cap:focus-visible{border-color:var(--green);outline:none}
 .video-falta{color:var(--faint);font-size:13px;margin:12px 4px 4px}
 .video-falta code{background:var(--navy3);border:1px solid var(--line);border-radius:6px;
   padding:2px 6px;font-size:12.5px}
@@ -203,9 +209,11 @@ footer p{max-width:78ch;margin:0 0 10px}
   <h2 class="sec-h">See it running, end to end</h2>
   <p class="sec-p">It's the same video the emails carry: each country gets it in its language.</p>
   <div class="video-caja">
-    <video controls preload="none" playsinline poster="../banners/banner_en.png">
+    <video id="video-demo" controls preload="metadata" playsinline poster="../video/en/poster.jpg">
       <source src="../video/en/demo.mp4" type="video/mp4">
+      <track kind="captions" src="../video/en/demo.vtt" srclang="en" label="English" default>
     </video>
+    <div class="caps"><span>Jump to</span><button type="button" class="cap" data-t="7.2"><i>0:07</i>Six automatic phases</button><button type="button" class="cap" data-t="16.7"><i>0:16</i>Pick your AI model</button><button type="button" class="cap" data-t="24.4"><i>0:24</i>Competitors by area, down to the neighborhood</button><button type="button" class="cap" data-t="31.4"><i>0:31</i>Customers ranked by likelihood to close</button><button type="button" class="cap" data-t="37.8"><i>0:37</i>The roles that decide</button><button type="button" class="cap" data-t="41.9"><i>0:41</i>Emails in each country's language</button><button type="button" class="cap" data-t="48.3"><i>0:48</i>HTML ready to send</button><button type="button" class="cap" data-t="53.5"><i>0:53</i>LinkedIn message and invitation</button><button type="button" class="cap" data-t="59.0"><i>0:59</i>Your business projected over 24 months</button><button type="button" class="cap" data-t="67.8"><i>1:07</i>Digital marketing, actually measured</button></div>
     
   </div>
 </div></section>
@@ -295,6 +303,16 @@ footer p{max-width:78ch;margin:0 0 10px}
 </div></section>
 
 <script>
+/* Capítulos del video: llevan al segundo exacto y le dan play. */
+document.querySelectorAll(".cap").forEach(function (b) {
+  b.addEventListener("click", function () {
+    var v = document.getElementById("video-demo");
+    if (!v) return;
+    v.currentTime = parseFloat(b.getAttribute("data-t")) || 0;
+    v.play();
+  });
+});
+
 /* Mismo flujo que MV Kobra AI: el botón le pide al backend la preferencia de
    MercadoPago y redirige; la plata cae directo en la cuenta del dueño. */
 document.querySelectorAll("[data-pay]").forEach(function (btn) {

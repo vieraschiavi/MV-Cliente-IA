@@ -16,6 +16,7 @@ esas etiquetas compartir /en/ mostraba la vista previa en español.
 from __future__ import annotations
 
 import html
+import json
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -70,6 +71,7 @@ TEXTOS: dict[str, dict] = {
         ],
         "video_h": "Miralo funcionando, de punta a punta",
         "video_p": "Es el mismo video que va en los correos: cada país lo recibe en su idioma.",
+        "video_capitulos": "Ir directo a", "video_subs": "Español",
         "video_falta": "El video todavía no está publicado. Poné tu archivo en "
                        "<code>landing/video/es/demo.mp4</code> y aparece acá.",
         "idiomas_h": "Tres idiomas, decididos por el país de quien recibe",
@@ -166,6 +168,7 @@ TEXTOS: dict[str, dict] = {
         ],
         "video_h": "Veja funcionando, de ponta a ponta",
         "video_p": "É o mesmo vídeo que vai nos e-mails: cada país recebe no seu idioma.",
+        "video_capitulos": "Ir direto para", "video_subs": "Português",
         "video_falta": "O vídeo ainda não foi publicado. Coloque seu arquivo em "
                        "<code>landing/video/pt/demo.mp4</code> e ele aparece aqui.",
         "idiomas_h": "Três idiomas, definidos pelo país de quem recebe",
@@ -262,6 +265,7 @@ TEXTOS: dict[str, dict] = {
         ],
         "video_h": "See it running, end to end",
         "video_p": "It's the same video the emails carry: each country gets it in its language.",
+        "video_capitulos": "Jump to", "video_subs": "English",
         "video_falta": "The video isn't published yet. Drop your file at "
                        "<code>landing/video/en/demo.mp4</code> and it shows up here.",
         "idiomas_h": "Three languages, decided by the recipient's country",
@@ -412,6 +416,12 @@ section{padding:64px 0;border-top:1px solid var(--line)}
 .video-caja{background:var(--navy2);border:1px solid var(--line);border-radius:16px;
   padding:14px;max-width:820px}
 .video-caja video{display:block;width:100%;border-radius:10px;background:#000}
+.caps{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 2px 2px}
+.caps span{color:var(--faint);font-size:12.5px;font-weight:700;margin-right:4px}
+.cap{background:var(--navy3);border:1px solid var(--line);color:var(--ink);border-radius:20px;
+  padding:6px 12px;font:600 12.5px/1.2 inherit;cursor:pointer;display:inline-flex;gap:7px}
+.cap i{font-style:normal;color:var(--green);font-variant-numeric:tabular-nums}
+.cap:hover,.cap:focus-visible{border-color:var(--green);outline:none}
 .video-falta{color:var(--faint);font-size:13px;margin:12px 4px 4px}
 .video-falta code{background:var(--navy3);border:1px solid var(--line);border-radius:6px;
   padding:2px 6px;font-size:12.5px}
@@ -549,6 +559,23 @@ def render(idioma: str) -> str:
     # video", dijo un usuario mirando la página con el video ya arriba).
     hay_video = (DESTINO / "video" / idioma / "demo.mp4").exists()
     aviso_video = "" if hay_video else f'<p class="video-falta">{t["video_falta"]}</p>'
+    carpeta_video = DESTINO / "video" / idioma
+    poster = (f"{base}video/{idioma}/poster.jpg" if (carpeta_video / "poster.jpg").exists()
+              else f"{base}banners/banner_{idioma}.png")
+    # Subtítulos con la locución: en la web el video casi siempre se mira
+    # sin sonido. Y capítulos para ir directo a lo que a cada uno le importa.
+    pista = (f'<track kind="captions" src="{base}video/{idioma}/demo.vtt" '
+             f'srclang="{t["lang"][:2]}" label="{_esc(t["video_subs"])}" default>'
+             if (carpeta_video / "demo.vtt").exists() else "")
+    capitulos = ""
+    if hay_video and (carpeta_video / "capitulos.json").exists():
+        datos = json.loads((carpeta_video / "capitulos.json").read_text(encoding="utf-8"))
+        botones = "".join(
+            f'<button type="button" class="cap" data-t="{c["t"]}">'
+            f'<i>{int(c["t"]) // 60}:{int(c["t"]) % 60:02d}</i>{_esc(c["titulo"])}</button>'
+            for c in datos["capitulos"])
+        capitulos = (f'<div class="caps"><span>{_esc(t["video_capitulos"])}</span>'
+                     f'{botones}</div>')
 
     return f"""<!DOCTYPE html>
 <html lang="{t['lang']}">
@@ -601,9 +628,11 @@ def render(idioma: str) -> str:
   <h2 class="sec-h">{_esc(t['video_h'])}</h2>
   <p class="sec-p">{_esc(t['video_p'])}</p>
   <div class="video-caja">
-    <video controls preload="none" playsinline poster="{base}banners/banner_{idioma}.png">
+    <video id="video-demo" controls preload="metadata" playsinline poster="{poster}">
       <source src="{base}video/{idioma}/demo.mp4" type="video/mp4">
+      {pista}
     </video>
+    {capitulos}
     {aviso_video}
   </div>
 </div></section>
@@ -693,6 +722,19 @@ def render(idioma: str) -> str:
 </div></section>
 
 <script>
+/* Capítulos del video: llevan al segundo exacto y le dan play. */
+document.querySelectorAll(".cap").forEach(function (b) {{
+  b.addEventListener("click", function () {{
+    var v = document.getElementById("video-demo");
+    if (!v) return;
+    var t = parseFloat(b.getAttribute("data-t")) || 0;
+    function ir() {{ v.currentTime = t; v.play(); }}
+    // Sin los metadatos cargados, asignar currentTime no hace nada.
+    if (v.readyState >= 1) ir();
+    else {{ v.addEventListener("loadedmetadata", ir, {{ once: true }}); v.load(); }}
+  }});
+}});
+
 /* Mismo flujo que MV Kobra AI: el botón le pide al backend la preferencia de
    MercadoPago y redirige; la plata cae directo en la cuenta del dueño. */
 document.querySelectorAll("[data-pay]").forEach(function (btn) {{

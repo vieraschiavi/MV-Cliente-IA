@@ -33,6 +33,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
+from . import musica
 from .generar_banners import APAGADO, ICONO, NAVY, NAVY2, TINTA, VERDE, _fuente
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -40,15 +41,29 @@ DESTINO = RAIZ / "landing" / "video"
 
 ANCHO, ALTO = 1280, 720
 FPS = 30
-FUNDIDO = 0.4          # segundos de fade a la entrada y a la salida de cada escena
+FUNDIDO = 0.3          # segundos de fade a la entrada y a la salida de cada escena
 RESPIRO = 0.8          # aire después de que termina la voz de cada escena
 DOMINIO_DEMO = "mvkobranzaia.com"
 
 # El orden de las escenas es el del pipeline; "portada" y "cierre" son placas
 # generadas con PIL, el resto capturas de la aplicación. Va TODO el producto:
 # faltaban competencia y análisis y el video vendía la mitad de la app.
-ESCENAS = ("portada", "explorar", "competencia", "prospectos", "decisores",
-           "correo_texto", "correo_html", "linkedin", "analisis", "cierre")
+ESCENAS = ("portada", "explorar", "modelos", "competencia", "prospectos", "decisores",
+           "correo_texto", "correo_html", "linkedin", "analisis", "marketing", "cierre")
+
+# Hacia dónde se acerca la cámara en cada captura: (x, y) como fracción del
+# ancho y el alto, y el zoom final. Un acercamiento lento a la parte que
+# nombra la voz: con las capturas quietas el video se sentía una
+# presentación de diapositivas.
+FOCO = {
+    "portada": (0.5, 0.5, 1.04), "cierre": (0.5, 0.5, 1.04),
+    "explorar": (0.55, 0.30, 1.10), "modelos": (0.45, 0.22, 1.22),
+    "competencia": (0.55, 0.40, 1.12), "prospectos": (0.55, 0.25, 1.14),
+    "decisores": (0.5, 0.35, 1.10), "correo_texto": (0.5, 0.45, 1.10),
+    "correo_html": (0.5, 0.55, 1.10), "linkedin": (0.5, 0.55, 1.12),
+    "analisis": (0.55, 0.55, 1.10), "marketing": (0.5, 0.20, 1.12),
+}
+ESCALA_CAPTURA = 2     # capturas al doble: el zoom no se ve pixelado
 
 GUION: dict[str, dict] = {
     "es": {
@@ -78,7 +93,22 @@ GUION: dict[str, dict] = {
             "correo_html": "Con versión HTML lista para enviar, con banner y enlace a tu web.",
             "linkedin": "Y el mensaje de LinkedIn con su nota de invitación, ya "
                         "recortada a los trescientos caracteres.",
+            "modelos": "Elegís el modelo de inteligencia artificial que quieras, del más "
+                       "capaz al más económico, sin tocar nada técnico.",
+            "marketing": "Y la pestaña de marketing digital audita tu sitio y tus redes de "
+                         "verdad, te compara con tu competencia y te dice qué hacer primero.",
             "cierre": "MV Cliente IA. Vos aparecés y cerrás.",
+        },
+        "titulos": {
+            "explorar": "Seis fases automáticas", "modelos": "Elegí tu modelo de IA",
+            "competencia": "Competencia por zona, hasta el barrio",
+            "prospectos": "Clientes por probabilidad de cierre",
+            "decisores": "Los cargos que deciden",
+            "correo_texto": "Correos en el idioma de cada país",
+            "correo_html": "HTML listo para enviar",
+            "linkedin": "Mensaje e invitación de LinkedIn",
+            "analisis": "Tu negocio proyectado a 24 meses",
+            "marketing": "Marketing digital, medido de verdad",
         },
     },
     "pt": {
@@ -106,7 +136,22 @@ GUION: dict[str, dict] = {
                            "para o seu site.",
             "linkedin": "E a mensagem do LinkedIn com a nota de convite, já dentro "
                         "dos trezentos caracteres.",
+            "modelos": "Você escolhe o modelo de inteligência artificial que quiser, do "
+                       "mais capaz ao mais econômico, sem mexer em nada técnico.",
+            "marketing": "E a aba de marketing digital audita o seu site e as suas redes de "
+                         "verdade, compara você com a concorrência e diz o que fazer primeiro.",
             "cierre": "MV Cliente IA. Você aparece e fecha.",
+        },
+        "titulos": {
+            "explorar": "Seis fases automáticas", "modelos": "Escolha o seu modelo de IA",
+            "competencia": "Concorrência por região, até o bairro",
+            "prospectos": "Clientes por probabilidade de fechamento",
+            "decisores": "Os cargos que decidem",
+            "correo_texto": "E-mails no idioma de cada país",
+            "correo_html": "HTML pronto para enviar",
+            "linkedin": "Mensagem e convite do LinkedIn",
+            "analisis": "O seu negócio projetado em 24 meses",
+            "marketing": "Marketing digital, medido de verdade",
         },
     },
     "en": {
@@ -134,7 +179,22 @@ GUION: dict[str, dict] = {
                            "link to your site.",
             "linkedin": "Plus the LinkedIn message and its invitation note, already "
                         "under three hundred characters.",
+            "modelos": "You pick the artificial intelligence model you want, from the most "
+                       "capable to the most economical, without touching anything technical.",
+            "marketing": "And the digital marketing tab audits your real website and social "
+                         "profiles, compares you with your competitors and tells you what to fix first.",
             "cierre": "MV SearchCostumer AI. You show up and close.",
+        },
+        "titulos": {
+            "explorar": "Six automatic phases", "modelos": "Pick your AI model",
+            "competencia": "Competitors by area, down to the neighborhood",
+            "prospectos": "Customers ranked by likelihood to close",
+            "decisores": "The roles that decide",
+            "correo_texto": "Emails in each country's language",
+            "correo_html": "HTML ready to send",
+            "linkedin": "LinkedIn message and invitation",
+            "analisis": "Your business projected over 24 months",
+            "marketing": "Digital marketing, actually measured",
         },
     },
 }
@@ -181,6 +241,32 @@ def _placa(idioma: str, escena: str, destino: Path) -> Path:
         y += 42
 
     d.rectangle([ANCHO // 2 - 40, 530, ANCHO // 2 + 40, 534], fill=VERDE)
+    img.save(destino)
+    return destino
+
+
+def _rotulo(idioma: str, escena: str, n: int, total: int, destino: Path) -> Path:
+    """Capa transparente sobre la captura: el titular de la escena abajo a la
+    izquierda (lo que la voz está diciendo, para quien mira sin sonido —
+    la mayoría en la web arranca el video silenciado) y el avance arriba."""
+    img = Image.new("RGBA", (ANCHO, ALTO), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    titulo = GUION[idioma]["titulos"][escena]
+    f_tit, f_paso = _fuente(30), _fuente(17)
+    ancho = int(d.textlength(titulo, font=f_tit)) + 64
+    x0, y0 = 40, ALTO - 118
+    d.rounded_rectangle([x0, y0, x0 + ancho, y0 + 70], radius=16, fill=(10, 16, 32, 232),
+                        outline=(36, 52, 79, 255), width=2)
+    d.rounded_rectangle([x0 + 18, y0 + 18, x0 + 24, y0 + 52], radius=3, fill=VERDE + (255,))
+    d.text((x0 + 40, y0 + 16), titulo, font=f_tit, fill=TINTA + (255,))
+    paso = f"{n:02d} / {total:02d}"
+    w = int(d.textlength(paso, font=f_paso)) + 28
+    d.rounded_rectangle([ANCHO - 40 - w, 28, ANCHO - 40, 62], radius=17, fill=(10, 16, 32, 215),
+                        outline=(36, 52, 79, 255), width=2)
+    d.text((ANCHO - 40 - w + 14, 35), paso, font=f_paso, fill=VERDE + (255,))
+    # Barra de avance fina bajo el número: de un vistazo, cuánto falta.
+    largo = int((w - 20) * n / total)
+    d.rounded_rectangle([ANCHO - 30 - w, 68, ANCHO - 30 - w + largo, 71], radius=2, fill=VERDE + (255,))
     img.save(destino)
     return destino
 
@@ -280,12 +366,18 @@ def _capturas(idioma: str, base: str, corrida_id: str, carpeta: Path,
     salida: dict[str, Path] = {}
     with sync_playwright() as p:
         navegador = p.chromium.launch(**lanzar)
-        ctx = navegador.new_context(viewport={"width": ANCHO, "height": ALTO})
+        ctx = navegador.new_context(viewport={"width": ANCHO, "height": ALTO},
+                                    device_scale_factor=ESCALA_CAPTURA)
         # El idioma y la corrida se fijan ANTES de que cargue la app, como si
         # el usuario ya los tuviera guardados de una sesión anterior.
         ctx.add_init_script(
             f"localStorage.setItem('mvcliente_idioma', '{idioma}');"
             f"localStorage.setItem('mvcliente_corrida', '{corrida_id}');")
+        # Los supuestos de Análisis, para los KPI de Marketing digital.
+        ctx.add_init_script(
+            "localStorage.setItem('mvcliente_analisis_form', JSON.stringify({precio: '99', "
+            "nuevos_por_mes: '3', churn_pct: '5', gasto_fijo: '500', costo_por_cliente: '10', "
+            "gasto_ads: '300', cac: '150'}));")
         if corrida:
             # La app prefiere la corrida guardada en el navegador (modo sin
             # estado, ver estado.js): así ve los competidores medidos.
@@ -302,6 +394,27 @@ def _capturas(idioma: str, base: str, corrida_id: str, carpeta: Path,
         pagina.wait_for_selector(".fase.listo >> nth=5", timeout=20000)
         foto("explorar")
 
+        # El selector de modelo, donde se busca: origen «Investigación con IA».
+        # Sólo aparece con una clave cargada: una de mentira, puesta SÓLO
+        # para esta escena (no lanza ninguna búsqueda) y sacada al terminar.
+        # Antes vivía en todo el recorrido y Análisis intentaba usarla: el
+        # video mostraba el cartel rojo de «clave rechazada».
+        pagina.evaluate(
+            "localStorage.setItem('mvcliente_clave_ia', 'sk-ant-api03-' + 'x'.repeat(95));"
+            "localStorage.setItem('mvcliente_proveedor_ia', 'claude');"
+            "localStorage.setItem('mvcliente_modelos_ia', "
+            "JSON.stringify({claude: {modelo: 'claude-opus-5-5'}}));")
+        pagina.reload()
+        pagina.wait_for_selector(".fase.listo >> nth=5", timeout=20000)
+        pagina.locator("#modo").select_option("llm")
+        pagina.wait_for_selector("#modelo-explorar", timeout=10000)
+        pagina.evaluate("window.scrollTo(0, 0)")
+        pagina.wait_for_timeout(300)
+        foto("modelos")
+        pagina.locator("#modo").select_option("demo")
+        pagina.evaluate("localStorage.removeItem('mvcliente_clave_ia');"
+                        "localStorage.removeItem('mvcliente_modelos_ia');")
+
         # Fase 2 abierta: los competidores por ola y ciudad, con barrio y
         # cifras públicas de sus redes. Se sube la cabecera de la fase al
         # borde: con scroll_into_view de la primera tarjeta, las de abajo
@@ -314,6 +427,13 @@ def _capturas(idioma: str, base: str, corrida_id: str, carpeta: Path,
 
         pagina.goto(f"{base}/#/prospectos")
         pagina.wait_for_selector("table, .pers, .fila", timeout=20000)
+        # Con un barrio elegido en el filtro de zona: lo nuevo se ve.
+        zona = pagina.locator("select[aria-label]")
+        if zona.count():
+            barrio = next((o for o in zona.locator("option").all_inner_texts() if " · " in o), None)
+            if barrio:
+                zona.select_option(label=barrio)
+                pagina.wait_for_timeout(300)
         foto("prospectos")
 
         pagina.goto(f"{base}/#/decisores")
@@ -349,6 +469,15 @@ def _capturas(idioma: str, base: str, corrida_id: str, carpeta: Path,
         pagina.wait_for_timeout(400)
         foto("analisis")
 
+        # Marketing digital: la auditoría REAL del sitio de la demo (lee
+        # mvkobranzaia.com y su competencia en el momento; nada inventado).
+        pagina.goto(f"{base}/#/marketing")
+        pagina.locator("button.primary").first.click()
+        pagina.wait_for_selector(".mk-checks", timeout=120000)
+        pagina.evaluate("window.scrollTo(0, 0)")
+        pagina.wait_for_timeout(400)
+        foto("marketing")
+
         navegador.close()
     return salida
 
@@ -375,16 +504,18 @@ def _locucion(idioma: str, escena: str, destino: Path) -> Path:
 
     # El servicio a veces corta una síntesis sin motivo (NoAudioReceived):
     # perder los 30 screenshots por una locución caída no tiene sentido.
-    for intento in range(3):
+    # Cinco intentos con espera creciente: con tres, una frase en inglés que
+    # al minuto siguiente salía bien tiró abajo la generación entera.
+    for intento in range(5):
         try:
             asyncio.run(_generar())
             if destino.exists() and destino.stat().st_size >= 1000:
                 return destino
         except Exception:                                # noqa: BLE001
-            if intento == 2:
+            if intento == 4:
                 raise
         import time as _t
-        _t.sleep(2 * (intento + 1))
+        _t.sleep(3 * (intento + 1))
     raise RuntimeError(f"La locución de {idioma}/{escena} salió vacía")
 
 
@@ -414,23 +545,92 @@ def _duracion(ff: str, medio: Path) -> float:
     return int(h) * 3600 + int(mi) * 60 + float(s)
 
 
-def _escena_mp4(ff: str, imagen: Path, voz: Path, destino: Path) -> Path:
+def _escena_mp4(ff: str, imagen: Path, voz: Path, destino: Path,
+                foco: tuple[float, float, float] = (0.5, 0.5, 1.0),
+                rotulo: Path | None = None) -> Path:
     dur = round(_duracion(ff, voz) + RESPIRO, 2)
-    filtros = (
-        f"scale={ANCHO}:{ALTO}:force_original_aspect_ratio=decrease,"
-        f"pad={ANCHO}:{ALTO}:(ow-iw)/2:(oh-ih)/2:color=#0a1020,"
-        f"fade=t=in:st=0:d={FUNDIDO},fade=t=out:st={dur - FUNDIDO}:d={FUNDIDO},"
-        "format=yuv420p"
-    )
+    cuadros = int(dur * FPS)
+    fx, fy, zoom = foco
+    # zoompan sobre una imagen grande (4×) para que el paneo no tiemble: a
+    # la resolución de salida, el redondeo a píxel enteros se nota.
+    grande_w, grande_h = ANCHO * 4, ALTO * 4
+    mov = (f"scale={grande_w}:{grande_h}:force_original_aspect_ratio=decrease,"
+           f"pad={grande_w}:{grande_h}:(ow-iw)/2:(oh-ih)/2:color=#0a1020,"
+           f"zoompan=z='1+({zoom}-1)*on/{cuadros}':"
+           f"x='(iw-iw/zoom)*{fx}':y='(ih-ih/zoom)*{fy}':d={cuadros}:s={ANCHO}x{ALTO}:fps={FPS}")
+    entradas = ["-loop", "1", "-framerate", str(FPS), "-i", str(imagen), "-i", str(voz)]
+    if rotulo:
+        entradas += ["-loop", "1", "-framerate", str(FPS), "-i", str(rotulo)]
+        grafo = (f"[0:v]{mov}[m];[2:v]format=rgba,fade=t=in:st=0.35:d=0.45:alpha=1[r];"
+                 f"[m][r]overlay=0:0,")
+    else:
+        grafo = f"[0:v]{mov},"
+    grafo += (f"fade=t=in:st=0:d={FUNDIDO},fade=t=out:st={dur - FUNDIDO}:d={FUNDIDO},"
+              "format=yuv420p[v]")
     subprocess.run(
-        [ff, "-y", "-loglevel", "error",
-         "-loop", "1", "-framerate", str(FPS), "-i", str(imagen),
-         "-i", str(voz), "-t", str(dur),
-         "-vf", filtros, "-af", "apad",
-         "-c:v", "libx264", "-preset", "medium", "-crf", "22", "-r", str(FPS),
+        [ff, "-y", "-loglevel", "error", *entradas, "-t", str(dur),
+         "-filter_complex", grafo, "-map", "[v]", "-map", "1:a", "-af", "apad",
+         # CRF 26 + slow: con el zoom en movimiento, el 22 de antes daba
+         # 12 MB por minuto — mucho para la web y para un enlace en un correo.
+         "-c:v", "libx264", "-preset", "slow", "-crf", "26", "-r", str(FPS),
          "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2",
          "-shortest", str(destino)],
         check=True)
+    return destino
+
+
+def _tiempo_vtt(seg: float) -> str:
+    m, s = divmod(max(0.0, seg), 60)
+    return f"00:{int(m):02d}:{s:06.3f}"
+
+
+def _extras_web(ff: str, idioma: str, partes: list[Path], carpeta_destino: Path,
+                captura: Path) -> None:
+    """Lo que acompaña al mp4 en la web: capítulos clicables, subtítulos con
+    la locución (la mayoría arranca el video SIN sonido) y una portada propia
+    con el botón de reproducir — antes la portada era el banner del correo."""
+    t, inicio, capitulos, vtt = GUION[idioma], 0.0, [], ["WEBVTT", ""]
+    for escena, parte in zip(ESCENAS, partes, strict=True):
+        dur = _duracion(ff, parte)
+        if escena in t["titulos"]:
+            capitulos.append({"t": round(inicio, 1), "titulo": t["titulos"][escena]})
+        vtt += [f"{_tiempo_vtt(inicio + 0.1)} --> {_tiempo_vtt(inicio + dur - FUNDIDO)}",
+                t["voz"][escena], ""]
+        inicio += dur
+    carpeta_destino.mkdir(parents=True, exist_ok=True)
+    (carpeta_destino / "capitulos.json").write_text(
+        json.dumps({"duracion": round(inicio, 1), "capitulos": capitulos},
+                   ensure_ascii=False, indent=1), encoding="utf-8")
+    (carpeta_destino / "demo.vtt").write_text("\n".join(vtt), encoding="utf-8")
+    _portada(idioma, captura, inicio, carpeta_destino / "poster.jpg")
+
+
+def _portada(idioma: str, captura: Path, segundos: float, destino: Path) -> Path:
+    from PIL import ImageFilter
+    fondo = Image.open(captura).convert("RGB").resize((ANCHO, ALTO), Image.LANCZOS)
+    fondo = fondo.filter(ImageFilter.GaussianBlur(3))
+    velo = Image.new("RGB", (ANCHO, ALTO), NAVY)
+    img = Image.blend(fondo, velo, 0.62)
+    d = ImageDraw.Draw(img)
+    marca, marca2 = GUION[idioma]["marca"]
+    f_marca, f_sub = _fuente(58), _fuente(26)
+    w = d.textlength(marca, font=f_marca) + 16 + d.textlength(marca2, font=f_marca)
+    x = (ANCHO - w) // 2
+    d.text((x, 168), marca, font=f_marca, fill=TINTA)
+    d.text((x + d.textlength(marca, font=f_marca) + 16, 168), marca2, font=f_marca, fill=VERDE)
+    sub = GUION[idioma]["portada_sub"].split("\n")[0]
+    d.text(((ANCHO - d.textlength(sub, font=f_sub)) // 2, 250), sub, font=f_sub, fill=APAGADO)
+    cx, cy, r = ANCHO // 2, 430, 64
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=VERDE)
+    d.polygon([(cx - 20, cy - 32), (cx - 20, cy + 32), (cx + 34, cy)], fill=NAVY)
+    m, s = divmod(int(round(segundos)), 60)
+    etiqueta = f"{m}:{s:02d}"
+    f_dur = _fuente(22)
+    wd = d.textlength(etiqueta, font=f_dur) + 30
+    d.rounded_rectangle([cx - wd / 2, cy + r + 26, cx + wd / 2, cy + r + 62], radius=18,
+                        fill=NAVY2, outline=(36, 52, 79))
+    d.text((cx - wd / 2 + 15, cy + r + 31), etiqueta, font=f_dur, fill=TINTA)
+    img.save(destino, quality=88)
     return destino
 
 
@@ -477,15 +677,24 @@ def generar() -> list[Path]:
                                             carpeta / f"{idioma}_cierre.png")
 
                 partes = []
+                con_rotulo = [e for e in ESCENAS if e in GUION[idioma]["titulos"]]
                 for escena in ESCENAS:
                     voz = _voz_recortada(
                         ff,
                         _locucion(idioma, escena, carpeta / f"{idioma}_{escena}.mp3"),
                         carpeta / f"{idioma}_{escena}.wav")
+                    rotulo = (_rotulo(idioma, escena, con_rotulo.index(escena) + 1,
+                                      len(con_rotulo), carpeta / f"{idioma}_{escena}_r.png")
+                              if escena in con_rotulo else None)
                     partes.append(_escena_mp4(ff, imagenes[escena], voz,
-                                              carpeta / f"{idioma}_{escena}.mp4"))
+                                              carpeta / f"{idioma}_{escena}.mp4",
+                                              FOCO.get(escena, (0.5, 0.5, 1.0)), rotulo))
                 destino = DESTINO / idioma / "demo.mp4"
-                salidas.append(_concatenar(ff, partes, destino))
+                sin_musica = _concatenar(ff, partes, carpeta / idioma / "demo_voz.mp4")
+                cama = musica.pista(ff, _duracion(ff, sin_musica), carpeta / f"{idioma}_cama.wav")
+                destino.parent.mkdir(parents=True, exist_ok=True)
+                salidas.append(musica.mezclar(ff, sin_musica, cama, destino))
+                _extras_web(ff, idioma, partes, destino.parent, imagenes["competencia"])
                 print(f"  ✓ {destino.relative_to(RAIZ)}  "
                       f"({destino.stat().st_size // 1024} KB · "
                       f"{_duracion(ff, destino):.0f} s)")
