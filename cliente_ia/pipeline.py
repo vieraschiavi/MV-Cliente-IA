@@ -570,11 +570,26 @@ def _nombre_mercado(mercado: str, corrida: Corrida) -> str:
     return "resto del mundo"
 
 
+_MUNDO = {"es": "Mundo", "pt": "Mundo", "en": "World"}
+
+
+def _nombre_ola(nivel: str, base: str, idioma: str) -> str:
+    """El rótulo de la ola en el idioma de la corrida: el detalle de las
+    fases decía «local: 6 · regional: 4 · mundo: 3» también en inglés."""
+    nivel = geo.normalizar_nivel(nivel)
+    if nivel == geo.NIVEL_LOCAL:
+        return geo.nombre_pais(base, idioma)
+    if nivel == geo.NIVEL_REGIONAL:
+        return geo.nombre_region(geo.obtener(base).region, idioma)
+    return _MUNDO.get(idioma, _MUNDO["es"])
+
+
 def _detalle_olas(corrida: Corrida) -> str:
     conteo: dict[str, int] = {}
     for c in corrida.campanas:
         conteo[c.nivel] = conteo.get(c.nivel, 0) + 1
-    return " · ".join(f"{k}: {v}" for k, v in conteo.items())
+    return " · ".join(f"{_nombre_ola(k, corrida.pais_base, corrida.idioma_ui)} {v}"
+                      for k, v in conteo.items())
 
 
 def _detalle_niveles(prospectos: list[Prospecto], base: str = "",
@@ -582,11 +597,8 @@ def _detalle_niveles(prospectos: list[Prospecto], base: str = "",
     conteo = dict.fromkeys(geo.NIVELES, 0)
     for p in prospectos:
         conteo[geo.normalizar_nivel(p.nivel)] += 1
-    pais = geo.obtener(base)
-    region = geo.nombre_region(pais.region, idioma)
-    return (f"{geo.nombre_pais(base, idioma)} {conteo[geo.NIVEL_LOCAL]} · "
-            f"{region} {conteo[geo.NIVEL_REGIONAL]} · "
-            f"Mundo {conteo[geo.NIVEL_MUNDO]}")
+    return " · ".join(f"{_nombre_ola(n, base, idioma)} {conteo[n]}"
+                      for n in (geo.NIVEL_LOCAL, geo.NIVEL_REGIONAL, geo.NIVEL_MUNDO))
 
 
 def _detalle_idiomas(emails: list[Email]) -> str:

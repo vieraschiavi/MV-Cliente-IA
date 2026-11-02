@@ -205,9 +205,12 @@ def _esperar_api(base: str, segundos: int = 30) -> None:
     raise RuntimeError("El backend no levantó a tiempo")
 
 
-def _correr_corrida(base: str) -> str:
+def _correr_corrida(base: str, idioma: str = "es") -> str:
+    # Una corrida por idioma: los rótulos que arma el servidor (olas,
+    # regiones, detalle de cada fase) salen en el idioma de la corrida, y el
+    # video en inglés mostraba «América Latina» y «mundo».
     cuerpo = json.dumps({"dominio": DOMINIO_DEMO, "modo": "demo",
-                         "prospectos": 60}).encode()
+                         "prospectos": 60, "idioma": idioma}).encode()
     req = urllib.request.Request(f"{base}/api/corridas", data=cuerpo,
                                  headers={"content-type": "application/json"})
     with urllib.request.urlopen(req, timeout=30) as r:
@@ -221,7 +224,7 @@ def _correr_corrida(base: str) -> str:
     raise RuntimeError("La corrida demo no terminó a tiempo")
 
 
-def _competidores_reales(base: str, corrida_id: str) -> dict:
+def _competidores_reales(base: str, corrida_id: str, medidos: dict | None = None) -> dict:
     """La corrida demo con los datos PÚBLICOS y reales de sus competidores.
 
     Los competidores de la demo son empresas reales, así que el video no les
@@ -242,6 +245,12 @@ def _competidores_reales(base: str, corrida_id: str) -> dict:
     campos = Competidor.__dataclass_fields__
     comps = [Competidor(**{k: v for k, v in d.items() if k in campos})
              for d in corrida.get("competidores", [])]
+    if medidos:
+        # Ya medidos en la corrida de otro idioma: los mismos datos, sin
+        # volver a pedirle nada a los sitios ni a las redes.
+        corrida["competidores"] = [{**c.a_dict(), **medidos.get(c.dominio, {})}
+                                   for c in comps]
+        return corrida
     for c in comps:
         try:
             html = bajar(c.dominio, 8)
@@ -453,9 +462,14 @@ def generar() -> list[Path]:
             cwd=RAIZ, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         try:
             _esperar_api(base)
-            corrida_id = _correr_corrida(base)
-            corrida = _competidores_reales(base, corrida_id)
+            medidos: dict = {}
             for idioma in GUION:
+                corrida_id = _correr_corrida(base, idioma)
+                corrida = _competidores_reales(base, corrida_id, medidos)
+                medidos = medidos or {
+                    c["dominio"]: {k: c[k] for k in ("redes", "metricas", "ciudad",
+                                                     "barrio", "direccion", "pais")}
+                    for c in corrida["competidores"]}
                 imagenes = _capturas(idioma, base, corrida_id, carpeta, corrida)
                 imagenes["portada"] = _placa(idioma, "portada",
                                              carpeta / f"{idioma}_portada.png")

@@ -48,6 +48,10 @@ escribe los correos — Uruguay → LATAM → mundo, en es/pt/en.
 | 25 | Recuadro con presentador en los reels (como los reels de referencia) | ✅ | `marketing/presentador/{es,pt,en}.mp4`: el clip se compone sobre todas las escenas y avanza entre cortes; la tarjeta de la captura se achica sola para dejarle lugar. Sin clip, el reel sale como antes |
 | 26 | Carpeta `INSTALADOR/` + tres ediciones (demo / cliente / owner) | ✅ | `cliente_ia/licencia.py` con clave firmada HMAC-SHA256; demo de 14 días que se vence sola; owner sin clave, en Release aparte marcada prerelease; 15 tests, incluido «una clave firmada con otro secreto no pasa» |
 | 24 | Dashboard de métricas por red y por publicación | ✅ | pestaña Métricas: correos enviados/intentados, mensajes de LinkedIn, posts de X con impresiones/likes/respuestas/reposts en vivo desde la API de X; historial en el dispositivo (el web es serverless y no tiene disco) |
+| 27 | Clave de IA rechazada: un mensaje claro y una sola vez | ✅ | `ErrorClaveIA` corta la corrida (sin cubrir con datos de demo ni cartel de «datos sintéticos»); el 401/403 se traduce en es/pt/en y Configuración avisa si la clave pegada es la versión abreviada; `tests/test_clave_ia.py` |
+| 28 | Zonas hasta el barrio (competidores y prospectos) | ✅ | dirección que la empresa publica (schema.org/`<address>`) → ciudad y barrio con OpenStreetMap; competidores por ola → ciudad, prospectos con filtro por ciudad/barrio, columna barrio en CSV/XLSX; el país declarado en la dirección gana al supuesto; `tests/test_ubicacion.py` |
+| 29 | Métricas públicas de las redes de la competencia | ✅ | decisión del dueño (regla 12, excepción): seguidores/publicaciones/me gusta con fuente y fecha, visita anónima sin sesión ni evasión; lo que la red no muestra queda «no disponible» (hoy: TikTok y LinkedIn responden, Instagram limita IP de servidores, Facebook pide login); `tests/test_redes_publicas.py` |
+| 30 | Video, reel y capturas con las funciones nuevas, una corrida por idioma | ✅ | locución es/pt/en nueva; los competidores reales del video muestran sus datos públicos medidos ese día, nunca cifras inventadas |
 
 ## Automatización del repositorio
 

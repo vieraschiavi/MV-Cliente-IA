@@ -136,10 +136,12 @@ def generar() -> list[Path]:
             cwd=RAIZ, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         try:
             _esperar_api(base)
-            # Una sola corrida para los tres idiomas: los datos son los mismos,
-            # lo que cambia es la interfaz.
-            corrida_id = _correr_corrida(base)
+            # Una corrida por idioma: los datos son los mismos, pero los
+            # rótulos que arma el servidor (olas, regiones) salen en el idioma
+            # de la corrida — con una sola, la captura en inglés decía
+            # «América Latina».
             for idioma in IDIOMAS:
+                corrida_id = _correr_corrida(base, idioma)
                 cruda = _foto(idioma, base, corrida_id, carpeta / f"{idioma}.png")
                 salidas.append(_achicar(cruda, DESTINO / f"captura_{idioma}.png"))
         finally:

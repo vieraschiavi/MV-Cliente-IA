@@ -675,8 +675,9 @@ def generar() -> list[Path]:
             cwd=RAIZ, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         try:
             _esperar_api(base)
-            corrida_id = _correr_corrida(base)
             for idioma in GUION:
+                # Una corrida por idioma: ver _correr_corrida.
+                corrida_id = _correr_corrida(base, idioma)
                 fotos = _capturas_movil(idioma, base, corrida_id, carpeta)
                 cara = clip_presentador(idioma)
                 reloj_cara = 0.0
