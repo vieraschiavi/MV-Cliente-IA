@@ -211,7 +211,7 @@
       },
       "competidores": [
         {"dominio": "collectwise.com", "nombre": "CollectWise", "posicionamiento": {"es": "agente de cobranzas por voz para EE.UU.", "pt": "agente de cobrança por voz para os EUA", "en": "voice collections agent for the US"}, "pais": "US", "solapamiento": 0.72},
-        {"dominio": "kleva.co", "nombre": "Kleva", "posicionamiento": {"es": "automatización de cobranza para prestamistas", "pt": "automação de cobrança para credores", "en": "collections automation for lenders"}, "pais": "US", "solapamiento": 0.68},
+        {"dominio": "kleva.co", "nombre": "Kleva", "posicionamiento": {"es": "automatización de cobranza para prestamistas", "pt": "automação de cobrança para credores", "en": "collections automation for lenders"}, "pais": "MX", "solapamiento": 0.68},
         {"dominio": "monest.com.br", "nombre": "Monest", "posicionamiento": {"es": "cobranza inteligente en Brasil", "pt": "cobrança inteligente no Brasil", "en": "intelligent collections in Brazil"}, "pais": "BR", "solapamiento": 0.81},
         {"dominio": "maicall.ai", "nombre": "Maicall", "posicionamiento": {"es": "llamadas con IA para recupero", "pt": "chamadas com IA para recuperação", "en": "AI calling for recovery"}, "pais": "US", "solapamiento": 0.64},
         {"dominio": "ledgerwise.ai", "nombre": "Ledgerwise", "posicionamiento": {"es": "cuentas por cobrar B2B", "pt": "contas a receber B2B", "en": "B2B accounts receivable"}, "pais": "US", "solapamiento": 0.41},

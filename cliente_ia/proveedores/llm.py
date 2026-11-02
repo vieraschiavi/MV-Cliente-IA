@@ -830,7 +830,8 @@ class ProveedorLLM(Proveedor):
             u = ubicacion.ubicar(html, c.pais)
             c.direccion, c.ciudad, c.barrio = (u.get("direccion", ""),
                                                u.get("ciudad", ""), u.get("barrio", ""))
-            if not c.pais and u.get("pais"):
+            # El país de la dirección publicada gana (ubicacion.ubicar).
+            if u.get("pais"):
                 c.pais = u["pais"]
             return (c, segmento.afinidad_de_html(huella, html))
 

@@ -44,7 +44,7 @@ def _chromium() -> str | None:
     for base in (os.getenv("PLAYWRIGHT_BROWSERS_PATH"), "/opt/pw-browsers"):
         if not base:
             continue
-        candidatos = sorted(Path(base).glob("chromium*/chrome-linux/chrome"))
+        candidatos = sorted(Path(base).glob("chromium*/chrome-linux*/chrome"))
         if candidatos:
             return str(candidatos[-1])
     return None

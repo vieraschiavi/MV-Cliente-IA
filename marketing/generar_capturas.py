@@ -56,7 +56,7 @@ ANCHO_FINAL = 1620
 
 def _chromium() -> dict:
     """El Chromium que ya trae el entorno; Playwright no baja nada."""
-    encontrados = sorted(Path("/opt/pw-browsers").glob("chromium-*/chrome-linux/chrome"))
+    encontrados = sorted(Path("/opt/pw-browsers").glob("chromium-*/chrome-linux*/chrome"))
     return {"executable_path": str(encontrados[-1])} if encontrados else {}
 
 

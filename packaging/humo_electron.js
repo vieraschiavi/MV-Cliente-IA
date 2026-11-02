@@ -29,8 +29,11 @@ const fs = require("fs");
 
 const RAIZ = path.join(__dirname, "..");
 const ESPERA_MS = 60_000;
-// Los ocho destinos de la barra lateral (webapp/frontend/src/App.jsx:NAV).
-const DESTINOS = 8;
+// Los nueve destinos que ve un usuario en la barra lateral
+// (webapp/frontend/src/App.jsx:NAV, sin el panel del dueño). Quedó en 8 al
+// sumar «Métricas» y el CI estuvo en rojo por eso: si agregás un destino,
+// actualizá este número.
+const DESTINOS = 9;
 
 const args = process.argv.slice(2);
 const rutaCaptura = args.includes("--captura")

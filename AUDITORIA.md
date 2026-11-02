@@ -166,7 +166,7 @@ Era la deuda principal. Estado anterior y actual:
 
 1. **La ventana abre y pinta.** `packaging/humo_electron.js` —nuevo— levanta el
    motor, abre una `BrowserWindow` con la misma configuración que `main.js` y
-   comprueba: 8 destinos en la barra, iconos SVG dibujados y ninguno de 0 px,
+   comprueba: 9 destinos en la barra, iconos SVG dibujados y ninguno de 0 px,
    el `contextBridge` expone `window.mvClienteIA`, **Node NO quedó expuesto al
    render**, cero errores de consola y cero desborde. Corre headless con xvfb:
    `Electron 43.4.0 · Chromium 150.0.7871.224 → HUMO ELECTRON: OK`.

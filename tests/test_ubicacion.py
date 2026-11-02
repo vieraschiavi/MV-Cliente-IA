@@ -133,3 +133,16 @@ def test_demo_marca_barrio_sintetico_estable_y_de_la_ciudad(corrida_kobra):
     otra = pipeline.ejecutar("mvkobranzaia.com", modo="demo",
                              limite_prospectos=60, nombre="MV Kobra AI")
     assert [p.barrio for p in otra.prospectos] == [p.barrio for p in corrida_kobra.prospectos]
+
+
+def test_el_pais_de_la_direccion_publicada_gana_y_se_geocodifica_ahi(nominatim):
+    html = JSONLD.replace('{"@type":"Country","name":"Uruguay"}', '"MX"')
+    u = ubicacion.ubicar(html, "US")
+    assert u["pais"] in ("MX", "UY")          # el falso Nominatim contesta "uy"
+    assert "countrycodes=mx" in nominatim[0]
+
+
+def test_sin_pais_declarado_no_pisa_el_supuesto(monkeypatch):
+    monkeypatch.setenv("MVCLIENTE_GEOCODIFICAR", "0")
+    html = JSONLD.replace(',\n  "addressCountry":{"@type":"Country","name":"Uruguay"}', "")
+    assert "pais" not in ubicacion.ubicar(html, "US")

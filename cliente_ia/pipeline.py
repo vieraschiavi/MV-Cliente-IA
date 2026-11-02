@@ -496,7 +496,7 @@ def _ubicar_competidor(comp, html: str) -> None:
     comp.direccion = u.get("direccion", "")
     comp.ciudad = u.get("ciudad", "")
     comp.barrio = u.get("barrio", "")
-    if not comp.pais and u.get("pais"):
+    if u.get("pais"):
         comp.pais = u["pais"]
 
 

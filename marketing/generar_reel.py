@@ -535,7 +535,7 @@ def _capturas_movil(idioma: str, base: str, corrida_id: str,
                     carpeta: Path) -> dict[str, Path]:
     from playwright.sync_api import sync_playwright
 
-    ejecutables = sorted(Path("/opt/pw-browsers").glob("chromium-*/chrome-linux/chrome"))
+    ejecutables = sorted(Path("/opt/pw-browsers").glob("chromium-*/chrome-linux*/chrome"))
     lanzar = {"executable_path": str(ejecutables[-1])} if ejecutables else {}
 
     salida: dict[str, Path] = {}

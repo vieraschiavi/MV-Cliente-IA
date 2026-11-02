@@ -172,6 +172,8 @@ def geocodificar(direccion: dict, pais: str = "") -> dict:
 
 def ubicar(html: str, pais: str = "", geocodificar_ok: bool = True) -> dict:
     """Todo junto: {direccion, ciudad, barrio, pais}, con lo que se pudo.
+    `pais` sólo viene si la dirección lo declara (código ISO) o la
+    geocodificación lo confirma: ahí reemplaza al que se suponía.
 
     La ciudad geocodificada gana sobre la declarada (OpenStreetMap la
     devuelve normalizada: «Montevideo», no «MVD» ni «Montevideo, Uruguay»);
@@ -182,6 +184,14 @@ def ubicar(html: str, pais: str = "", geocodificar_ok: bool = True) -> dict:
     salida = {"direccion": ", ".join(v for v in (d.get("calle"), d.get("ciudad")) if v)}
     if d.get("ciudad"):
         salida["ciudad"] = d["ciudad"]
+    # El país que la empresa escribe en su propia dirección le gana al que
+    # supuso el modelo (o la semilla): kleva.co figuraba en EE.UU. y su sitio
+    # dice Ciudad de México, MX. Además se geocodifica DENTRO de ese país —
+    # buscando la dirección en EE.UU., Nominatim no la encontraba.
+    declarado = (d.get("pais") or "").strip().upper()
+    if re.fullmatch(r"[A-Z]{2}", declarado):
+        salida["pais"] = declarado
+        pais = declarado
     if geocodificar_ok:
         salida.update(geocodificar(d, pais))
     return {k: v for k, v in salida.items() if v}

@@ -65,13 +65,13 @@ GUION: dict[str, dict] = {
             "explorar": "Seis fases automáticas: investiga tu producto, mapea la "
                         "competencia, arma las campañas, encuentra empresas, ubica "
                         "a los decisores y escribe los correos.",
-            "competencia": "Tu competencia directa, con el país y el solapamiento "
-                           "de cada competidor a la vista.",
+            "competencia": "Tu competencia directa, agrupada por zona hasta el barrio, "
+                           "con sus redes y los seguidores públicos de cada una.",
             "analisis": "Y la pestaña de análisis proyecta tu negocio con tus "
                         "números: clientes, ventas, gastos y resultado neto hasta "
                         "veinticuatro meses, en tres escenarios.",
             "prospectos": "La lista llega ordenada por probabilidad de cierre, "
-                          "con las señales de por qué contactar a cada empresa.",
+                          "con ciudad y barrio, y se filtra por zona.",
             "decisores": "De cada empresa, los cargos que deciden, cada uno con su idioma.",
             "correo_texto": "Los correos salen personalizados y en el idioma del país "
                             "de quien los recibe: español, portugués o inglés.",
@@ -92,13 +92,13 @@ GUION: dict[str, dict] = {
             "explorar": "Seis fases automáticas: pesquisa o seu produto, mapeia a "
                         "concorrência, monta as campanhas, encontra empresas, localiza "
                         "os decisores e escreve os e-mails.",
-            "competencia": "A sua concorrência direta, com o país e a sobreposição "
-                           "de cada concorrente à vista.",
+            "competencia": "A sua concorrência direta, agrupada por região até o bairro, "
+                           "com as redes e os seguidores públicos de cada uma.",
             "analisis": "E a aba de análise projeta o seu negócio com os seus "
                         "números: clientes, vendas, custos e resultado líquido até "
                         "vinte e quatro meses, em três cenários.",
             "prospectos": "A lista chega ordenada por probabilidade de fechamento, "
-                          "com os sinais de por que contatar cada empresa.",
+                          "com cidade e bairro, e se filtra por região.",
             "decisores": "De cada empresa, os cargos que decidem, cada um com o seu idioma.",
             "correo_texto": "Os e-mails saem personalizados e no idioma do país de "
                             "quem recebe: espanhol, português ou inglês.",
@@ -120,13 +120,13 @@ GUION: dict[str, dict] = {
             "explorar": "Six automatic phases: it researches your product, maps the "
                         "competition, builds the campaigns, finds companies, locates "
                         "the decision makers and writes the emails.",
-            "competencia": "Your direct competitors, with each one's country and "
-                           "overlap in plain sight.",
+            "competencia": "Your direct competitors, grouped by area down to the "
+                           "neighborhood, with their social profiles and public follower counts.",
             "analisis": "And the analysis tab projects your business with your "
                         "numbers: customers, sales, costs and net result up to "
                         "twenty-four months, across three scenarios.",
             "prospectos": "The list arrives ranked by likelihood to close, with "
-                          "the signals for why to contact each company.",
+                          "city and neighborhood, and you can filter it by area.",
             "decisores": "For each company, the roles that decide, each with their language.",
             "correo_texto": "Emails go out personalized, in the language of the "
                             "recipient's country: Spanish, Portuguese or English.",
@@ -221,11 +221,51 @@ def _correr_corrida(base: str) -> str:
     raise RuntimeError("La corrida demo no terminó a tiempo")
 
 
-def _capturas(idioma: str, base: str, corrida_id: str, carpeta: Path) -> dict[str, Path]:
+def _competidores_reales(base: str, corrida_id: str) -> dict:
+    """La corrida demo con los datos PÚBLICOS y reales de sus competidores.
+
+    Los competidores de la demo son empresas reales, así que el video no les
+    puede inventar barrio ni seguidores. Se hace lo mismo que el modo real:
+    se lee su sitio (redes que enlaza, dirección que publica) y se miden las
+    cifras públicas de esas redes (cliente_ia/redes_publicas.py), con la
+    fecha de hoy. Lo que la red o el sitio no muestren queda vacío o
+    «no disponible», igual que en la app."""
+    import os
+
+    from cliente_ia import redes_publicas, ubicacion
+    from cliente_ia.modelos import Competidor
+    from cliente_ia.proveedores import contactos
+    from cliente_ia.proveedores.web import bajar
+
+    with urllib.request.urlopen(f"{base}/api/corridas/{corrida_id}", timeout=10) as r:
+        corrida = json.load(r)
+    campos = Competidor.__dataclass_fields__
+    comps = [Competidor(**{k: v for k, v in d.items() if k in campos})
+             for d in corrida.get("competidores", [])]
+    for c in comps:
+        try:
+            html = bajar(c.dominio, 8)
+        except Exception:                                  # noqa: BLE001
+            continue
+        c.redes = contactos.redes_de_html(html, c.dominio)
+        u = ubicacion.ubicar(html, c.pais)
+        c.direccion, c.ciudad, c.barrio = (u.get("direccion", ""), u.get("ciudad", ""),
+                                           u.get("barrio", ""))
+        if u.get("pais"):
+            c.pais = u["pais"]
+    os.environ["MVCLIENTE_METRICAS_REDES"] = "1"
+    redes_publicas.medir(comps)
+    corrida["competidores"] = [c.a_dict() for c in comps]
+    return corrida
+
+
+def _capturas(idioma: str, base: str, corrida_id: str, carpeta: Path,
+              corrida: dict | None = None) -> dict[str, Path]:
     from playwright.sync_api import sync_playwright
 
     # El Chromium preinstalado del sistema: Playwright no descarga nada.
-    ejecutables = sorted(Path("/opt/pw-browsers").glob("chromium-*/chrome-linux/chrome"))
+    # `chrome-linux*`: las versiones nuevas lo instalan en chrome-linux64.
+    ejecutables = sorted(Path("/opt/pw-browsers").glob("chromium-*/chrome-linux*/chrome"))
     lanzar = {"executable_path": str(ejecutables[-1])} if ejecutables else {}
 
     salida: dict[str, Path] = {}
@@ -237,6 +277,11 @@ def _capturas(idioma: str, base: str, corrida_id: str, carpeta: Path) -> dict[st
         ctx.add_init_script(
             f"localStorage.setItem('mvcliente_idioma', '{idioma}');"
             f"localStorage.setItem('mvcliente_corrida', '{corrida_id}');")
+        if corrida:
+            # La app prefiere la corrida guardada en el navegador (modo sin
+            # estado, ver estado.js): así ve los competidores medidos.
+            ctx.add_init_script(
+                f"localStorage.setItem('mvcliente_corrida_datos', {json.dumps(json.dumps(corrida))});")
         pagina = ctx.new_page()
 
         def foto(nombre: str) -> None:
@@ -248,10 +293,13 @@ def _capturas(idioma: str, base: str, corrida_id: str, carpeta: Path) -> dict[st
         pagina.wait_for_selector(".fase.listo >> nth=5", timeout=20000)
         foto("explorar")
 
-        # Fase 2 abierta: la grilla de competidores con país y solapamiento.
+        # Fase 2 abierta: los competidores por ola y ciudad, con barrio y
+        # cifras públicas de sus redes. Se sube la cabecera de la fase al
+        # borde: con scroll_into_view de la primera tarjeta, las de abajo
+        # (justo las que tenían seguidores) quedaban cortadas.
         pagina.locator(".fase").nth(1).locator("button").first.click()
         pagina.wait_for_selector(".comp", timeout=20000)
-        pagina.locator(".comp").first.scroll_into_view_if_needed()
+        pagina.locator(".fase").nth(1).evaluate("e => e.scrollIntoView({block: 'start'})")
         pagina.wait_for_timeout(400)
         foto("competencia")
 
@@ -406,8 +454,9 @@ def generar() -> list[Path]:
         try:
             _esperar_api(base)
             corrida_id = _correr_corrida(base)
+            corrida = _competidores_reales(base, corrida_id)
             for idioma in GUION:
-                imagenes = _capturas(idioma, base, corrida_id, carpeta)
+                imagenes = _capturas(idioma, base, corrida_id, carpeta, corrida)
                 imagenes["portada"] = _placa(idioma, "portada",
                                              carpeta / f"{idioma}_portada.png")
                 imagenes["cierre"] = _placa(idioma, "cierre",

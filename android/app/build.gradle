@@ -16,8 +16,11 @@ android {
         // firma, y el número de uno no puede quedar por debajo del otro (eso
         // es un "downgrade" que Android no instala). Sin la variable (build
         // local) queda en 1, como antes.
-        versionCode (System.getenv("MVCLIENTE_VERSION_CODE") ?: "1").toInteger()
-        versionName System.getenv("MVCLIENTE_VERSION_NAME") ?: "1.0"
+        // Con `=` y paréntesis: sin ellos Groovy lee `versionCode (x).toInteger()`
+        // como `versionCode(x)` seguido de `.toInteger()` sobre su resultado
+        // (null), y el build moría con «Value is null».
+        versionCode = Integer.parseInt(System.getenv("MVCLIENTE_VERSION_CODE") ?: "1")
+        versionName = (System.getenv("MVCLIENTE_VERSION_NAME") ?: "1.0")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
