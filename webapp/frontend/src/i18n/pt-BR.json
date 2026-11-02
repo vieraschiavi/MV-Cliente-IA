@@ -133,6 +133,8 @@
     "sector": "Setor",
     "pais": "País",
     "ciudad": "Cidade",
+    "zona": "Zona",
+    "todas_zonas": "Todas as zonas",
     "empleados": "Funcionários",
     "ola": "Onda",
     "senales": "Por que agora",
@@ -444,7 +446,8 @@
     "afin_media": "setor próximo",
     "afin_baja": "setor diferente",
     "redes_ayuda": "Perfis que o próprio concorrente publica no site dele (nenhuma rede é visitada para montar isso).",
-    "sin_zona": "Sem país conhecido"
+    "sin_zona": "Sem país conhecido",
+    "sin_direccion": "Sem endereço publicado"
   },
   "panel": {
     "titulo": "Painel do dono",

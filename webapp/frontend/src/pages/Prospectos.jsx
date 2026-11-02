@@ -8,10 +8,15 @@ import { t } from "../i18n/index.js";
 export default function Prospectos() {
   const { corrida } = useCorrida(getCorridaId());
   const [nivel, setNivel] = useState("");
+  const [zona, setZona] = useState("");
 
   const todos = corrida?.prospectos || [];
   const etiquetas = etiquetasOla(corrida);
-  const filas = nivel ? todos.filter((p) => p.nivel === nivel) : todos;
+  const delNivel = nivel ? todos.filter((p) => p.nivel === nivel) : todos;
+  const zonas = zonasDe(delNivel);
+  // Cambiar de ola puede dejar elegida una zona que ya no está en la lista.
+  const zonaVigente = zonas.some((z) => z.valor === zona) ? zona : "";
+  const filas = zonaVigente ? delNivel.filter((p) => enZona(p, zonaVigente)) : delNivel;
 
   const columnas = [
     { id: "score", titulo: t("tabla.score"),
@@ -19,7 +24,13 @@ export default function Prospectos() {
     { id: "ola", titulo: t("tabla.ola"), render: (p) => <Ola nivel={p.nivel} etiquetas={etiquetas} /> },
     { id: "empresa", titulo: t("tabla.empresa"), render: (p) => p.nombre },
     { id: "sector", titulo: t("tabla.sector"), render: (p) => p.sector },
-    { id: "pais", titulo: t("tabla.pais"), render: (p) => `${p.pais} · ${p.ciudad}` },
+    { id: "pais", titulo: t("tabla.pais"),
+      render: (p) => (
+        <span title={p.direccion || ""}>
+          {p.pais} · {p.ciudad}
+          {p.barrio ? <span className="barrio"> · {p.barrio}</span> : null}
+        </span>
+      ) },
     { id: "empleados", titulo: t("tabla.empleados"),
       render: (p) => <span className="tnum">{p.empleados || "—"}</span> },
     { id: "dominio", titulo: t("tabla.dominio"), render: (p) => p.dominio },
@@ -64,6 +75,20 @@ export default function Prospectos() {
           <option value="regional">{etiquetas.regional}</option>
           <option value="mundo">{etiquetas.mundo}</option>
         </select>
+        {zonas.length > 1 ? (
+          <select value={zonaVigente} onChange={(e) => setZona(e.target.value)}
+                  aria-label={t("tabla.zona")}>
+            <option value="">{t("tabla.todas_zonas")}</option>
+            {zonas.map((z) => (
+              <option key={z.valor} value={z.valor}>
+                {/* Ciudad completa también en el barrio: el select cerrado
+                    muestra sólo la opción elegida, y «· Solymar» suelto no
+                    dice de qué ciudad es. */}
+                {z.barrio ? `${z.ciudad} · ${z.barrio}` : z.ciudad} ({z.n})
+              </option>
+            ))}
+          </select>
+        ) : null}
         <span className="nota" style={{ marginTop: 0 }}>
           {filas.length} {t("common.de")} {todos.length}
         </span>
@@ -71,4 +96,32 @@ export default function Prospectos() {
       <Tabla columnas={columnas} filas={filas} clave={(p) => p.id} />
     </>
   );
+}
+
+const SEP = "\u0001";
+
+/** Ciudades (con su cuenta) y, debajo de cada una, sus barrios. */
+function zonasDe(prospectos) {
+  const ciudades = new Map();
+  for (const p of prospectos) {
+    if (!p.ciudad) continue;
+    const k = `${p.pais}${SEP}${p.ciudad}`;
+    const c = ciudades.get(k) || { pais: p.pais, ciudad: p.ciudad, n: 0, barrios: new Map() };
+    c.n += 1;
+    if (p.barrio) c.barrios.set(p.barrio, (c.barrios.get(p.barrio) || 0) + 1);
+    ciudades.set(k, c);
+  }
+  const salida = [];
+  for (const [k, c] of [...ciudades.entries()].sort((a, b) => b[1].n - a[1].n)) {
+    salida.push({ valor: k, ciudad: c.ciudad, n: c.n });
+    for (const [b, n] of [...c.barrios.entries()].sort((x, y) => y[1] - x[1])) {
+      salida.push({ valor: `${k}${SEP}${b}`, ciudad: c.ciudad, barrio: b, n });
+    }
+  }
+  return salida;
+}
+
+function enZona(p, valor) {
+  const [pais, ciudad, barrio] = valor.split(SEP);
+  return p.pais === pais && p.ciudad === ciudad && (!barrio || p.barrio === barrio);
 }

@@ -197,6 +197,16 @@ button { font-family: inherit; }
 /* Las redes que el propio competidor publica (ver TarjetaCompetidor en
    Explorar.jsx): una fila de iconos chicos, debajo de la cabecera de la
    tarjeta — no arriba, para no competir con el dominio por la vista. */
+/* Ciudad dentro de la ola; el barrio va en la tarjeta (CompetenciaPorZona). */
+.comp-ciudad + .comp-ciudad { margin-top: 10px; }
+.comp-ciudad h5 {
+  margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--muted);
+  display: flex; align-items: center; gap: 6px;
+}
+.comp-ciudad h5 .tnum { color: var(--faint); font-weight: 500; }
+.comp-lugar { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+.comp-lugar span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.barrio { color: var(--muted); }
 .comp-redes { display: flex; gap: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
 .comp-redes a {
   display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px;

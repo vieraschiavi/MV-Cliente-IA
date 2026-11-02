@@ -133,6 +133,8 @@
     "sector": "Sector",
     "pais": "Country",
     "ciudad": "City",
+    "zona": "Area",
+    "todas_zonas": "All areas",
     "empleados": "Employees",
     "ola": "Wave",
     "senales": "Why now",
@@ -444,7 +446,8 @@
     "afin_media": "close industry",
     "afin_baja": "different industry",
     "redes_ayuda": "Profiles the competitor itself publishes on its site (no network is visited to build this).",
-    "sin_zona": "Country unknown"
+    "sin_zona": "Country unknown",
+    "sin_direccion": "No published address"
   },
   "panel": {
     "titulo": "Owner dashboard",

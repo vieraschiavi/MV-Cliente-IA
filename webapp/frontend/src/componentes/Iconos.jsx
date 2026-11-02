@@ -209,6 +209,13 @@ const TRAZOS = {
       <path d="M7.5 11 11 4.5a1.8 1.8 0 0 1 3.2 1.6L13 9h5a2 2 0 0 1 1.9 2.7l-2.2 6A2 2 0 0 1 15.8 19H7.5" />
     </>
   ),
+  // Ubicación hasta el barrio (cliente_ia/ubicacion.py).
+  pin: (
+    <>
+      <path d="M12 21s-6.5-6.1-6.5-11.2a6.5 6.5 0 0 1 13 0C18.5 14.9 12 21 12 21Z" />
+      <circle cx="12" cy="9.8" r="2.3" />
+    </>
+  ),
 };
 
 export const NOMBRES_ICONO = Object.keys(TRAZOS);

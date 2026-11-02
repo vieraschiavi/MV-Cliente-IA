@@ -20,7 +20,7 @@ from .modelos import Corrida
 
 COLUMNAS = [
     "prioridad", "nivel", "pais", "score", "empresa", "dominio", "sector",
-    "ciudad", "empleados", "decisor", "cargo", "seniority", "email", "idioma",
+    "ciudad", "barrio", "empleados", "decisor", "cargo", "seniority", "email", "idioma",
     "asunto", "cuerpo", "seguimiento", "linkedin", "linkedin_nota",
     "video_url", "landing_url", "senales", "campana", "sintetico",
 ]
@@ -70,6 +70,7 @@ def filas(corrida: Corrida) -> list[dict]:
             "dominio": p.dominio,
             "sector": p.sector,
             "ciudad": p.ciudad,
+            "barrio": p.barrio,
             "empleados": p.empleados,
             "decisor": d.nombre,
             "cargo": d.cargo,

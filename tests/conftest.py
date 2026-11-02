@@ -22,6 +22,9 @@ def datos_aislados(tmp_path, monkeypatch):
     # La contraseña se hereda del entorno del desarrollador si está puesta y
     # haría fallar los tests de la API con 401.
     monkeypatch.delenv("MVCLIENTE_PASSWORD", raising=False)
+    # Ningún test sale a OpenStreetMap por accidente: los de ubicación lo
+    # vuelven a prender con un `bajar` falso.
+    monkeypatch.setenv("MVCLIENTE_GEOCODIFICAR", "0")
     yield
 
 

@@ -14,6 +14,7 @@ organización o una persona real es casualidad de la combinatoria.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import random
 import re
@@ -52,6 +53,18 @@ MAX_PAISES_POR_OLA = 8
 def semilla() -> dict:
     with open(RUTA_SEMILLA, encoding="utf-8") as f:
         return json.load(f)
+
+
+def _barrio_sintetico(ciudad: str, clave: str) -> str:
+    """Un barrio real de la ciudad para una empresa SINTÉTICA, elegido por
+    hash y no con `rnd`: sacar un número más de la secuencia corría todos los
+    nombres, puntajes y decisores siguientes, y la semilla del dominio dejaba
+    de dar la misma corrida que antes (regla 7)."""
+    opciones = semilla().get("barrios", {}).get(ciudad) or []
+    if not opciones:
+        return ""
+    h = int(hashlib.sha256(f"{ciudad}|{clave}".encode()).hexdigest()[:8], 16)
+    return opciones[h % len(opciones)]
 
 
 def _slug(texto: str) -> str:
@@ -403,13 +416,16 @@ class ProveedorDemo(Proveedor):
                                      if del_catalogo else campana.sector)
                     dolor_sector = (_texto(sec["dolores"], pais.idioma)[0]
                                     if del_catalogo else (campana.dolor or ""))
+                    ciudad = rnd.choice(ciudades)
+                    dominio = f"{_slug(base)}{tld}"
                     salida.append(Prospecto(
                         id=f"p{len(salida) + 1:04d}",
                         nombre=nombre,
-                        dominio=f"{_slug(base)}{tld}",
+                        dominio=dominio,
                         sector=nombre_sector,
                         pais=cod,
-                        ciudad=rnd.choice(ciudades),
+                        ciudad=ciudad,
+                        barrio=_barrio_sintetico(ciudad, dominio),
                         empleados=rnd.randint(lo, hi),
                         descripcion=nombre_sector + f" · {rnd.choice(ciudades)}",
                         senales=senales,

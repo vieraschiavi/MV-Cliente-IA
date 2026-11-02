@@ -36,7 +36,7 @@ import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
-from .. import geo, modelos, segmento
+from .. import geo, modelos, segmento, ubicacion
 from ..modelos import Campana, Competidor, Empresa, Prospecto
 from .base import Proveedor
 from .demo import ProveedorDemo
@@ -825,6 +825,13 @@ class ProveedorLLM(Proveedor):
             # que ya hacía esto) y qué redes declara en su propia página
             # (linkedin/instagram/facebook/tiktok) — sin un pedido más.
             c.redes = contactos.redes_de_html(html, c.dominio)
+            # Y una tercera: dónde está, hasta el barrio, si publica su
+            # dirección (cliente_ia/ubicacion.py).
+            u = ubicacion.ubicar(html, c.pais)
+            c.direccion, c.ciudad, c.barrio = (u.get("direccion", ""),
+                                               u.get("ciudad", ""), u.get("barrio", ""))
+            if not c.pais and u.get("pais"):
+                c.pais = u["pais"]
             return (c, segmento.afinidad_de_html(huella, html))
 
         with ThreadPoolExecutor(max_workers=HILOS_SITIO) as pool:

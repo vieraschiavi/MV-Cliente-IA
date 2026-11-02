@@ -33,6 +33,9 @@ from .web import ErrorWeb, bajar
 TIMEOUT = 5
 MAX_EMPRESAS = 30            # tope de sitios a visitar por corrida
 MAX_PAGINAS_EXTRA = 2        # además de la portada: contacto / nosotros
+# Nominatim admite un pedido por segundo: 12 direcciones son ~13 s más de
+# corrida. Las demás quedan con la ciudad que declara su propio sitio.
+MAX_GEOCODIFICAR = 12
 HILOS = 8
 
 # El TLD tiene que ser alfabético: si no, "bootstrap@4.0.0" (una versión de
@@ -231,6 +234,7 @@ def enriquecer(prospectos, max_empresas: int = MAX_EMPRESAS,
         return (0, 0)
     from .. import segmento
 
+    htmls = []
     with ThreadPoolExecutor(max_workers=HILOS) as pool:
         futuros = {pool.submit(contactos_de, p.dominio, timeout, True): p
                    for p in reales}
@@ -246,8 +250,33 @@ def enriquecer(prospectos, max_empresas: int = MAX_EMPRESAS,
                 {"web": contactos["web"]} if contactos.get("web") else {})
             if huella and html:
                 p.afinidad = segmento.afinidad_de_html(huella, html)
+            if html:
+                htmls.append((p, html))
+    _ubicar(htmls)
     con_datos = sum(1 for p in reales
                     if any(p.contactos.get(k) for k in
                            ("email", "telefono", "linkedin", "instagram",
                             "facebook", "tiktok")))
     return (con_datos, len(reales))
+
+
+def _ubicar(htmls) -> None:
+    """Ciudad y barrio de cada prospecto real, de la dirección que publica
+    (cliente_ia/ubicacion.py). Fuera del pool a propósito: Nominatim va de a
+    un pedido por segundo y ocho hilos esperando el mismo candado no
+    adelantan nada. La ciudad MEDIDA reemplaza a la que propuso el proveedor:
+    la del sitio es la de verdad."""
+    from .. import ubicacion
+    geocodificados = 0
+    for p, html in htmls:
+        u = ubicacion.ubicar(html, p.pais,
+                             geocodificar_ok=geocodificados < MAX_GEOCODIFICAR)
+        if not u:
+            continue
+        # El tope cuenta intentos, no aciertos: un pedido sin resultado
+        # cuesta el mismo segundo de espera.
+        geocodificados += 1
+        p.direccion = u.get("direccion", "")
+        if u.get("ciudad"):
+            p.ciudad = u["ciudad"]
+        p.barrio = u.get("barrio", "")

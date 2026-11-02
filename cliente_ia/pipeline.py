@@ -483,6 +483,19 @@ def _redactar_todos(corrida: Corrida, limite: int, firma: str,
     return emails
 
 
+def _ubicar_competidor(comp, html: str) -> None:
+    """Ciudad, barrio y dirección del competidor, de la dirección que publica
+    en su sitio (cliente_ia/ubicacion.py). Si no se sabía su país, la
+    dirección también lo dice."""
+    from . import ubicacion
+    u = ubicacion.ubicar(html, comp.pais)
+    comp.direccion = u.get("direccion", "")
+    comp.ciudad = u.get("ciudad", "")
+    comp.barrio = u.get("barrio", "")
+    if not comp.pais and u.get("pais"):
+        comp.pais = u["pais"]
+
+
 def _sembrar_competidores(corrida: Corrida, dominios: list[str] | None,
                           huella_medir) -> None:
     """Integra los competidores que el usuario nombró a mano.
@@ -531,6 +544,7 @@ def _sembrar_competidores(corrida: Corrida, dominios: list[str] | None,
                 html = bajar(d, 4)
                 comp.afinidad = mod_segmento.afinidad_de_html(huella_medir, html)
                 comp.redes = mod_contactos.redes_de_html(html, d)
+                _ubicar_competidor(comp, html)
             except Exception:                            # noqa: BLE001
                 comp.afinidad = -1.0                     # sitio caído: se conserva
         corrida.competidores.insert(sembrados, comp)     # los tuyos, primero

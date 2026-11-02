@@ -133,6 +133,8 @@
     "sector": "Sector",
     "pais": "País",
     "ciudad": "Ciudad",
+    "zona": "Zona",
+    "todas_zonas": "Todas las zonas",
     "empleados": "Empleados",
     "ola": "Ola",
     "senales": "Por qué ahora",
@@ -444,7 +446,8 @@
     "afin_media": "rubro cercano",
     "afin_baja": "rubro distinto",
     "redes_ayuda": "Perfiles que el propio competidor publica en su sitio (no se visita ninguna red para armar esto).",
-    "sin_zona": "Sin país conocido"
+    "sin_zona": "Sin país conocido",
+    "sin_direccion": "Sin dirección publicada"
   },
   "panel": {
     "titulo": "Panel del dueño",

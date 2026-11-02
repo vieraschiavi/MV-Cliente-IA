@@ -115,6 +115,13 @@ class Competidor:
     # el competidor en su propia página, que es lo que vería cualquier
     # visitante. Vacío si no se pudo bajar el sitio o no publica ninguno.
     redes: dict[str, str] = field(default_factory=dict)
+    # Dónde está, más fino que el país: la dirección que el competidor
+    # publica en su sitio y la ciudad y el barrio que salen de ella
+    # (cliente_ia/ubicacion.py). Vacíos si no publica dirección — una
+    # empresa sólo online no tiene barrio, y no se le inventa uno.
+    ciudad: str = ""
+    barrio: str = ""
+    direccion: str = ""
 
     def a_dict(self) -> dict:
         return asdict(self)
@@ -182,6 +189,12 @@ class Prospecto:
     # que la fase 5 los tenga sin cambiar su firma: `decisores(prospectos, n)`
     # no recibe las campañas.
     cargos_decisor: list[str] = field(default_factory=list)
+    # El barrio, debajo de `ciudad`. En las empresas reales sale de la
+    # dirección que publican en su sitio (cliente_ia/ubicacion.py) y esa
+    # ciudad MEDIDA reemplaza a la que haya propuesto el proveedor; en el
+    # demo es tan sintético como el resto del registro.
+    barrio: str = ""
+    direccion: str = ""
 
     def a_dict(self) -> dict:
         return asdict(self)

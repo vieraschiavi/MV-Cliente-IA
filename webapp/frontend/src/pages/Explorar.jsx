@@ -81,6 +81,12 @@ function TarjetaCompetidor({ c }) {
           {Math.round((c.solapamiento || 0) * 100)}%
         </span>
       </div>
+      {c.barrio || c.ciudad ? (
+        <div className="comp-lugar con-ico" title={c.direccion || ""}>
+          <Icono nombre="pin" tam={13} />
+          <span>{[c.barrio, c.ciudad].filter(Boolean).join(" · ")}</span>
+        </div>
+      ) : null}
       {redes.length ? (
         <div className="comp-redes" title={t("competencia.redes_ayuda")}>
           {redes.map(([red, url]) => (
@@ -100,6 +106,26 @@ function TarjetaCompetidor({ c }) {
  * Los que llegaron sin país conocido (una corrida vieja, o un proveedor que
  * no lo supo) van aparte, sin inventarles una zona.
  */
+/**
+ * Dentro de cada ola, por ciudad (y en la tarjeta, el barrio): «por zona»
+ * quería decir hasta el barrio. Las ciudades con más competidores primero;
+ * los que no publican dirección van al final, sin encabezado inventado.
+ */
+function porCiudad(lista) {
+  const grupos = new Map();
+  for (const c of lista) {
+    const k = c.ciudad || "";
+    if (!grupos.has(k)) grupos.set(k, []);
+    grupos.get(k).push(c);
+  }
+  const conCiudad = [...grupos.entries()].filter(([k]) => k);
+  // Si nadie publicó ciudad, la ola queda como estaba: una grilla sola.
+  if (!conCiudad.length) return [["", lista]];
+  conCiudad.sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
+  for (const [, l] of conCiudad) l.sort((a, b) => (a.barrio || "").localeCompare(b.barrio || ""));
+  return grupos.has("") ? [...conCiudad, ["", grupos.get("")]] : conCiudad;
+}
+
 function CompetenciaPorZona({ corrida }) {
   const etiquetas = etiquetasOla(corrida);
   const niveles = ["local", "regional", "mundo"];
@@ -114,9 +140,22 @@ function CompetenciaPorZona({ corrida }) {
       {niveles.filter((n) => porNivel[n].length).map((n) => (
         <div className="comp-zona" key={n}>
           <h4 className="sub"><Ola nivel={n} etiquetas={etiquetas} /></h4>
-          <div className="comp-grid">
-            {porNivel[n].map((c) => <TarjetaCompetidor c={c} key={c.dominio} />)}
-          </div>
+          {porCiudad(porNivel[n]).map(([ciudad, lista], i, grupos) => (
+            <div className="comp-ciudad" key={ciudad || "-"}>
+              {ciudad ? (
+                <h5 className="con-ico"><Icono nombre="pin" tam={13} />{ciudad}
+                  <span className="tnum">{lista.length}</span></h5>
+              ) : grupos.length > 1 ? (
+                // Sin rótulo quedaban pegados a la última ciudad, como si
+                // estuvieran ahí.
+                <h5>{t("competencia.sin_direccion")}
+                  <span className="tnum">{lista.length}</span></h5>
+              ) : null}
+              <div className="comp-grid">
+                {lista.map((c) => <TarjetaCompetidor c={c} key={c.dominio} />)}
+              </div>
+            </div>
+          ))}
         </div>
       ))}
       {sinZona.length ? (
@@ -640,7 +679,7 @@ export default function Explorar() {
                         <span className="ini">{p.pais}</span>
                         <span className="info">
                           <b>{p.nombre}</b>
-                          <small>{p.sector} · {p.ciudad} · {p.empleados} emp.</small>
+                          <small>{p.sector} · {[p.barrio, p.ciudad].filter(Boolean).join(", ")} · {p.empleados} emp.</small>
                         </span>
                         <Ola nivel={p.nivel} etiquetas={etiquetasOla(corrida)} />
                         <span className="sc tnum">{fmtScore(p.score)}</span>
