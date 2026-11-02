@@ -12,6 +12,7 @@ import Estrategia from "./pages/Estrategia.jsx";
 import Explorar from "./pages/Explorar.jsx";
 import Historial from "./pages/Historial.jsx";
 import Login from "./pages/Login.jsx";
+import Marketing from "./pages/Marketing.jsx";
 import Metricas from "./pages/Metricas.jsx";
 import Panel from "./pages/Panel.jsx";
 import Prospectos from "./pages/Prospectos.jsx";
@@ -27,6 +28,7 @@ const NAV = [
   { ruta: "/correos", ico: "sobre", clave: "nav.correos" },
   { ruta: "/estrategia", ico: "capas", clave: "nav.estrategia" },
   { ruta: "/analisis", ico: "barras", clave: "nav.analisis" },
+  { ruta: "/marketing", ico: "megafono", clave: "nav.marketing" },
   { ruta: "/metricas", ico: "tendencia", clave: "nav.metricas" },
   { ruta: "/historial", ico: "reloj", clave: "nav.historial" },
   // Sólo para el dueño: mide el NEGOCIO (ventas, plata, descargas), no
@@ -79,6 +81,12 @@ export function SelectorIdioma() {
 function Sidebar() {
   const nav = useNavigate();
   const loc = useLocation();
+  // En el celular la barra de abajo se desliza de costado: el destino
+  // activo tiene que quedar a la vista, no escondido a la derecha.
+  useEffect(() => {
+    document.querySelector(".nav-item.on")
+      ?.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [loc.pathname]);
   return (
     <aside className="sidebar">
       <Marca />
@@ -155,6 +163,7 @@ export default function App() {
             <Route path="/correos" element={<Correos />} />
             <Route path="/estrategia" element={<Estrategia />} />
             <Route path="/analisis" element={<Analisis />} />
+            <Route path="/marketing" element={<Marketing />} />
             <Route path="/metricas" element={<Metricas />} />
             <Route path="/historial" element={<Historial />} />
             <Route path="/panel" element={<Panel />} />

@@ -52,6 +52,8 @@ escribe los correos — Uruguay → LATAM → mundo, en es/pt/en.
 | 28 | Zonas hasta el barrio (competidores y prospectos) | ✅ | dirección que la empresa publica (schema.org/`<address>`) → ciudad y barrio con OpenStreetMap; competidores por ola → ciudad, prospectos con filtro por ciudad/barrio, columna barrio en CSV/XLSX; el país declarado en la dirección gana al supuesto; `tests/test_ubicacion.py` |
 | 29 | Métricas públicas de las redes de la competencia | ✅ | decisión del dueño (regla 12, excepción): seguidores/publicaciones/me gusta con fuente y fecha, visita anónima sin sesión ni evasión; lo que la red no muestra queda «no disponible» (hoy: TikTok y LinkedIn responden, Instagram limita IP de servidores, Facebook pide login); `tests/test_redes_publicas.py` |
 | 30 | Video, reel y capturas con las funciones nuevas, una corrida por idioma | ✅ | locución es/pt/en nueva; los competidores reales del video muestran sus datos públicos medidos ese día, nunca cifras inventadas |
+| 31 | Elegir el modelo de IA | ✅ | catálogo verificado de Claude (Opus 5.5, Fable 5.1, Sonnet 5.5, Haiku 5.5) elegible sin clave, «Otro modelo» libre validado en el servidor, selector también en Explorar; Análisis ahora respeta el modelo elegido; clave limpiada de invisibles y aviso de token de suscripción/admin |
+| 32 | Pestaña Marketing digital del cliente | ✅ | auditoría medida del sitio y las redes (SEO, medición, conversión, técnica), benchmark contra la competencia de la corrida, cuota de voz, recomendaciones priorizadas y KPI del embudo + LTV/CAC/payback con los números de Análisis; `tests/test_marketing.py` |
 
 ## Automatización del repositorio
 

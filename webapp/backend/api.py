@@ -1008,6 +1008,10 @@ class AnalisisIn(BaseModel):
     clave_ia: str = Field(default="", max_length=300)
     proveedor_ia: str = "claude"
     endpoint_ia: str = Field(default="", max_length=500)
+    # El modelo que eligió el usuario: antes esta ruta lo ignoraba y el
+    # análisis corría con el default aunque hubiera elegido otro.
+    modelo_ia: str = Field(default="", max_length=100,
+                           pattern=r"^$|^[A-Za-z0-9][A-Za-z0-9._:\-]{0,99}$")
 
 
 @app.post("/api/analisis", dependencies=[Depends(requiere_auth)])
@@ -1038,6 +1042,7 @@ def analizar(entrada: AnalisisIn, request: Request):
                                proveedor=entrada.proveedor_ia if entrada.clave_ia
                                else "claude",
                                endpoint=entrada.endpoint_ia,
+                               modelo=entrada.modelo_ia if entrada.clave_ia else "",
                                mercado=entrada.mercado)
             cualitativo = motor_analisis.cualitativo(
                 llm, entrada.empresa, entrada.competidores,
@@ -1046,6 +1051,51 @@ def analizar(entrada: AnalisisIn, request: Request):
             avisos.append(str(e))
     return {"financiero": financiero, "cualitativo": cualitativo,
             "avisos": avisos}
+
+
+class CompetidorMarketingIn(BaseModel):
+    dominio: str = Field(min_length=3, max_length=200)
+    nombre: str = Field(default="", max_length=200)
+    # Las cifras públicas que la corrida ya midió (redes_publicas): se
+    # reusan para la cuota de voz en vez de volver a pedírselas a las redes.
+    metricas: dict = Field(default_factory=dict)
+
+
+class MarketingIn(BaseModel):
+    dominio: str = Field(min_length=3, max_length=200)
+    competidores: list[CompetidorMarketingIn] = Field(default_factory=list, max_length=10)
+
+
+# Cada auditoría hace una docena de pedidos a sitios y redes de terceros: un
+# tope por IP evita que la ruta sirva para martillar a alguien. En memoria y
+# por instancia: en serverless es aproximado, y alcanza para eso.
+_MARKETING_POR_IP: dict[str, list[float]] = {}
+MARKETING_TOPE, MARKETING_VENTANA = 10, 600.0
+_candado_marketing = threading.Lock()
+
+
+def _permitir_auditoria(ip: str) -> bool:
+    ahora = time.monotonic()
+    with _candado_marketing:
+        recientes = [t for t in _MARKETING_POR_IP.get(ip, []) if ahora - t < MARKETING_VENTANA]
+        if len(recientes) >= MARKETING_TOPE:
+            _MARKETING_POR_IP[ip] = recientes
+            return False
+        if ip in _MARKETING_POR_IP or len(_MARKETING_POR_IP) < 50000:
+            _MARKETING_POR_IP[ip] = recientes + [ahora]
+        return True
+
+
+@app.post("/api/marketing", dependencies=[Depends(requiere_auth)])
+def auditar_marketing(entrada: MarketingIn, request: Request):
+    """Pestaña Marketing digital: auditoría MEDIDA del sitio y las redes del
+    cliente, la misma lectura de su competencia y los puntajes con sus pesos
+    (cliente_ia/marketing.py). No usa IA: no hay nada que inventar."""
+    from cliente_ia import marketing
+    if not _permitir_auditoria(_ip_de(request)):
+        raise HTTPException(429, "Hiciste muchas auditorías seguidas: probá en unos minutos")
+    return marketing.auditar(entrada.dominio,
+                             [c.model_dump() for c in entrada.competidores])
 
 
 class SmtpIn(BaseModel):

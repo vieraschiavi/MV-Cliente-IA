@@ -108,6 +108,14 @@ diseño de **MV Kobra AI**: se le pasa la URL de un producto y recorre seis fase
     lleva `fuente` y `fecha`. Nunca personas. Se apaga con
     `MVCLIENTE_METRICAS_REDES=0`. Cubierto por `tests/test_redes_publicas.py`.
 
+13. **Marketing digital mide, no estima.** `cliente_ia/marketing.py` audita el
+    sitio y las redes del cliente (y de su competencia) con reglas visibles:
+    el puntaje es un promedio con `PESOS` declarados que viajan a la interfaz,
+    cada recomendación es una regla con código traducido en es/pt/en, y lo
+    que no se pudo leer vuelve `None` («no se pudo medir»), nunca cero. No usa
+    IA y corre sólo cuando el usuario aprieta «Auditar»: el modo demo sigue
+    sin salir a la red (regla 7). Cubierto por `tests/test_marketing.py`.
+
 ## Convenciones
 - Español en el dominio y en los nombres de módulo, igual que MV Kobra AI.
 - Comentarios que expliquen **por qué**, no qué. Los que están dicen qué falló

@@ -220,6 +220,38 @@ button { font-family: inherit; }
 .comp-redes a.red-met.nd { opacity: .6; }
 .comp-redes { flex-wrap: wrap; }
 
+/* ---- Marketing digital (pages/Marketing.jsx) ---- */
+.mk-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+.mk-area { display: grid; grid-template-columns: minmax(120px, 1.2fr) 2fr auto; align-items: center; gap: 10px; margin: 8px 0; font-size: 13px; }
+.mk-area small { color: var(--faint); font-weight: 500; }
+.mk-area b { min-width: 42px; text-align: right; }
+.mk-barra { height: 7px; background: var(--navy-800); border-radius: 4px; overflow: hidden; }
+.mk-barra i { display: block; height: 100%; border-radius: 4px; transition: width .35s ease; }
+.mk-checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; font-size: 13px; }
+.mk-checks li { display: flex; gap: 8px; align-items: flex-start; }
+.mk-checks li.ok { color: var(--ink); }
+.mk-checks li.ok .ico-svg { color: var(--green-deep); flex: none; margin-top: 2px; }
+.mk-checks li.no { color: var(--muted); }
+.mk-checks li.no .ico-svg { color: var(--red); flex: none; margin-top: 2px; }
+.mk-reco { margin: 0; padding-left: 20px; display: grid; gap: 9px; font-size: 13px; }
+.mk-reco li { padding-left: 4px; }
+.mk-reco .pill { margin-right: 8px; }
+.pill.mk-alta { background: rgba(255, 118, 117, .15); color: var(--red); }
+.pill.mk-media { background: rgba(242, 180, 65, .15); color: var(--amber); }
+.pill.mk-baja { background: rgba(147, 165, 192, .15); color: var(--muted); }
+.mk-redes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.mk-red {
+  display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 10px;
+  background: var(--navy-800); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+  color: var(--ink); text-decoration: none; align-items: center;
+}
+.mk-red .ico-svg { grid-row: span 2; color: var(--green-deep); }
+.mk-red .red { font-size: 12px; color: var(--muted); text-transform: capitalize; }
+.mk-red b { font-size: 18px; }
+.mk-red small { grid-column: 2; color: var(--faint); font-size: 11.5px; }
+.mk-red:hover { border-color: var(--green-deep); }
+tr.mk-propio td { background: rgba(0, 200, 150, .07); font-weight: 700; }
+
 /* ---- tarjetas de campaña (fase 3) ---- */
 .camp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
 .camp { background: var(--navy-800); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
@@ -413,13 +445,19 @@ select:focus, input:focus, textarea:focus { border-color: var(--green); }
     width: auto; height: auto; flex-direction: row; gap: 2px;
     padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
     border-right: 0; border-top: 1px solid var(--line); z-index: 30;
+    /* Con diez destinos ya no entran todos en 360 px sin volverse ilegibles
+       («Empres…», «Decisor…»): la barra se desliza de costado y cada ítem
+       conserva un ancho que se lee. App.jsx trae el activo a la vista. */
+    overflow-x: auto; scrollbar-width: none;
   }
+  .sidebar::-webkit-scrollbar { display: none; }
   .sidebar .brand, .sidebar .spacer, .sidebar .session-chip, .sidebar .lang-chip { display: none; }
   .nav-item {
-    /* flex:1 y min-width:0 — los seis destinos se reparten el ancho de la
-       pantalla en vez de desbordar: "Configuración" se cortaba fuera del
-       borde derecho en un teléfono de 412 px. */
-    flex: 1 1 0; min-width: 0;
+    /* Ancho mínimo de 64 px y la barra se desliza (ver .sidebar): antes era
+       flex:1 con min-width:0 y, con diez destinos, cada etiqueta quedaba en
+       tres letras. Las etiquetas cortas (nav_corto) siguen evitando que
+       «Configuración» se parta. */
+    flex: 1 0 64px; min-width: 64px;
     flex-direction: column; gap: 3px; padding: 7px 2px;
     text-align: center; justify-content: center;
   }

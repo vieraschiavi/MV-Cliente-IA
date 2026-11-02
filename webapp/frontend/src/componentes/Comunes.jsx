@@ -102,7 +102,9 @@ export function Kpis({ items }) {
       {items.map((k) => (
         <div className="card kpi" key={k.label}>
           <div className="label">{k.label}</div>
-          <div className="value tnum">{k.valor}</div>
+          {/* `color` opcional: un «0/9» pintado del verde de siempre se leía
+              como buena noticia. Sin él, el verde de la marca. */}
+          <div className="value tnum" style={k.color ? { color: k.color } : undefined}>{k.valor}</div>
           {k.delta ? <div className="delta">{k.delta}</div> : null}
         </div>
       ))}

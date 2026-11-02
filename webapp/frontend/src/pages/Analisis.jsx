@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { api, fmtNum, getClaveIA, getEndpointIA, getProveedorIA } from "../api.js";
+import { api, fmtNum, getClaveIA, getEndpointIA, getModeloIA, getProveedorIA } from "../api.js";
 import { Aviso, etiquetasOla, Vacio } from "../componentes/Comunes.jsx";
 import { getCorridaId, useCorrida } from "../estado.js";
 import { getIdioma, t } from "../i18n/index.js";
@@ -32,6 +32,18 @@ const COLS = [
   ["neto_mes", "analisis.neto_mes", true],
   ["neto_acumulado", "analisis.neto_acum", true],
 ];
+
+const KEY_ANALISIS = "mvcliente_analisis_form";
+
+/** Los supuestos que el usuario cargó en Análisis (o {} si no cargó nada). */
+export function leerAnalisis() {
+  try {
+    const v = JSON.parse(localStorage.getItem(KEY_ANALISIS));
+    return v && typeof v === "object" ? v : {};
+  } catch {
+    return {};
+  }
+}
 
 function TablaEscenario({ serie }) {
   const idioma = getIdioma();
@@ -104,7 +116,15 @@ function precioDelSitio(empresa) {
 
 export default function Analisis() {
   const { corrida } = useCorrida(getCorridaId());
-  const [form, setForm] = useState(Object.fromEntries(CAMPOS.map(([c]) => [c, ""])));
+  const [form, setFormLocal] = useState(() => ({
+    ...Object.fromEntries(CAMPOS.map(([c]) => [c, ""])), ...leerAnalisis() }));
+  // Lo cargado queda en el dispositivo: antes se perdía al cambiar de
+  // pestaña, y Marketing digital calcula LTV, CAC y payback con lo mismo.
+  const setForm = (f) => setFormLocal((previo) => {
+    const nuevo = typeof f === "function" ? f(previo) : f;
+    try { localStorage.setItem(KEY_ANALISIS, JSON.stringify(nuevo)); } catch { /* sin cupo */ }
+    return nuevo;
+  });
 
   // Precarga automática con fallback manual: el precio sale de la web del
   // producto y los clientes nuevos se estiman de los prospectos de la
@@ -146,7 +166,7 @@ export default function Analisis() {
         ...Object.fromEntries(CAMPOS.map(([c]) => [c, Number(form[c]) || 0])),
         ...(getClaveIA()
           ? { clave_ia: getClaveIA(), proveedor_ia: getProveedorIA(),
-              endpoint_ia: getEndpointIA() }
+              endpoint_ia: getEndpointIA(), modelo_ia: getModeloIA(getProveedorIA()) }
           : {}),
       } });
       setResultado(r);

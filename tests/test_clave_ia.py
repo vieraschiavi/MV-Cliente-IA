@@ -149,3 +149,17 @@ def test_la_api_rechaza_un_modelo_mal_formado_antes_de_correr():
         "dominio": "mvkobranzaia.com", "modo": "llm", "clave_ia": "sk-ant-api03-x",
         "modelo_ia": "../../otra?key=1"})
     assert r.status_code == 422
+
+
+def test_el_analisis_usa_el_modelo_que_eligio_el_usuario(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from cliente_ia import analisis
+    from webapp.backend import api
+    vistos = []
+    monkeypatch.setattr(analisis, "cualitativo",
+                        lambda llm, *a, **k: vistos.append(llm.modelo) or {})
+    r = TestClient(api.app).post("/api/analisis", json={
+        "precio": 10, "nuevos_por_mes": 1, "churn_pct": 1, "gasto_fijo": 1,
+        "clave_ia": "sk-ant-api03-x", "modelo_ia": "claude-haiku-5-5"})
+    assert r.status_code == 200 and vistos == ["claude-haiku-5-5"]

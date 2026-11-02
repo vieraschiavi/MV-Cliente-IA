@@ -209,6 +209,13 @@ const TRAZOS = {
       <path d="M7.5 11 11 4.5a1.8 1.8 0 0 1 3.2 1.6L13 9h5a2 2 0 0 1 1.9 2.7l-2.2 6A2 2 0 0 1 15.8 19H7.5" />
     </>
   ),
+  // Marketing digital: un megáfono.
+  megafono: (
+    <>
+      <path d="M4 10v4a1 1 0 0 0 1 1h2l6 4V5L7 9H5a1 1 0 0 0-1 1Z" />
+      <path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" />
+    </>
+  ),
   // Ubicación hasta el barrio (cliente_ia/ubicacion.py).
   pin: (
     <>
